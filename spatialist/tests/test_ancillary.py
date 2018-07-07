@@ -1,7 +1,7 @@
 import os
 import pytest
 import subprocess as sp
-import pyroSAR.ancillary as anc
+import spatialist.ancillary as anc
 
 
 def test_dissolve_with_lists():
@@ -23,10 +23,6 @@ def test_parse_literal():
     assert anc.parse_literal(['1', '2.2', 'a']) == [1, 2.2, 'a']
     with pytest.raises(IOError):
         anc.parse_literal(1)
-
-
-def test_seconds():
-    assert anc.seconds('test_20151212T234411') == 3658952651.0
 
 
 def test_run(tmpdir, testdata):
@@ -102,20 +98,3 @@ def test_Stack():
     st.flush()
     assert st.empty() is True
 
-
-def test_groupbyTime():
-    filenames = ['S1__IW___A_20151212T120000',
-                 'S1__IW___A_20151212T120100',
-                 'S1__IW___A_20151212T120300']
-    groups = anc.groupbyTime(filenames, anc.seconds, 60)
-    print(groups)
-    assert len(groups) == 2
-    assert isinstance(groups[0], list)
-    assert len(groups[0]) == 2
-
-    filenames = ['S1__IW___A_20151212T120000',
-                 'S1__IW___A_20151212T120100',
-                 'S1__IW___A_20151212T120200']
-    groups = anc.groupbyTime(filenames, anc.seconds, 60)
-    print(groups)
-    assert len(groups[0]) == 3

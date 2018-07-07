@@ -17,7 +17,7 @@ import numpy as np
 from . import envi
 from .auxil import gdalwarp, gdalbuildvrt
 from .vector import Vector, bbox, crsConvert, intersect
-from pyroSAR.ancillary import dissolve, multicore
+from .ancillary import dissolve, multicore
 
 from osgeo import (gdal, gdal_array, osr)
 from osgeo.gdalconst import (GA_ReadOnly, GA_Update, GDT_Byte, GDT_Int16, GDT_UInt16,
@@ -62,7 +62,7 @@ class Raster(object):
         vals['proj4'] = self.proj4
         vals['filename'] = self.filename
 
-        info = 'class      : pyroSAR Raster object\n' \
+        info = 'class      : spatialist Raster object\n' \
                'dimensions : {rows}, {cols}, {bands} (rows, cols, bands)\n' \
                'resolution : {xres}, {yres} (x, y)\n' \
                'extent     : {xmin}, {xmax}, {ymin}, {ymax} (xmin, xmax, ymin, ymax)\n' \
@@ -774,7 +774,7 @@ def rasterize(vectorobject, outname, reference, burn_values=1, expressions=None,
 
     Example
     -------
-    >>> from pyroSAR.spatial import Vector, Raster, rasterize
+    >>> from spatialist import Vector, Raster, rasterize
     >>> vec = Vector('source.shp')
     >>> ref = Raster('reference.tif')
     >>> outname = 'target.tif'

@@ -1,6 +1,6 @@
 ##############################################################
 # ENVI header management
-# John Truckenbrodt 2015-2017
+# John Truckenbrodt 2015-2018
 ##############################################################
 """
 This script offers functionality for editing ENVI header files
@@ -15,7 +15,7 @@ obj.write()
 """
 import os
 import re
-from pyroSAR.ancillary import union, parse_literal
+from .ancillary import union, parse_literal
 
 
 def hdr(data, filename='same'):

@@ -2,10 +2,10 @@ import os
 import pytest
 import numpy as np
 from osgeo import ogr
-from pyroSAR import identify
-from pyroSAR.spatial import crsConvert, haversine, Raster, stack, ogr2ogr, gdal_translate, gdal_rasterize, dtypes, bbox
-from pyroSAR.spatial.vector import feature2vector, dissolve, Vector, intersect
-from pyroSAR.spatial.raster import rasterize
+# from spatialist.ancillary import identify
+from spatialist import crsConvert, haversine, Raster, stack, ogr2ogr, gdal_translate, gdal_rasterize, dtypes, bbox
+from spatialist.vector import feature2vector, dissolve, Vector, intersect
+from spatialist import rasterize
 
 
 def test_crsConvert():
@@ -24,63 +24,63 @@ def test_haversine():
     assert haversine(50, 10, 51, 10) == 111194.92664455889
 
 
-def test_Vector(testdata):
-    scene = identify(testdata['s1'])
-    bbox1 = scene.bbox()
-    assert bbox1.getArea() == 7.573045244595988
-    assert bbox1.extent == {'ymax': 52.183979, 'ymin': 50.295261, 'xmin': 8.017178, 'xmax': 12.0268}
-    assert bbox1.nlayers == 1
-    assert bbox1.getProjection('epsg') == 4326
-    assert bbox1.proj4 == '+proj=longlat +datum=WGS84 +no_defs'
-    assert isinstance(bbox1.wkt, str)
-    assert isinstance(bbox1.getFeatureByIndex(0), ogr.Feature)
-    with pytest.raises(IndexError):
-        bbox1.getFeatureByIndex(1)
-    bbox1.reproject(32633)
-    assert bbox1.proj4 == '+proj=utm +zone=33 +datum=WGS84 +units=m +no_defs'
-    assert isinstance(bbox1['id=1'], Vector)
-    with pytest.raises(RuntimeError):
-        test = bbox1[0.1]
-    assert bbox1.fieldnames == ['id']
-    assert bbox1.getUniqueAttributes('id') == [1]
-    feat = bbox1.getFeatureByAttribute('id', 1)
-    assert isinstance(feat, ogr.Feature)
-    bbox2 = feature2vector(feat, ref=bbox1)
-    bbox2.close()
-    feat.Destroy()
-    with pytest.raises(KeyError):
-        select = bbox1.getFeatureByAttribute('foo', 'bar')
-    with pytest.raises(RuntimeError):
-        vec = Vector(driver='foobar')
-    bbox1.close()
+# def test_Vector(testdata):
+#     scene = identify(testdata['s1'])
+#     bbox1 = scene.bbox()
+#     assert bbox1.getArea() == 7.573045244595988
+#     assert bbox1.extent == {'ymax': 52.183979, 'ymin': 50.295261, 'xmin': 8.017178, 'xmax': 12.0268}
+#     assert bbox1.nlayers == 1
+#     assert bbox1.getProjection('epsg') == 4326
+#     assert bbox1.proj4 == '+proj=longlat +datum=WGS84 +no_defs'
+#     assert isinstance(bbox1.wkt, str)
+#     assert isinstance(bbox1.getFeatureByIndex(0), ogr.Feature)
+#     with pytest.raises(IndexError):
+#         bbox1.getFeatureByIndex(1)
+#     bbox1.reproject(32633)
+#     assert bbox1.proj4 == '+proj=utm +zone=33 +datum=WGS84 +units=m +no_defs'
+#     assert isinstance(bbox1['id=1'], Vector)
+#     with pytest.raises(RuntimeError):
+#         test = bbox1[0.1]
+#     assert bbox1.fieldnames == ['id']
+#     assert bbox1.getUniqueAttributes('id') == [1]
+#     feat = bbox1.getFeatureByAttribute('id', 1)
+#     assert isinstance(feat, ogr.Feature)
+#     bbox2 = feature2vector(feat, ref=bbox1)
+#     bbox2.close()
+#     feat.Destroy()
+#     with pytest.raises(KeyError):
+#         select = bbox1.getFeatureByAttribute('foo', 'bar')
+#     with pytest.raises(RuntimeError):
+#         vec = Vector(driver='foobar')
+#     bbox1.close()
 
 
-def test_dissolve(tmpdir, travis, testdata):
-    scene = identify(testdata['s1'])
-    bbox1 = scene.bbox()
-    # retrieve extent and shift its coordinates by one degree
-    ext = bbox1.extent
-    for key in ext.keys():
-        ext[key] += 1
-    # create new bbox shapefile with modified extent
-    bbox2_name = os.path.join(str(tmpdir), 'bbox2.shp')
-    bbox(ext, bbox1.srs, bbox2_name)
-    # assert intersection between the two bboxes and combine them into one
-    with Vector(bbox2_name) as bbox2:
-        assert intersect(bbox1, bbox2) is not None
-        bbox1.addvector(bbox2)
-        # write combined bbox into new shapefile
-        bbox3_name = os.path.join(str(tmpdir), 'bbox3.shp')
-        bbox1.write(bbox3_name)
-    bbox1.close()
-
-    if not travis:
-        # dissolve the geometries in bbox3 and write the result to new bbox4
-        # this test is currently disabled for Travis as the current sqlite3 version on Travis seems to not support
-        # loading gdal as extension; Travis CI setup: Ubuntu 14.04 (Trusty), sqlite3 version 3.8.2 (2018-06-04)
-        bbox4_name = os.path.join(str(tmpdir), 'bbox4.shp')
-        dissolve(bbox3_name, bbox4_name, field='id')
-        assert os.path.isfile(bbox4_name)
+# def test_dissolve(tmpdir, travis, testdata):
+#     scene = identify(testdata['tif'])
+#     bbox1 = scene.bbox()
+#     # retrieve extent and shift its coordinates by one degree
+#     ext = bbox1.extent
+#     for key in ext.keys():
+#         ext[key] += 1
+#     # create new bbox shapefile with modified extent
+#     bbox2_name = os.path.join(str(tmpdir), 'bbox2.shp')
+#     bbox(ext, bbox1.srs, bbox2_name)
+#     # assert intersection between the two bboxes and combine them into one
+#     with Vector(bbox2_name) as bbox2:
+#         assert intersect(bbox1, bbox2) is not None
+#         bbox1.addvector(bbox2)
+#         # write combined bbox into new shapefile
+#         bbox3_name = os.path.join(str(tmpdir), 'bbox3.shp')
+#         bbox1.write(bbox3_name)
+#     bbox1.close()
+#
+#     if not travis:
+#         # dissolve the geometries in bbox3 and write the result to new bbox4
+#         # this test is currently disabled for Travis as the current sqlite3 version on Travis seems to not support
+#         # loading gdal as extension; Travis CI setup: Ubuntu 14.04 (Trusty), sqlite3 version 3.8.2 (2018-06-04)
+#         bbox4_name = os.path.join(str(tmpdir), 'bbox4.shp')
+#         dissolve(bbox3_name, bbox4_name, field='id')
+#         assert os.path.isfile(bbox4_name)
 
 
 def test_Raster(tmpdir, testdata):

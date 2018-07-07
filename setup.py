@@ -1,17 +1,10 @@
 from setuptools import setup, find_packages
-import os
 
-# Create .pyrosar in HOME - Directory
-directory = os.path.join(os.path.expanduser("~"), '.pyrosar')
-
-if not os.path.exists(directory):
-    os.makedirs(directory)
-
-setup(name='pyroSAR',
+setup(name='spatialist',
       packages=find_packages(),
       include_package_data=True,
-      version='0.4',
-      description='a framework for large-scale SAR satellite data processing',
+      version='0.1',
+      description='A Python module for spatial data handling',
       classifiers=[
           'Programming Language :: Python',
       ],
@@ -19,7 +12,7 @@ setup(name='pyroSAR',
                         'pathos>=0.2',
                         'numpy',
                         'scoop'],
-      url='https://github.com/johntruckenbrodt/pyroSAR.git',
+      url='https://github.com/johntruckenbrodt/spatialist.git',
       author='John Truckenbrodt',
       author_email='john.truckenbrodt@uni-jena.de',
       license='MIT',

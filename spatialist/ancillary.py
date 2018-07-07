@@ -1,5 +1,5 @@
 ##############################################################
-# core routines for software pyroSAR
+# core routines for software spatialist
 # John Truckenbrodt 2014-2018
 ##############################################################
 """
@@ -323,27 +323,6 @@ def run(cmd, outdir=None, logfile=None, inlist=None, void=True, errorpass=False)
         log.close()
     if not void:
         return out, err
-
-
-def seconds(filename):
-    """
-    function to extract time in seconds from a file name.
-    the format must follow a fixed pattern: YYYYmmddTHHMMSS
-    Images processed with pyroSAR functionalities via module snap or gamma will contain this information.
-
-    Parameters
-    ----------
-    filename: str
-        the name of a file from which to extract the time from
-
-    Returns
-    -------
-    float
-        the difference between the time stamp in filename and Jan 01 1900 in seconds
-    """
-    # return mktime(strptime(re.findall('[0-9T]{15}', filename)[0], '%Y%m%dT%H%M%S'))
-    td = datetime.strptime(re.findall('[0-9T]{15}', filename)[0], '%Y%m%dT%H%M%S') - datetime(1900, 1, 1)
-    return td.total_seconds()
 
 
 class Stack(object):

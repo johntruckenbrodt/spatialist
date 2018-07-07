@@ -13,7 +13,7 @@ def check_loading():
 
 
 errormessage = 'sqlite3 does not support loading extensions and {}; ' \
-               'please refer to the pyroSAR installation instructions'
+               'please refer to the spatialist installation instructions'
 try:
     import sqlite3
 
