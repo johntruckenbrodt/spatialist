@@ -1,4 +1,6 @@
 # spatialist
+[![Build Status](https://www.travis-ci.org/johntruckenbrodt/spatialist.svg?branch=master)](https://www.travis-ci.org/johntruckenbrodt/spatialist) [![Coverage Status](https://coveralls.io/repos/github/johntruckenbrodt/spatialist/badge.svg?branch=master)](https://coveralls.io/github/johntruckenbrodt/spatialist?branch=master) [![Documentation Status](https://readthedocs.org/projects/spatialist/badge/?version=latest)](https://spatialist.readthedocs.io/en/latest/?badge=latest)
+
 ### A Python module for spatial data handling
 
 This package is currently being extracted from the [pyroSAR](https://github.com/johntruckenbrodt/pyroSAR) project.
