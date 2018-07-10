@@ -6,6 +6,7 @@ from spatialist import crsConvert, haversine, Raster, stack, ogr2ogr, gdal_trans
 from spatialist.vector import feature2vector, dissolve, Vector, intersect
 from spatialist import rasterize
 from spatialist.envi import hdr, HDRobject
+from spatialist.sqlite_util import sqlite_setup, __Handler
 
 
 def test_crsConvert():
@@ -253,3 +254,16 @@ def test_envi(tmpdir):
     with HDRobject(vals) as header:
         assert header.byte_order == 0
     hdr(vals, outname + '2')
+
+
+def test_sqlite():
+    with pytest.raises(RuntimeError):
+        con = sqlite_setup(extensions='spatialite')
+    con = sqlite_setup(extensions=['spatialite'])
+    con.close()
+    con = __Handler()
+    assert sorted(con.version.keys()) == ['sqlite']
+
+    con = __Handler(extensions=['spatialite'])
+    assert sorted(con.version.keys()) == ['spatialite', 'sqlite']
+    assert 'spatial_ref_sys' in con.get_tablenames()
