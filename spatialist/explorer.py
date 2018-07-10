@@ -30,7 +30,13 @@ class RasterViewer(object):
             self.cols = ras.cols
             self.bands = ras.bands
             self.epsg = ras.epsg
+            self.crs = ras.srs
             geo = ras.raster.GetGeoTransform()
+
+        xlab = self.crs.GetAxisName(None, 0)
+        ylab = self.crs.GetAxisName(None, 1)
+        self.xlab = xlab.lower() if xlab is not None else 'longitude'
+        self.ylab = ylab.lower() if ylab is not None else 'latitude'
 
         xmin = geo[0]
         ymax = geo[3]
@@ -76,7 +82,8 @@ class RasterViewer(object):
         self.ax.get_xaxis().get_major_formatter().set_useOffset(False)
         self.ax.get_yaxis().get_major_formatter().set_useOffset(False)
 
-        self.ax.format_coord = lambda x, y: 'easting={0:.2f}, northing={1:.2f}, reflectivity='.format(x, y)
+        text_pointer = self.ylab + '={0:.2f}, ' + self.xlab + '={1:.2f}, value='
+        self.ax.format_coord = lambda x, y: text_pointer.format(y, x)
 
         # enable interaction with the slider
         out = interactive_output(self.__onslide, {'h': self.slider})
