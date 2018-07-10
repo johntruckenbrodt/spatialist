@@ -739,9 +739,9 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
         gdalwarp(vrt, dstfile, options_warp)
 
         # edit ENVI HDR files to contain specific layer names
-        par = envi.HDRobject(dstfile + '.hdr')
-        par.band_names = bandnames
-        envi.hdr(par)
+        with envi.HDRobject(dstfile + '.hdr') as hdr:
+            hdr.band_names = bandnames
+            hdr.write()
 
     # remove temporary directory and files
     shutil.rmtree(tmpdir)
