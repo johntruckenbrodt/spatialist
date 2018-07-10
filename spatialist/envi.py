@@ -55,8 +55,6 @@ class HDRobject(object):
         if isinstance(data, str):
             if re.search('.hdr$', data):
                 args = self.__hdr2dict()
-                if 'band_names' in args.keys() and isinstance(args['band_names'], str):
-                    args['band_names'] = [args['band_names']]
             else:
                 raise RuntimeError('the data does not seem to be a ENVI HDR file')
         elif data is None:
@@ -65,7 +63,7 @@ class HDRobject(object):
                     'file_type': 'ENVI Standard',
                     'interleave': 'bsq',
                     'sensor_type': 'Unknown',
-                    'byte_order': 1,
+                    'byte_order': 0,
                     'wavelength_units': 'Unknown',
                     'samples': 0,
                     'lines': 0}
@@ -121,10 +119,12 @@ class HDRobject(object):
                         line += lines[i].strip('\n').lstrip()
                 line = list(filter(None, re.split('\s+=\s+', line)))
                 line[1] = re.split(',[ ]*', line[1].strip('{}'))
-                out[line[0].replace(' ', '_')] = line[1] if len(line[1]) > 1 else line[1][0]
+                key = line[0].replace(' ', '_')
+                val = line[1] if len(line[1]) > 1 else line[1][0]
+                out[key] = parse_literal(val)
             i += 1
         if 'band_names' in out.keys() and isinstance(out['band_names'], str):
-            self.band_names = [self.band_names]
+            out['band_names'] = [out['band_names']]
         return out
 
     def write(self, filename='same'):
