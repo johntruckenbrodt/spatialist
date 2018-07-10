@@ -109,25 +109,22 @@ class HDRobject(object):
             the hdr file metadata attributes
         """
         with open(self.filename, 'r') as infile:
-            hdr = infile.read()
-        # Get all 'key = {val}' type matches
-        regex = re.compile(r'^(.+?)\s*=\s*({\s*.*?\n*.*?})$', re.M | re.I)
-        matches = regex.findall(hdr)
-
-        # Remove them from the header
-        subhdr = regex.sub('', hdr)
-
-        # Get all 'key = val' type matches
-        regex = re.compile(r'^(.+?)\s*=\s*(.*?)$', re.M | re.I)
-        matches.extend(regex.findall(subhdr))
-
-        out = dict(matches)
-
-        for key, val in out.items():
-            out[key] = parse_literal(val)
-            if re.search(' ', key):
-                out[key.replace(' ', '_')] = out.pop(key)
-
+            lines = infile.readlines()
+        i = 0
+        out = dict()
+        while i < len(lines):
+            line = lines[i].strip('\r\n')
+            if '=' in line:
+                if '{' in line and '}' not in line:
+                    while '}' not in line:
+                        i += 1
+                        line += lines[i].strip('\n').lstrip()
+                line = list(filter(None, re.split('\s+=\s+', line)))
+                line[1] = re.split(',[ ]*', line[1].strip('{}'))
+                out[line[0].replace(' ', '_')] = line[1] if len(line[1]) > 1 else line[1][0]
+            i += 1
+        if 'band_names' in out.keys() and isinstance(out['band_names'], str):
+            self.band_names = [self.band_names]
         return out
 
     def write(self, filename='same'):
