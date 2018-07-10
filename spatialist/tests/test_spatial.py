@@ -252,3 +252,4 @@ def test_envi(tmpdir):
         vals = vars(header)
     with HDRobject(vals) as header:
         assert header.byte_order == 0
+    hdr(vals, outname + '2')
