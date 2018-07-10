@@ -46,12 +46,15 @@ def test_multicore():
     add = lambda x, y, z: x + y + z
     assert anc.multicore(add, cores=2, multiargs={'x': [1, 2]}, y=5, z=9) == [15, 16]
     assert anc.multicore(add, cores=2, multiargs={'x': [1, 2], 'y': [5, 6]}, z=9) == [15, 17]
+    # unknown argument in multiargs
     with pytest.raises(AttributeError):
         anc.multicore(add, cores=2, multiargs={'foobar': [1, 2]}, y=5, z=9)
+    # unknown argument in single args
     with pytest.raises(AttributeError):
         anc.multicore(add, cores=2, multiargs={'x': [1, 2]}, y=5, foobar=9)
+    # multiarg values of different length
     with pytest.raises(AttributeError):
-        anc.multicore(add, cores=2, multiargs={'x': [1, 2], 'y': [5, 6, 7]}, foobar=9)
+        anc.multicore(add, cores=2, multiargs={'x': [1, 2], 'y': [5, 6, 7]}, z=9)
 
 
 def test_finder(tmpdir):
