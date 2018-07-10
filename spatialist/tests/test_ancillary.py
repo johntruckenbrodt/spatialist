@@ -101,3 +101,6 @@ def test_Stack():
     st.flush()
     assert st.empty() is True
 
+
+def test_urlQueryParser():
+    assert anc.urlQueryParser('www.somepage.foo', {'page': 1, 'foo': 'bar'}) == 'www.somepage.foo?foo=bar&page=1'
