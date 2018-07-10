@@ -21,7 +21,7 @@ def test_dictmerge():
 
 def test_parse_literal():
     assert anc.parse_literal(['1', '2.2', 'a']) == [1, 2.2, 'a']
-    with pytest.raises(IOError):
+    with pytest.raises(TypeError):
         anc.parse_literal(1)
 
 

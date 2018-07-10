@@ -261,7 +261,7 @@ def parse_literal(x):
             except ValueError:
                 return x
     else:
-        raise IOError('input must be a string or a list of strings')
+        raise TypeError('input must be a string or a list of strings')
 
 
 class Queue(object):
