@@ -5,6 +5,7 @@ from osgeo import ogr
 from spatialist import crsConvert, haversine, Raster, stack, ogr2ogr, gdal_translate, gdal_rasterize, dtypes, bbox
 from spatialist.vector import feature2vector, dissolve, Vector, intersect
 from spatialist import rasterize
+from spatialist.envi import hdr, HDRobject
 
 
 def test_crsConvert():
@@ -234,3 +235,20 @@ def test_rasterize(tmpdir, testdata):
         # test wrong input type for reference
         with pytest.raises(RuntimeError):
             rasterize(vec, outname, reference='foobar')
+
+
+def test_envi(tmpdir):
+    with pytest.raises(RuntimeError):
+        obj = HDRobject(1)
+    with pytest.raises(RuntimeError):
+        obj = HDRobject('foobar')
+    outname = os.path.join(str(tmpdir), 'test')
+    with HDRobject() as header:
+        header.band_names = ['band1']
+        header.write(outname)
+    outname += '.hdr'
+    with HDRobject(outname) as header:
+        assert header.band_names == ['band1']
+        vals = vars(header)
+    with HDRobject(vals) as header:
+        assert header.byte_order == 0
