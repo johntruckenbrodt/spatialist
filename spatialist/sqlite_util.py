@@ -78,7 +78,10 @@ class __Handler(object):
     def get_tablenames(self):
         cursor = self.conn.cursor()
         cursor.execute('SELECT * FROM sqlite_master WHERE type="table"')
-        return [x[1].encode('ascii') for x in cursor.fetchall()]
+        names = [x[1] for x in cursor.fetchall()]
+        if bool(type('unicode')):
+            names = [str(x) for x in names]
+        return names
 
     def load_extension(self, extension):
         if re.search('spatialite', extension):
