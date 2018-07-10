@@ -103,4 +103,4 @@ def test_Stack():
 
 
 def test_urlQueryParser():
-    assert anc.urlQueryParser('www.somepage.foo', {'page': 1, 'foo': 'bar'}) == 'www.somepage.foo?foo=bar&page=1'
+    assert anc.urlQueryParser('www.somepage.foo', {'foo': 'bar', 'page': 1}) == 'www.somepage.foo?foo=bar&page=1'
