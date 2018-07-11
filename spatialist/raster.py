@@ -585,7 +585,7 @@ class Raster(object):
     #     else:
     #         self.write(outname, dim=[left, top, cols, rows], format=format)
 
-    def rescale(self, function):
+    def rescale(self, fun):
         """
         perform raster computations with custom functions and assign them to the existing raster object in memory
 
@@ -602,13 +602,10 @@ class Raster(object):
         mat = self.matrix()
 
         # scale values
-        scaled = function(mat)
-
-        # round to nearest integer
-        rounded = np.rint(scaled)
+        scaled = fun(mat)
 
         # assign newly computed array to raster object
-        self.assign(rounded, index=0)
+        self.assign(scaled, index=0)
 
     def write(self, outname, dtype='default', format='ENVI', dim='full', nodata='default', compress_tif=False):
         """
