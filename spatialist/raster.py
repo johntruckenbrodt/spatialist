@@ -302,6 +302,7 @@ class Raster(object):
                 stats = x.ComputeStatistics(approximate)
             except RuntimeError:
                 stats = None
+            stats = dict(zip(['min', 'max', 'mean', 'sdev'], stats))
             statcollect.append(stats)
         return statcollect
 
