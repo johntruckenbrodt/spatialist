@@ -120,7 +120,7 @@ class RasterViewer(object):
         self.ax1.format_coord = lambda x, y: text_pointer.format(y, x)
 
         # add a cross-hair to the horizontal slice plot
-        self.x_coord, self.y_coord = self.img2map(0, 0)
+        self.x_coord, self.y_coord = self.__img2map(0, 0)
         self.lhor = self.ax1.axhline(self.y_coord, linewidth=1, color='r')
         self.lver = self.ax1.axvline(self.x_coord, linewidth=1, color='r')
 
@@ -145,17 +145,17 @@ class RasterViewer(object):
             mat = ras.matrix(band)
         return mat
 
-    def read_timeseries(self, x, y):
+    def __read_timeseries(self, x, y):
         with Raster(self.filename) as ras:
             vals = ras.raster.ReadAsArray(xoff=x, yoff=y, xsize=1, ysize=1)
         return vals.reshape(vals.shape[0])
 
-    def img2map(self, x, y):
+    def __img2map(self, x, y):
         x_map = self.xmin + self.xres * x
         y_map = self.ymax - self.yres * y
         return x_map, y_map
 
-    def map2img(self, x, y):
+    def __map2img(self, x, y):
         x_img = int((x - self.xmin) / self.xres)
         y_img = int((self.ymax - y) / self.yres)
         return x_img, y_img
@@ -215,8 +215,8 @@ class RasterViewer(object):
             # redraw the cross-hair
             self.__reset_crosshair(self.x_coord, self.y_coord)
 
-            x, y = self.map2img(self.x_coord, self.y_coord)
-            subset_vertical = self.read_timeseries(x, y)
+            x, y = self.__map2img(self.x_coord, self.y_coord)
+            subset_vertical = self.__read_timeseries(x, y)
 
             # redraw/clear the vertical profile plot in case stacking is disabled
             if not self.checkbox.value:
