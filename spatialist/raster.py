@@ -281,12 +281,25 @@ class Raster(object):
         args = [x.split('=') for x in re.split('[+ ]+', self.proj4) if len(x) > 0]
         return dict([(x[0], None) if len(x) == 1 else tuple(x) for x in args])
 
-    @property
-    def allstats(self):
+    def allstats(self, approximate=False):
+        """
+        Compute some basic raster statistics
+
+        Parameters
+        ----------
+        approximate: bool
+            approximate statistics from overviews or a subset of all tiles?
+
+        Returns
+        -------
+        list of dicts
+            a list with a dictionary of statistics for each band. Keys: 'min', 'max', 'mean', 'sdev'.
+            See `gdal.Band.ComputeStatistics <http://www.gdal.org/classGDALRasterBand.html#a48883c1dae195b21b37b51b10e910f9b>`_.
+        """
         statcollect = []
         for x in self.layers():
             try:
-                stats = x.ComputeStatistics(False)
+                stats = x.ComputeStatistics(approximate)
             except RuntimeError:
                 stats = None
             statcollect.append(stats)
