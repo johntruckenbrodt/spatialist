@@ -1,6 +1,3 @@
-API documentation
-=================
-
 Raster Tools
 ============
 
@@ -16,3 +13,10 @@ General Spatial Tools
     :members:
     :undoc-members:
     :show-inheritance:
+
+Data Exploration
+================
+
+.. automodule:: spatialist.explorer
+    :members:
+    :undoc-members:
