@@ -1,10 +1,16 @@
+Raster Class
+============
+
+.. automodule:: spatialist.raster
+    :members: Raster
+    :undoc-members:
+
 Raster Tools
 ============
 
 .. automodule:: spatialist.raster
     :members: stack
     :undoc-members:
-    :show-inheritance:
 
 General Spatial Tools
 =====================
