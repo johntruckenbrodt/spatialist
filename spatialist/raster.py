@@ -31,11 +31,16 @@ gdal.UseExceptions()
 class Raster(object):
     """
     This is intended as a raster meta information handler with options for reading and writing raster data in a
-    convenient manner by simplifying the numerous options provided by the GDAL python binding.
-    Several functions are provided along with this module to directly modify the raster object in memory or directly
-    write a newly created file to disk (without modifying the rasterobject itself).
-    Upon initializing a Raster object only metadata is loaded, the actual data can be, for example,
-    loaded to memory by calling functions matrix or load.
+    convenient manner by simplifying the numerous options provided by the `GDAL <http://www.gdal.org/>`_ python binding.
+    Several methods are provided along with this class to directly modify the raster object in memory or directly
+    write a newly created file to disk (without modifying the raster object itself).
+    Upon initializing a Raster object, only metadata is loaded. The actual data can be, for example,
+    loaded to memory by calling methods :meth:`matrix` or :meth:`load`.
+
+    Parameters
+    ----------
+    filename: str
+        the raster file to read
     """
 
     # todo: init a Raster object from array data not only from a filename
@@ -71,18 +76,45 @@ class Raster(object):
         return info
 
     def close(self):
+        """
+        closes the GDAL raster file connection
+        Returns
+        -------
+
+        """
         self.raster = None
 
     @property
     def cols(self):
+        """
+
+        Returns
+        -------
+        int
+            the number of image columns
+        """
         return self.raster.RasterXSize
 
     @property
     def rows(self):
+        """
+
+        Returns
+        -------
+        int
+            the number of image rows
+        """
         return self.raster.RasterYSize
 
     @property
     def bands(self):
+        """
+
+        Returns
+        -------
+        int
+            the number of image bands
+        """
         return self.raster.RasterCount
 
     @property
@@ -91,42 +123,114 @@ class Raster(object):
 
     @property
     def driver(self):
+        """
+
+        Returns
+        -------
+        gdal.Driver
+            a GDAL raster driver object. See `osgeo.gdal.Driver <http://gdal.org/python/osgeo.gdal.Driver-class.html>`_.
+        """
         return self.raster.GetDriver()
 
     @property
     def format(self):
+        """
+
+        Returns
+        -------
+        str
+            the name of the image format
+        """
         return self.driver.ShortName
 
     @property
     def dtype(self):
+        """
+
+        Returns
+        -------
+        str
+            the data type description; e.g. `Float32`
+        """
         return gdal.GetDataTypeName(self.raster.GetRasterBand(1).DataType)
 
     @property
     def projection(self):
+        """
+
+        Returns
+        -------
+        str
+            the CRS Well Known Text (WKT) description
+        """
         return self.raster.GetProjection()
 
     @property
     def srs(self):
+        """
+
+        Returns
+        -------
+        osr.SpatialReference
+            a spatial reference object.
+            See `osr.SpatialReference <http://gdal.org/python/osgeo.osr.SpatialReference-class.html>`_
+            for documentation.
+        """
         return osr.SpatialReference(wkt=self.projection)
 
     @property
     def proj4(self):
+        """
+
+        Returns
+        -------
+        str
+            the CRS PROJ4 description
+        """
         return self.srs.ExportToProj4()
 
     @property
     def epsg(self):
+        """
+
+        Returns
+        -------
+        int
+            the CRS EPSG code
+        """
         return crsConvert(self.srs, 'epsg')
 
     @property
     def geogcs(self):
+        """
+
+        Returns
+        -------
+        str or None
+            an identifier of the geographic coordinate system
+        """
         return self.srs.GetAttrValue('geogcs')
 
     @property
     def projcs(self):
+        """
+        Returns
+        -------
+        str or None
+            an identifier of the projected coordinate system; If the CRS is not projected None is returned
+        """
         return self.srs.GetAttrValue('projcs') if self.srs.IsProjected() else None
 
     @property
     def geo(self):
+        """
+        General image geo information.
+
+        Returns
+        -------
+        dict
+            a dictionary with keys `xmin`, `xmax`, `xres`, `rotation_x`, `ymin`, `ymax`, `yres`, `rotation_y`
+        """
         out = dict(zip(['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres'],
                        self.raster.GetGeoTransform()))
 
@@ -141,10 +245,24 @@ class Raster(object):
 
     @property
     def nodata(self):
+        """
+
+        Returns
+        -------
+        float
+            the raster nodata value
+        """
         return self.raster.GetRasterBand(1).GetNoDataValue()
 
     @property
     def proj4args(self):
+        """
+
+        Returns
+        -------
+        dict
+            the proj4 string arguments as a dictionary
+        """
         args = [x.split('=') for x in re.split('[+ ]+', self.proj4) if len(x) > 0]
         return dict([(x[0], None) if len(x) == 1 else tuple(x) for x in args])
 
@@ -185,6 +303,21 @@ class Raster(object):
                 [self.geo[x] for x in ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']])
 
     def bbox(self, outname=None, format='ESRI Shapefile', overwrite=True):
+        """
+        Parameters
+        ----------
+        outname: str or None
+            the name od the file to write; If None, the bounding box is returned as vector object
+        format: str
+            The file format to write
+        overwrite: bool
+            overwrite an already existing file?
+
+        Returns
+        -------
+        spatialist.vector.Vector or None
+            the bounding box vector object
+        """
         if outname is None:
             return bbox(self.geo, self.proj4)
         else:
@@ -283,9 +416,10 @@ class Raster(object):
 
     def is_valid(self):
         """
-        check image integrity
-        tries to compute the checksum for each raster layer and returns False if this fails
-        https://lists.osgeo.org/pipermail/gdal-dev/2013-November/037520.html
+        Check image integrity.
+        Tries to compute the checksum for each raster layer and returns False if this fails.
+        See this forum entry:
+        `How to check if image is valid? <https://lists.osgeo.org/pipermail/gdal-dev/2013-November/037520.html>`_.
 
         :return: (logical) is the file valid?
         """
@@ -298,10 +432,12 @@ class Raster(object):
 
     def layers(self):
         """
-        get specific raster layer information objects
 
-        Returns:
-
+        Returns
+        -------
+        list of gdal.Band
+            a list containing a `gdal.Band <http://gdal.org/python/osgeo.gdal.Band-class.html>`_
+            object for each image band
         """
         return [self.raster.GetRasterBand(band) for band in range(1, self.bands + 1)]
 
@@ -309,10 +445,14 @@ class Raster(object):
         """
         load all raster data to arrays
 
-        Args:
-            dim:
+        Parameters
+        ----------
+        dim: list or tuple
+            a raster subset in pixel coordinates with (col_min, row_min, col_max, row_max).
+            By default (0, 0, `ncols`, `nrows`)
 
-        Returns:
+        Returns
+        -------
 
         """
         dim = [0, 0, self.cols, self.rows] if dim == 'full' else dim
@@ -443,9 +583,7 @@ class Raster(object):
 
     def write(self, outname, dtype='default', format='ENVI', dim='full', nodata='default', compress_tif=False):
         """
-        write the raster object to a file. If the data itself has been loaded to memory (e.g. by method load),
-        the in-memory data will be written to the file, otherwise the data is copied from the source file.
-        The parameter dim gives the opportunity to write a cropped version of the raster file.
+        write the raster object to a file.
 
         Parameters
         ----------
