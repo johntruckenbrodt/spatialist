@@ -93,7 +93,7 @@ def test_Raster(tmpdir, testdata):
         assert ras.proj4 == '+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs '
         assert ras.cols == 268
         assert ras.rows == 217
-        assert ras.dim == [217, 268, 1]
+        assert ras.dim == (217, 268, 1)
         assert ras.dtype == 'Float32'
         assert ras.epsg == 32631
         assert ras.format == 'GTiff'
@@ -102,11 +102,12 @@ def test_Raster(tmpdir, testdata):
         assert ras.geogcs == 'WGS 84'
         assert ras.is_valid() is True
         assert ras.proj4args == {'units': 'm', 'no_defs': None, 'datum': 'WGS84', 'proj': 'utm', 'zone': '31'}
-        assert ras.allstats == [[-26.65471076965332, 1.4325850009918213, -12.124929534450377, 4.738273594738293]]
+        assert ras.allstats() == [{'min': -26.65471076965332, 'max': 1.4325850009918213,
+                                   'mean': -12.124929534450377, 'sdev': 4.738273594738293}]
         assert ras.bbox().getArea() == 23262400.0
         assert len(ras.layers()) == 1
         assert ras.projcs == 'WGS 84 / UTM zone 31N'
-        assert ras.res == [20.0, 20.0]
+        assert ras.res == (20.0, 20.0)
 
         # test writing a subset with no original data in memory
         outname = os.path.join(str(tmpdir), 'test_sub.tif')
