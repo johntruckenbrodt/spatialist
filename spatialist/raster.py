@@ -248,7 +248,15 @@ class Raster(object):
 
     @property
     def res(self):
-        return [abs(float(self.geo['xres'])), abs(float(self.geo['yres']))]
+        """
+        the raster resolution in x and y direction
+
+        Returns
+        -------
+        tuple
+            (xres, yres)
+        """
+        return (abs(float(self.geo['xres'])), abs(float(self.geo['yres'])))
 
     @property
     def nodata(self):
