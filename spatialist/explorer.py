@@ -5,6 +5,10 @@ import matplotlib.pyplot as plt
 from IPython.display import display
 from ipywidgets import interactive_output, IntSlider, Layout, Checkbox, Button, HBox
 
+"""
+This module is intended for gathering functionalities for plotting spatial data with jupyter notebooks
+"""
+
 
 class RasterViewer(object):
     """
@@ -21,8 +25,13 @@ class RasterViewer(object):
         See `matplotlib.pyplot.imshow <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.imshow.html>`_
     band_indices: list
         a list of indices for renaming the individual band indices in `filename`;
-         e.g. -70:70, instead of the raw band indices, e.g. 1:140.
+        e.g. -70:70, instead of the raw band indices, e.g. 1:140.
         The number of unique elements must of same length as the number of bands in `filename`.
+    pmin: int
+        the minimum percentile for linear histogram stretching
+    pmax: int
+        the maximum percentile for linear histogram stretching
+
     """
 
     def __init__(self, filename, cmap='jet', band_indices=None, pmin=2, pmax=98):
