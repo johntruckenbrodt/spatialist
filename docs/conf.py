@@ -22,8 +22,9 @@ import mock
 sys.path.insert(0, os.path.abspath('..') + os.sep)
 
 # -- General configuration ------------------------------------------------
-MOCK_MODULES = ['__future__', 'osgeo', 'osgeo.gdal', 'osgeo.osr', 'osgeo.gdalconst',
-                'matplotlib', 'matplotlib.pyplot']
+MOCK_MODULES = ['osgeo', 'osgeo.gdal', 'osgeo.osr', 'osgeo.gdalconst',
+                'matplotlib', 'matplotlib.pyplot',
+                'IPython', 'IPython.display', 'ipywidgets']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
 
