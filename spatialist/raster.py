@@ -119,7 +119,14 @@ class Raster(object):
 
     @property
     def dim(self):
-        return [self.rows, self.cols, self.bands]
+        """
+
+        Returns
+        -------
+        tuple
+            (rows, columns, bands)
+        """
+        return (self.rows, self.cols, self.bands)
 
     @property
     def driver(self):
