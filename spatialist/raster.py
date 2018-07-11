@@ -545,45 +545,45 @@ class Raster(object):
     #     else:
     #         return clip
 
-    def reduce(self, outname=None, format='ENVI'):
-        """
-        remove all lines and columns containing only no data values
-
-        Args:
-            outname:
-            format:
-
-        Returns:
-
-        """
-        if self.bands != 1:
-            raise ValueError('only single band images supported')
-
-        stats = self.allstats[0]
-
-        if stats[0] == stats[1]:
-            raise ValueError('file does not contain valid pixels')
-
-        # load raster layer into an array
-        mat = self.matrix()
-
-        mask1 = ~np.all(mat == self.nodata, axis=0)
-        mask2 = ~np.all(mat == self.nodata, axis=1)
-        mask1_l = mask1.tolist()
-        mask2_l = mask2.tolist()
-
-        left = mask1_l.index(True)
-        cols = len(mask1_l) - mask1_l[::-1].index(True) - left
-        top = mask2_l.index(True)
-        rows = len(mask2_l) - mask2_l[::-1].index(True) - top
-
-        mat = mat[mask2, :]
-        mat = mat[:, mask1]
-
-        if outname is None:
-            self.assign(mat, dim=[left, top, cols, rows], index=0)
-        else:
-            self.write(outname, dim=[left, top, cols, rows], format=format)
+    # def reduce(self, outname=None, format='ENVI'):
+    #     """
+    #     remove all lines and columns containing only no data values
+    #
+    #     Args:
+    #         outname:
+    #         format:
+    #
+    #     Returns:
+    #
+    #     """
+    #     if self.bands != 1:
+    #         raise ValueError('only single band images supported')
+    #
+    #     stats = self.allstats[0]
+    #
+    #     if stats[0] == stats[1]:
+    #         raise ValueError('file does not contain valid pixels')
+    #
+    #     # load raster layer into an array
+    #     mat = self.matrix()
+    #
+    #     mask1 = ~np.all(mat == self.nodata, axis=0)
+    #     mask2 = ~np.all(mat == self.nodata, axis=1)
+    #     mask1_l = mask1.tolist()
+    #     mask2_l = mask2.tolist()
+    #
+    #     left = mask1_l.index(True)
+    #     cols = len(mask1_l) - mask1_l[::-1].index(True) - left
+    #     top = mask2_l.index(True)
+    #     rows = len(mask2_l) - mask2_l[::-1].index(True) - top
+    #
+    #     mat = mat[mask2, :]
+    #     mat = mat[:, mask1]
+    #
+    #     if outname is None:
+    #         self.assign(mat, dim=[left, top, cols, rows], index=0)
+    #     else:
+    #         self.write(outname, dim=[left, top, cols, rows], format=format)
 
     def rescale(self, function):
         """
