@@ -589,10 +589,15 @@ class Raster(object):
         """
         perform raster computations with custom functions and assign them to the existing raster object in memory
 
-        Args:
-            function:
+        Parameters
+        ----------
+        fun: function
+            the custom function to compute on the data
 
-        Returns:
+        Examples
+        --------
+        >>> with Raster('filename') as ras:
+        >>>     ras.rescale(lambda x: 10 * x)
 
         """
         if self.bands != 1:
