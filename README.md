@@ -1,5 +1,6 @@
 # spatialist
 [![Linux Build Status][1]][2] [![Windows Build status][3]][4] [![Coverage Status][5]][6] [![Documentation Status][7]][8] [![Binder][9]][10]
+
 [1]: https://www.travis-ci.org/johntruckenbrodt/spatialist.svg?branch=master
 [2]: https://www.travis-ci.org/johntruckenbrodt/spatialist
 [3]: https://ci.appveyor.com/api/projects/status/3nxj2nnmp21ig860?svg=true
