@@ -9,4 +9,3 @@ ipywidgets
 
 #Testing requirements
 pytest
-swig
