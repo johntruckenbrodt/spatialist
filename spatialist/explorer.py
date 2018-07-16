@@ -1,9 +1,10 @@
 import numpy as np
 from .raster import Raster
+from .envi import HDRobject
 import matplotlib
 import matplotlib.pyplot as plt
 from IPython.display import display
-from ipywidgets import interactive_output, IntSlider, Layout, Checkbox, Button, HBox
+from ipywidgets import interactive_output, IntSlider, Layout, Checkbox, Button, HBox, Label
 
 """
 This module is intended for gathering functionalities for plotting spatial data with jupyter notebooks
@@ -47,6 +48,10 @@ class RasterViewer(object):
             self.crs = ras.srs
             geo = ras.raster.GetGeoTransform()
             self.nodata = ras.nodata
+            self.format = ras.format
+            if self.format == 'ENVI':
+                self.bandnames = HDRobject(filename+'.hdr').band_names
+                self.slider_readout = False
 
         xlab = self.crs.GetAxisName(None, 0)
         ylab = self.crs.GetAxisName(None, 1)
@@ -88,8 +93,9 @@ class RasterViewer(object):
         # define a slider for changing a plotted image
         self.slider = IntSlider(min=min(self.indices), max=max(self.indices), step=1, continuous_update=False,
                                 value=self.indices[len(self.indices)//2],
-                                description='band index',
-                                style={'description_width': 'initial'})
+                                description='band',
+                                style={'description_width': 'initial'},
+                                readout=self.slider_readout)
 
         # a simple checkbox to enable/disable stacking of vertical profiles into one plot
         self.checkbox = Checkbox(value=True, description='stack vertical profiles', indent=False)
@@ -98,8 +104,13 @@ class RasterViewer(object):
         self.clearbutton = Button(description='clear vertical plot')
         self.clearbutton.on_click(lambda x: self.__init_vertical_plot())
 
-        form = HBox(children=[self.slider, self.checkbox, self.clearbutton],
-                    layout=self.layout)
+        if self.format == 'ENVI':
+            self.sliderlabel = Label(value=self.bandnames[self.slider.value], layout={'width': '500px'})
+            children = [self.slider, self.sliderlabel, self.checkbox, self.clearbutton]
+        else:
+            children = [self.slider, self.checkbox, self.clearbutton]
+
+        form = HBox(children=children, layout=self.layout)
 
         display(form)
 
@@ -143,6 +154,7 @@ class RasterViewer(object):
         cmap = plt.get_cmap(self.colormap)
         cmap.set_bad('white')
         self.ax1.imshow(masked, vmin=pmin, vmax=pmax, extent=self.extent, cmap=cmap)
+        self.sliderlabel.value = self.bandnames[self.slider.value]
 
     def __read_band(self, band):
         with Raster(self.filename) as ras:
