@@ -76,16 +76,18 @@ from pysqlite2 import dbapi2 as sqlite3
 Installing this package is likely to cause problems with the sqlite3 library installed on the system. 
 Thus, it is safer to build a static sqlite3 library for it (see installation script).
 ### Installation of spatialist
-For the installation we need the Python tool pip and the version control system git. On Windows pip is 
-installed together with Anaconda, git can be downloaded from [here](https://git-scm.com/downloads).
-On Linux you can easily install both via command line:
+For the installation we need the Python tool pip and the version control system git. On Windows, pip is 
+installed together with Anaconda. Git can be installed like this:
+```bash
+conda install git
+```
+On Linux:
 ```sh
-sudo apt-get install python-pip
-sudo apt-get install git
+sudo apt-get install python-pip git
 ```
 Once everything is set up, spatialist is ready to be installed:
 ```sh
-sudo pip install git+https://github.com/johntruckenbrodt/spatialist.git
+sudo python -m pip install git+https://github.com/johntruckenbrodt/spatialist.git
 ```
 On Windows you need to use the Anaconda Prompt and leave out `sudo` in the above command.
 
