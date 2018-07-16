@@ -1,6 +1,5 @@
 # spatialist
-[![Linux Build Status][1]][2] [![Windows Build status][3]][4] [![Coverage Status][5]][6] [![Documentation Status][7]][8]
-
+[![Linux Build Status][1]][2] [![Windows Build status][3]][4] [![Coverage Status][5]][6] [![Documentation Status][7]][8] [![Binder][9]][10]
 [1]: https://www.travis-ci.org/johntruckenbrodt/spatialist.svg?branch=master
 [2]: https://www.travis-ci.org/johntruckenbrodt/spatialist
 [3]: https://ci.appveyor.com/api/projects/status/3nxj2nnmp21ig860?svg=true
@@ -9,6 +8,8 @@
 [6]: https://coveralls.io/github/johntruckenbrodt/spatialist?branch=master
 [7]: https://readthedocs.org/projects/spatialist/badge/?version=latest
 [8]: https://spatialist.readthedocs.io/en/latest/?badge=latest
+[9]: https://mybinder.org/badge.svg
+[10]: https://mybinder.org/v2/gh/johntruckenbrodt/spatialist/master?filepath=spatialist_tutorial.ipynb
 
 ### A Python module for spatial data handling
 
