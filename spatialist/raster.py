@@ -516,6 +516,7 @@ class Raster(object):
             mat = mat[row_f:row_l, col_f:col_l]
         else:
             mat = self.raster.GetRasterBand(band).ReadAsArray(col_f, row_f, ncol, nrow)
+            mat[mat == self.nodata] = np.nan
         return mat
 
 
