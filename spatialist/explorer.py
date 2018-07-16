@@ -46,6 +46,7 @@ class RasterViewer(object):
             self.epsg = ras.epsg
             self.crs = ras.srs
             geo = ras.raster.GetGeoTransform()
+            self.nodata = ras.nodata
 
         xlab = self.crs.GetAxisName(None, 0)
         ylab = self.crs.GetAxisName(None, 1)
@@ -137,8 +138,11 @@ class RasterViewer(object):
 
     def __onslide(self, h):
         mat = self.__read_band(self.indices.index(h) + 1)
-        pmin, pmax = np.percentile(mat, (self.pmin, self.pmax))
-        self.ax1.imshow(mat, vmin=pmin, vmax=pmax, extent=self.extent, cmap=self.colormap)
+        masked = np.ma.array(mat, mask=np.isnan(mat))
+        pmin, pmax = np.percentile(masked.compressed(), (self.pmin, self.pmax))
+        cmap = plt.get_cmap(self.colormap)
+        cmap.set_bad('white')
+        self.ax1.imshow(masked, vmin=pmin, vmax=pmax, extent=self.extent, cmap=cmap)
 
     def __read_band(self, band):
         with Raster(self.filename) as ras:
@@ -148,6 +152,7 @@ class RasterViewer(object):
     def __read_timeseries(self, x, y):
         with Raster(self.filename) as ras:
             vals = ras.raster.ReadAsArray(xoff=x, yoff=y, xsize=1, ysize=1)
+            vals[vals == self.nodata] = np.nan
         return vals.reshape(vals.shape[0])
 
     def __img2map(self, x, y):
