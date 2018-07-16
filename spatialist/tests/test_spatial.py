@@ -258,14 +258,15 @@ def test_envi(tmpdir):
     hdr(vals, outname + '2')
 
 
-def test_sqlite():
-    with pytest.raises(RuntimeError):
-        con = sqlite_setup(extensions='spatialite')
-    con = sqlite_setup(extensions=['spatialite'])
-    con.close()
-    con = __Handler()
-    assert sorted(con.version.keys()) == ['sqlite']
+def test_sqlite(appveyor):
+    if not appveyor:
+        with pytest.raises(RuntimeError):
+            con = sqlite_setup(extensions='spatialite')
+        con = sqlite_setup(extensions=['spatialite'])
+        con.close()
+        con = __Handler()
+        assert sorted(con.version.keys()) == ['sqlite']
 
-    con = __Handler(extensions=['spatialite'])
-    assert sorted(con.version.keys()) == ['spatialite', 'sqlite']
-    assert 'spatial_ref_sys' in con.get_tablenames()
+        con = __Handler(extensions=['spatialite'])
+        assert sorted(con.version.keys()) == ['spatialite', 'sqlite']
+        assert 'spatial_ref_sys' in con.get_tablenames()
