@@ -112,7 +112,8 @@ def test_Raster(tmpdir, testdata):
 
         # test writing a subset with no original data in memory
         outname = os.path.join(str(tmpdir), 'test_sub.tif')
-        ras.write(outname, format='GTiff', dim=(0, 0, 100, 200))
+        with ras[0:200, 0:100] as sub:
+            sub.write(outname, format='GTiff')
         with Raster(outname) as ras2:
             assert ras2.cols == 100
             assert ras2.rows == 200
