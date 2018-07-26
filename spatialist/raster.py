@@ -470,23 +470,12 @@ class Raster(object):
         """
         return [self.raster.GetRasterBand(band) for band in range(1, self.bands + 1)]
 
-    def load(self, dim='full'):
+    def load(self):
         """
         load all raster data to arrays
-
-        Parameters
-        ----------
-        dim: list or tuple
-            a raster subset in pixel coordinates with (col_min, row_min, col_max, row_max).
-            By default (0, 0, `ncols`, `nrows`)
-
-        Returns
-        -------
-
         """
-        dim = [0, 0, self.cols, self.rows] if dim == 'full' else dim
         for i in range(1, self.bands + 1):
-            self.__data[i - 1] = self.matrix(i, dim)
+            self.__data[i - 1] = self.matrix(i)
 
     def matrix(self, band=1, dim='full'):
         """
