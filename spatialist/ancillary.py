@@ -24,7 +24,6 @@ import inspect
 import itertools
 import os
 import subprocess as sp
-from datetime import datetime
 
 try:
     import pathos.multiprocessing as mp
@@ -213,8 +212,15 @@ def parse_literal(x):
     """
     return the smallest possible data type for a string
 
-    :param x: a string to be parsed
-    :return a value of type int, float or str
+    Parameters
+    ----------
+    x: str
+        a string to be parsed
+
+    Returns
+    -------
+    int, float or str
+        the parsing result
     """
     if isinstance(x, list):
         return [parse_literal(y) for y in x]
@@ -305,28 +311,38 @@ class Stack(object):
         else:
             self.stack = [inlist]
 
-    # check whether stack is empty
     def empty(self):
+        """
+        check whether stack is empty
+        """
         return len(self.stack) == 0
 
-    # empty the stack
     def flush(self):
+        """
+        empty the stack
+        """
         self.stack = []
 
-    # print the length of the stack
     def length(self):
+        """
+        get the length of the stack
+        """
         return len(self.stack)
 
-    # append items to the stack; input can be a single value or a list
     def push(self, x):
+        """
+        append items to the stack; input can be a single value or a list
+        """
         if isinstance(x, list):
             for item in x:
                 self.stack.append(item)
         else:
             self.stack.append(x)
 
-    # return the last stack element and delete it fro mthe list
     def pop(self):
+        """
+        return the last stack element and delete it from the list
+        """
         if not self.empty():
             val = self.stack[-1]
             del self.stack[-1]
