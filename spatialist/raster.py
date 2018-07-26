@@ -472,7 +472,7 @@ class Raster(object):
         for i in range(1, self.bands + 1):
             self.__data[i - 1] = self.matrix(i)
 
-    def matrix(self, band=1, dim='full'):
+    def matrix(self, band=1):
         """
         read a raster band (subset) into a numpy ndarray
 
@@ -480,29 +480,18 @@ class Raster(object):
         ----------
         band: int
             the band to read the matrix from; 1-based indexing
-        dim: list or tuple
-            a raster subset in pixel coordinates with (col_min, row_min, col_max, row_max).
-            By default (0, 0, ncols, nrows)
 
         Returns
         -------
         np.ndarray
             the matrix (subset) of the selected band
         """
-        dim = [0, 0, self.cols, self.rows] if dim == 'full' else dim
-
-        col_f, row_f, col_l, row_l = dim
-        ncol = col_l - col_f
-        nrow = row_l - row_f
 
         mat = self.__data[band - 1]
-        if mat is not None:
-            mat = mat[row_f:row_l, col_f:col_l]
-        else:
-            mat = self.raster.GetRasterBand(band).ReadAsArray(col_f, row_f, ncol, nrow)
+        if mat is None:
+            mat = self.raster.GetRasterBand(band).ReadAsArray()
             mat[mat == self.nodata] = np.nan
         return mat
-
 
     # compute basic statistic measures from selected bands (provided by either single integer keys or a list of integers)
     # def getstat(self, statistic, bands='all'):
