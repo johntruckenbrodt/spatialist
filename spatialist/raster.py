@@ -121,6 +121,19 @@ class Raster(object):
         out = gdalbuildvrt(src=self.filename, dst=outname, options=opts, void=False)
         return Raster(out)
 
+    @property
+    def files(self):
+        """
+
+        Returns
+        -------
+        list of str
+            a list of all absolute names of files associated with this raster data set
+        """
+        fl = self.raster.GetFileList()
+        if fl is not None:
+            return [os.path.abspath(x) for x in fl]
+
     def close(self):
         """
         closes the GDAL raster file connection
