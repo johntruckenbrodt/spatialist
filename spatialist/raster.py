@@ -584,7 +584,7 @@ class Raster(object):
         scaled = fun(mat)
 
         # assign newly computed array to raster object
-        self.assign(scaled, index=0)
+        self.assign(scaled, band=0)
 
     def write(self, outname, dtype='default', format='ENVI', dim='full', nodata='default', compress_tif=False):
         """
