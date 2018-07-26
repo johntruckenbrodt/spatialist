@@ -10,6 +10,7 @@ from __future__ import division
 import os
 import re
 import shutil
+import tempfile
 from math import sqrt, floor, ceil
 from time import gmtime, strftime
 import numpy as np
@@ -77,6 +78,48 @@ class Raster(object):
                'coord. ref.: {proj4}\n' \
                'data source: {filename}'.format(**vals)
         return info
+
+    def __getitem__(self, index):
+        if isinstance(index, tuple):
+            ras_dim = 2 if self.raster.RasterCount == 1 else 3
+            if ras_dim != len(index):
+                raise IndexError(
+                    'mismatch of index length ({0}) and raster dimensions ({1})'.format(len(index), ras_dim))
+            for i in [0, 1]:
+                if index[i].step is not None:
+                    raise IndexError('step slicing of {} is not allowed'.format(['rows', 'bands'][i]))
+
+        # create index lists from subset slices
+        subset = dict()
+        subset['rows'] = range(0, self.rows)[index[0]]
+        subset['cols'] = range(0, self.cols)[index[1]]
+        if len(index) > 2:
+            subset['bands'] = range(0, self.bands)[index[2]]
+        else:
+            subset['bands'] = [0]
+
+        # update geo dimensions from subset list indices
+        geo = self.geo
+        geo['xmin'] = geo['xmin'] + min(subset['cols']) * geo['xres']
+        geo['ymax'] = geo['ymax'] - min(subset['rows']) * abs(geo['yres'])
+
+        # note: yres is negative!
+        geo['xmax'] = geo['xmin'] + geo['xres'] * len(subset['cols'])
+        geo['ymin'] = geo['ymax'] + geo['yres'] * len(subset['rows'])
+
+        # create options for creating a GDAL VRT dataset
+        opts = dict()
+        opts['xRes'], opts['yRes'] = self.res
+        opts['outputSRS'] = self.projection
+        opts['srcNodata'] = self.nodata
+        opts['VRTNodata'] = self.nodata
+        opts['bandList'] = [x + 1 for x in subset['bands']]
+        opts['outputBounds'] = (geo['xmin'], geo['ymin'], geo['xmax'], geo['ymax'])
+
+        # create an in-memory VRT file and return the output raster dataset as new Raster object
+        outname = os.path.join('/vsimem/', os.path.basename(tempfile.mktemp()))
+        out = gdalbuildvrt(src=self.filename, dst=outname, options=opts, void=False)
+        return Raster(out)
 
     def close(self):
         """
