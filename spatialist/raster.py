@@ -309,30 +309,22 @@ class Raster(object):
             statcollect.append(stats)
         return statcollect
 
-    def assign(self, array, index, dim='full'):
+    def assign(self, array, band):
         """
         assign an array to an existing Raster object
+
+        Parameters
+        ----------
+        array: np.ndarray
+            the array to be assigned to the Raster object
+        band: int
+            the index of the band to assign to
+
+        Returns
+        -------
+
         """
-        self.__data[index] = array
-        if dim != 'full':
-            shape = array.shape
-            if len(shape) == 2:
-                self.bands = 1
-                self.rows, self.cols = shape
-            else:
-                self.bands, self.rows, self.cols = shape
-
-            # print shape
-            # print self.cols, self.rows
-            # print self.raster.RasterXSize, self.raster.RasterYSize
-
-            self.dim = [self.rows, self.cols, self.bands]
-            self.geo['xmin'] += dim[0] * self.geo['xres']
-            self.geo['ymax'] += dim[1] * self.geo['yres']
-            self.geo['xmax'] = self.geo['xmin'] + self.geo['xres'] * self.cols
-            self.geo['ymin'] = self.geo['ymax'] + self.geo['yres'] * self.rows
-            self.raster.SetGeoTransform(
-                [self.geo[x] for x in ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']])
+        self.__data[band] = array
 
     def bbox(self, outname=None, format='ESRI Shapefile', overwrite=True):
         """
