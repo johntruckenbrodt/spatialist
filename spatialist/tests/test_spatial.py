@@ -121,7 +121,7 @@ def test_Raster(tmpdir, testdata):
         ras.load()
         mat = ras.matrix()
         assert isinstance(mat, np.ndarray)
-        ras.assign(mat, index=0)
+        ras.assign(mat, band=0)
         # ras.reduce()
         ras.rescale(lambda x: 10 * x)
 
@@ -149,7 +149,7 @@ def test_Raster_extract(testdata):
         mat = ras.matrix()
         mat[0:10, 0:10] = ras.nodata
         mat[207:217, 258:268] = ras.nodata
-        ras.assign(mat, index=0)
+        ras.assign(mat, band=0)
         assert ras.extract(px=ras.geo['xmin'], py=ras.geo['ymax'], radius=5) == ras.nodata
         assert ras.extract(px=ras.geo['xmax'], py=ras.geo['ymin'], radius=5) == ras.nodata
 
