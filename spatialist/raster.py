@@ -39,13 +39,16 @@ class Raster(object):
 
     Parameters
     ----------
-    filename: str
-        the raster file to read
+    filename: str or gdal.Dataset
+        the raster file/object to read
     """
 
     # todo: init a Raster object from array data not only from a filename
     def __init__(self, filename):
-        if os.path.isfile(filename):
+        if isinstance(filename, gdal.Dataset):
+            self.raster = filename
+            self.filename = self.files[0] if self.files is not None else None
+        elif os.path.isfile(filename):
             self.filename = filename if os.path.isabs(filename) else os.path.join(os.getcwd(), filename)
             self.raster = gdal.Open(filename, GA_ReadOnly)
         else:
