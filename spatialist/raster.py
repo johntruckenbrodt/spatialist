@@ -586,7 +586,7 @@ class Raster(object):
         # assign newly computed array to raster object
         self.assign(scaled, band=0)
 
-    def write(self, outname, dtype='default', format='ENVI', dim='full', nodata='default', compress_tif=False):
+    def write(self, outname, dtype='default', format='ENVI', nodata='default', compress_tif=False):
         """
         write the raster object to a file.
 
@@ -599,9 +599,6 @@ class Raster(object):
             data type notations of GDAL (e.g. 'Float32') and numpy (e.g. 'int8') are supported.
         format:
             the file format; e.g. 'GTiff'
-        dim: list or tuple
-            a raster subset in pixel coordinates with (col_min, row_min, col_max, row_max).
-            By default (0, 0, ncols, nrows)
         nodata: int or float
             the nodata value to write to the file
         compress_tif: bool
@@ -611,10 +608,6 @@ class Raster(object):
         -------
 
         """
-        dim = (0, 0, self.cols, self.rows) if dim == 'full' else dim
-        col_f, row_f, col_l, row_l = dim
-        ncol = col_l - col_f
-        nrow = row_l - row_f
 
         if os.path.isfile(outname):
             raise RuntimeError('target file already exists')
@@ -629,23 +622,17 @@ class Raster(object):
         if format == 'GTiff' and compress_tif:
             options += ['COMPRESS=DEFLATE', 'PREDICTOR=2']
 
-        geo = self.geo
-        geo['xmin'] += col_f * self.res[0]
-        geo['xmax'] -= (self.cols - col_l) * self.res[0]
-        geo['ymin'] += (self.rows - row_l) * self.res[1]
-        geo['ymax'] -= row_f * self.res[1]
-
         driver = gdal.GetDriverByName(format)
-        outDataset = driver.Create(outname, ncol, nrow, self.bands, dtype, options)
+        outDataset = driver.Create(outname, self.cols, self.rows, self.bands, dtype, options)
         driver = None
         outDataset.SetMetadata(self.raster.GetMetadata())
-        outDataset.SetGeoTransform([geo[x] for x in ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']])
+        outDataset.SetGeoTransform([self.geo[x] for x in ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']])
         if self.projection is not None:
             outDataset.SetProjection(self.projection)
         for i in range(1, self.bands + 1):
             outband = outDataset.GetRasterBand(i)
             outband.SetNoDataValue(nodata)
-            mat = self.matrix(band=i, dim=dim)
+            mat = self.matrix(band=i)
             outband.WriteArray(mat)
             del mat
             outband.FlushCache()
