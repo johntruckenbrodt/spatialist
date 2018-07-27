@@ -555,7 +555,7 @@ class Raster(object):
         for i in range(1, self.bands + 1):
             self.__data[i - 1] = self.matrix(i)
 
-    def matrix(self, band=1):
+    def matrix(self, band=1, mask_nan=True):
         """
         read a raster band (subset) into a numpy ndarray
 
@@ -563,6 +563,9 @@ class Raster(object):
         ----------
         band: int
             the band to read the matrix from; 1-based indexing
+        mask_nan: bool
+            convert nodata values to numpy.nan? As numpy.nan requires at least float values, any integer array is cast
+            to float32.
 
         Returns
         -------
@@ -573,7 +576,12 @@ class Raster(object):
         mat = self.__data[band - 1]
         if mat is None:
             mat = self.raster.GetRasterBand(band).ReadAsArray()
-            mat[mat == self.nodata] = np.nan
+            if mask_nan:
+                try:
+                    mat[mat == self.nodata] = np.nan
+                except ValueError:
+                    mat = mat.astype('float32')
+                    mat[mat == self.nodata] = np.nan
         return mat
 
     # compute basic statistic measures from selected bands (provided by either single integer keys or a list of integers)
