@@ -80,6 +80,12 @@ class Raster(object):
         return info
 
     def __getitem__(self, index):
+        if isinstance(index, Vector):
+            index.reproject(self.proj4)
+            inter = intersect(self.bbox(), index)
+            sl = self.__extent2slice(inter.extent)
+            return self[sl]
+
         if isinstance(index, tuple):
             ras_dim = 2 if self.raster.RasterCount == 1 else 3
             if ras_dim != len(index):
