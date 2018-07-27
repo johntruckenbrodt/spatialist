@@ -274,27 +274,29 @@ class Vector(object):
 
         srs_out = crsConvert(projection, 'osr')
 
-        # create the CoordinateTransformation
-        coordTrans = osr.CoordinateTransformation(self.srs, srs_out)
+        if self.srs.IsSame(srs_out) == 0:
 
-        layername = self.layername
-        geomType = self.geomType
-        features = self.getfeatures()
-        feat_def = features[0].GetDefnRef()
-        fields = [feat_def.GetFieldDefn(x) for x in range(0, feat_def.GetFieldCount())]
+            # create the CoordinateTransformation
+            coordTrans = osr.CoordinateTransformation(self.srs, srs_out)
 
-        self.__init__()
-        self.addlayer(layername, srs_out, geomType)
-        self.layer.CreateFields(fields)
+            layername = self.layername
+            geomType = self.geomType
+            features = self.getfeatures()
+            feat_def = features[0].GetDefnRef()
+            fields = [feat_def.GetFieldDefn(x) for x in range(0, feat_def.GetFieldCount())]
 
-        for feature in features:
-            geom = feature.GetGeometryRef()
-            geom.Transform(coordTrans)
-            newfeature = feature.Clone()
-            newfeature.SetGeometry(geom)
-            self.layer.CreateFeature(newfeature)
-            newfeature = None
-        self.init_features()
+            self.__init__()
+            self.addlayer(layername, srs_out, geomType)
+            self.layer.CreateFields(fields)
+
+            for feature in features:
+                geom = feature.GetGeometryRef()
+                geom.Transform(coordTrans)
+                newfeature = feature.Clone()
+                newfeature.SetGeometry(geom)
+                self.layer.CreateFeature(newfeature)
+                newfeature = None
+            self.init_features()
 
     def setCRS(self, crs):
         """
@@ -450,6 +452,20 @@ def centerdist(obj1, obj2):
 
 
 def intersect(obj1, obj2):
+    """
+    intersect two Vector objects
+    Parameters
+    ----------
+    obj1: Vector
+        the first vector geometry
+    obj2: Vector
+        the second vector geometry
+
+    Returns
+    -------
+    Vector
+        the intersect of obj1 and obj2
+    """
     if not isinstance(obj1, Vector) or not isinstance(obj2, Vector):
         raise RuntimeError('both objects must be of type Vector')
 
@@ -466,7 +482,13 @@ def intersect(obj1, obj2):
 
     intersect = geometry2.Intersection(geometry1)
 
-    return intersect if intersect.GetArea() > 0 else None
+    if intersect.GetArea() > 0:
+        intersection = Vector(driver='Memory')
+        intersection.addlayer('intersect', obj2.srs, ogr.wkbPolygon)
+        intersection.addfield('id', type=ogr.OFTInteger)
+        intersection.addfeature(intersect, {'id': 1})
+        geom = None
+        return intersection
 
 
 def dissolve(infile, outfile, field, layername=None):

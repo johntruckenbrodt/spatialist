@@ -112,7 +112,8 @@ def test_Raster(tmpdir, testdata):
 
         # test writing a subset with no original data in memory
         outname = os.path.join(str(tmpdir), 'test_sub.tif')
-        ras.write(outname, format='GTiff', dim=(0, 0, 100, 200))
+        with ras[0:200, 0:100] as sub:
+            sub.write(outname, format='GTiff')
         with Raster(outname) as ras2:
             assert ras2.cols == 100
             assert ras2.rows == 200
@@ -120,7 +121,7 @@ def test_Raster(tmpdir, testdata):
         ras.load()
         mat = ras.matrix()
         assert isinstance(mat, np.ndarray)
-        ras.assign(mat, index=0)
+        ras.assign(mat, band=0)
         # ras.reduce()
         ras.rescale(lambda x: 10 * x)
 
@@ -128,6 +129,23 @@ def test_Raster(tmpdir, testdata):
         ras.write(os.path.join(str(tmpdir), 'test'), format='GTiff', compress_tif=True)
         with pytest.raises(RuntimeError):
             ras.write(os.path.join(str(tmpdir), 'test.tif'), format='GTiff')
+
+
+def test_Raster_subset(testdata):
+    with Raster(testdata['tif']) as ras:
+        ext = ras.bbox().extent
+        xres, yres = ras.res
+        ext['xmin'] += xres
+        ext['xmax'] -= xres
+        ext['ymin'] += yres
+        ext['ymax'] -= yres
+        with bbox(ext, ras.proj4) as vec:
+            with ras[vec] as sub:
+                xres, yres = ras.res
+                assert sub.geo['xmin'] - ras.geo['xmin'] == xres
+                assert ras.geo['xmax'] - sub.geo['xmax'] == xres
+                assert sub.geo['ymin'] - ras.geo['ymin'] == xres
+                assert ras.geo['ymax'] - sub.geo['ymax'] == xres
 
 
 def test_Raster_extract(testdata):
@@ -148,7 +166,7 @@ def test_Raster_extract(testdata):
         mat = ras.matrix()
         mat[0:10, 0:10] = ras.nodata
         mat[207:217, 258:268] = ras.nodata
-        ras.assign(mat, index=0)
+        ras.assign(mat, band=0)
         assert ras.extract(px=ras.geo['xmin'], py=ras.geo['ymax'], radius=5) == ras.nodata
         assert ras.extract(px=ras.geo['xmax'], py=ras.geo['ymin'], radius=5) == ras.nodata
 
@@ -222,22 +240,22 @@ def test_rasterize(tmpdir, testdata):
 
         # test length mismatch between burn_values and expressions
         with pytest.raises(RuntimeError):
-            rasterize(vec, outname, reference=ras, burn_values=[1], expressions=['foo', 'bar'])
+            rasterize(vec, reference=ras, outname=outname, burn_values=[1], expressions=['foo', 'bar'])
 
         # test a faulty expression
         with pytest.raises(RuntimeError):
-            rasterize(vec, outname, reference=ras, burn_values=[1], expressions=['foo'])
+            rasterize(vec, reference=ras, outname=outname, burn_values=[1], expressions=['foo'])
 
         # test default parametrization
-        rasterize(vec, outname, reference=ras)
+        rasterize(vec, reference=ras, outname=outname)
         assert os.path.isfile(outname)
 
         # test appending to existing file with valid expression
-        rasterize(vec, outname, reference=ras, append=True, burn_values=[1], expressions=['id=1'])
+        rasterize(vec, reference=ras, outname=outname, append=True, burn_values=[1], expressions=['id=1'])
 
         # test wrong input type for reference
         with pytest.raises(RuntimeError):
-            rasterize(vec, outname, reference='foobar')
+            rasterize(vec, reference='foobar', outname=outname)
 
 
 def test_envi(tmpdir):

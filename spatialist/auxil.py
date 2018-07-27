@@ -127,7 +127,7 @@ def gdalwarp(src, dst, options):
     out = None
 
 
-def gdalbuildvrt(src, dst, options=None):
+def gdalbuildvrt(src, dst, options=None, void=True):
     """
     a simple wrapper for gdal.BuildVRT
 
@@ -140,6 +140,8 @@ def gdalbuildvrt(src, dst, options=None):
     options: dict
         additional parameters passed to gdal.BuildVRT;
         see http://gdal.org/python/osgeo.gdal-module.html#BuildVRTOptions
+    void: bool
+        just write the results and don't return anything? If not, the spatial object is returned
 
     Returns
     -------
@@ -147,7 +149,10 @@ def gdalbuildvrt(src, dst, options=None):
     """
     options = {} if options is None else options
     out = gdal.BuildVRT(dst, src, options=gdal.BuildVRTOptions(**options))
-    out = None
+    if void:
+        out = None
+    else:
+        return out
 
 
 def gdal_translate(src, dst, options):

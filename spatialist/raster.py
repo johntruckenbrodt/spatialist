@@ -10,6 +10,7 @@ from __future__ import division
 import os
 import re
 import shutil
+import tempfile
 from math import sqrt, floor, ceil
 from time import gmtime, strftime
 import numpy as np
@@ -23,7 +24,7 @@ from osgeo import (gdal, gdal_array, osr)
 from osgeo.gdalconst import (GA_ReadOnly, GA_Update, GDT_Byte, GDT_Int16, GDT_UInt16,
                              GDT_Int32, GDT_UInt32, GDT_Float32, GDT_Float64)
 
-os.environ['GDAL_PAM_PROXY_DIR'] = '/tmp'
+os.environ['GDAL_PAM_PROXY_DIR'] = tempfile.gettempdir()
 
 gdal.UseExceptions()
 
@@ -39,13 +40,16 @@ class Raster(object):
 
     Parameters
     ----------
-    filename: str
-        the raster file to read
+    filename: str or gdal.Dataset
+        the raster file/object to read
     """
 
     # todo: init a Raster object from array data not only from a filename
     def __init__(self, filename):
-        if os.path.isfile(filename):
+        if isinstance(filename, gdal.Dataset):
+            self.raster = filename
+            self.filename = self.files[0] if self.files is not None else None
+        elif os.path.isfile(filename):
             self.filename = filename if os.path.isabs(filename) else os.path.join(os.getcwd(), filename)
             self.raster = gdal.Open(filename, GA_ReadOnly)
         else:
@@ -65,7 +69,7 @@ class Raster(object):
         vals['rows'], vals['cols'], vals['bands'] = self.dim
         vals.update(self.geo)
         vals['proj4'] = self.proj4
-        vals['filename'] = self.filename
+        vals['filename'] = self.filename if self.filename is not None else 'memory'
 
         info = 'class      : spatialist Raster object\n' \
                'dimensions : {rows}, {cols}, {bands} (rows, cols, bands)\n' \
@@ -74,6 +78,100 @@ class Raster(object):
                'coord. ref.: {proj4}\n' \
                'data source: {filename}'.format(**vals)
         return info
+
+    def __getitem__(self, index):
+        if isinstance(index, Vector):
+            # reproject vector object on the fly
+            index.reproject(self.proj4)
+            # intersect vector object with raster bounding box
+            inter = intersect(self.bbox(), index)
+            if inter is None:
+                raise RuntimeError('no intersection between Raster and Vector object')
+            # get raster indexing slices from intersect bounding box extent
+            sl = self.__extent2slice(inter.extent)
+            # subset raster object with slices
+            with self[sl] as sub:
+                # mask subsetted raster object with vector geometries
+                masked = sub.__maskbyvector(inter)
+            inter = None
+            return masked
+
+        if isinstance(index, tuple):
+            ras_dim = 2 if self.raster.RasterCount == 1 else 3
+            if ras_dim != len(index):
+                raise IndexError(
+                    'mismatch of index length ({0}) and raster dimensions ({1})'.format(len(index), ras_dim))
+            for i in [0, 1]:
+                if index[i].step is not None:
+                    raise IndexError('step slicing of {} is not allowed'.format(['rows', 'bands'][i]))
+
+        # create index lists from subset slices
+        subset = dict()
+        subset['rows'] = list(range(0, self.rows))[index[0]]
+        subset['cols'] = list(range(0, self.cols))[index[1]]
+        if len(index) > 2:
+            subset['bands'] = list(range(0, self.bands))[index[2]]
+            if not isinstance(subset['bands'], list):
+                subset['bands'] = [subset['bands']]
+        else:
+            subset['bands'] = [0]
+
+        # update geo dimensions from subset list indices
+        geo = self.geo
+        geo['xmin'] = geo['xmin'] + min(subset['cols']) * geo['xres']
+        geo['ymax'] = geo['ymax'] - min(subset['rows']) * abs(geo['yres'])
+
+        # note: yres is negative!
+        geo['xmax'] = geo['xmin'] + geo['xres'] * len(subset['cols'])
+        geo['ymin'] = geo['ymax'] + geo['yres'] * len(subset['rows'])
+
+        # create options for creating a GDAL VRT dataset
+        opts = dict()
+        opts['xRes'], opts['yRes'] = self.res
+        opts['outputSRS'] = self.projection
+        opts['srcNodata'] = self.nodata
+        opts['VRTNodata'] = self.nodata
+        opts['bandList'] = [x + 1 for x in subset['bands']]
+        opts['outputBounds'] = (geo['xmin'], geo['ymin'], geo['xmax'], geo['ymax'])
+
+        # create an in-memory VRT file and return the output raster dataset as new Raster object
+        outname = os.path.join('/vsimem/', os.path.basename(tempfile.mktemp()))
+        out = gdalbuildvrt(src=self.filename, dst=outname, options=opts, void=False)
+        return Raster(out)
+
+    def __extent2slice(self, extent):
+        extent_bbox = bbox(extent, self.proj4)
+        inter = intersect(self.bbox(), extent_bbox)
+        extent_bbox.close()
+        if inter:
+            ext_inter = inter.extent
+            ext_ras = self.geo
+            xres, yres = self.res
+
+            colmin = int(floor((ext_inter['xmin'] - ext_ras['xmin']) / xres))
+            colmax = int(ceil((ext_ras['xmax'] - ext_inter['xmin']) / xres))
+            rowmin = int(floor((ext_ras['ymax'] - ext_inter['ymax']) / yres))
+            rowmax = int(ceil((ext_ras['ymax'] - ext_inter['ymin']) / yres))
+            inter.close()
+            if self.bands == 1:
+                return slice(rowmin, rowmax), slice(colmin, colmax)
+            else:
+                return slice(rowmin, rowmax), slice(colmin, colmax), slice(0, self.bands)
+        else:
+            raise RuntimeError('extent does not overlap with raster object')
+
+    @property
+    def files(self):
+        """
+
+        Returns
+        -------
+        list of str
+            a list of all absolute names of files associated with this raster data set
+        """
+        fl = self.raster.GetFileList()
+        if fl is not None:
+            return [os.path.abspath(x) for x in fl]
 
     def close(self):
         """
@@ -306,30 +404,22 @@ class Raster(object):
             statcollect.append(stats)
         return statcollect
 
-    def assign(self, array, index, dim='full'):
+    def assign(self, array, band):
         """
         assign an array to an existing Raster object
+
+        Parameters
+        ----------
+        array: np.ndarray
+            the array to be assigned to the Raster object
+        band: int
+            the index of the band to assign to
+
+        Returns
+        -------
+
         """
-        self.__data[index] = array
-        if dim != 'full':
-            shape = array.shape
-            if len(shape) == 2:
-                self.bands = 1
-                self.rows, self.cols = shape
-            else:
-                self.bands, self.rows, self.cols = shape
-
-            # print shape
-            # print self.cols, self.rows
-            # print self.raster.RasterXSize, self.raster.RasterYSize
-
-            self.dim = [self.rows, self.cols, self.bands]
-            self.geo['xmin'] += dim[0] * self.geo['xres']
-            self.geo['ymax'] += dim[1] * self.geo['yres']
-            self.geo['xmax'] = self.geo['xmin'] + self.geo['xres'] * self.cols
-            self.geo['ymin'] = self.geo['ymax'] + self.geo['yres'] * self.rows
-            self.raster.SetGeoTransform(
-                [self.geo[x] for x in ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']])
+        self.__data[band] = array
 
     def bbox(self, outname=None, format='ESRI Shapefile', overwrite=True):
         """
@@ -470,25 +560,14 @@ class Raster(object):
         """
         return [self.raster.GetRasterBand(band) for band in range(1, self.bands + 1)]
 
-    def load(self, dim='full'):
+    def load(self):
         """
         load all raster data to arrays
-
-        Parameters
-        ----------
-        dim: list or tuple
-            a raster subset in pixel coordinates with (col_min, row_min, col_max, row_max).
-            By default (0, 0, `ncols`, `nrows`)
-
-        Returns
-        -------
-
         """
-        dim = [0, 0, self.cols, self.rows] if dim == 'full' else dim
         for i in range(1, self.bands + 1):
-            self.__data[i - 1] = self.matrix(i, dim)
+            self.__data[i - 1] = self.matrix(i)
 
-    def matrix(self, band=1, dim='full'):
+    def matrix(self, band=1, mask_nan=True):
         """
         read a raster band (subset) into a numpy ndarray
 
@@ -496,55 +575,61 @@ class Raster(object):
         ----------
         band: int
             the band to read the matrix from; 1-based indexing
-        dim: list or tuple
-            a raster subset in pixel coordinates with (col_min, row_min, col_max, row_max).
-            By default (0, 0, ncols, nrows)
+        mask_nan: bool
+            convert nodata values to numpy.nan? As numpy.nan requires at least float values, any integer array is cast
+            to float32.
 
         Returns
         -------
         np.ndarray
             the matrix (subset) of the selected band
         """
-        dim = [0, 0, self.cols, self.rows] if dim == 'full' else dim
-
-        col_f, row_f, col_l, row_l = dim
-        ncol = col_l - col_f
-        nrow = row_l - row_f
 
         mat = self.__data[band - 1]
-        if mat is not None:
-            mat = mat[row_f:row_l, col_f:col_l]
-        else:
-            mat = self.raster.GetRasterBand(band).ReadAsArray(col_f, row_f, ncol, nrow)
-            mat[mat == self.nodata] = np.nan
+        if mat is None:
+            mat = self.raster.GetRasterBand(band).ReadAsArray()
+            if mask_nan:
+                try:
+                    mat[mat == self.nodata] = np.nan
+                except ValueError:
+                    mat = mat.astype('float32')
+                    mat[mat == self.nodata] = np.nan
         return mat
 
+    def __maskbyvector(self, vec, outname=None, format='GTiff', nodata=0):
 
-    # compute basic statistic measures from selected bands (provided by either single integer keys or a list of integers)
-    # def getstat(self, statistic, bands='all'):
-    #     statistics = {'min': 0, 'max': 1, 'mean': 2, 'sdev': 3}
-    #     if statistic not in statistics:
-    #         raise IOError('statistic not supported')
-    #     if type(bands) == int:
-    #         return self.allstats[bands-1][statistics[statistic]]
-    #     elif bands == 'all':
-    #         return [self.allstats[x-1][statistics[statistic]] for x in range(1, self.bands+1)]
-    #     elif type(bands) == list:
-    #         return [self.allstats[x-1][statistics[statistic]] for x in bands]
+        if outname is not None:
+            driver_name = format
+        else:
+            driver_name = 'MEM'
 
-    # crop a raster object using another raster or extent object
-    # if no name for an output file is provided, a list of pixel coordinates for cropping is returned
-    # def crop(self, clipobject, outname=None):
-    #     ext = Extent(self)
-    #     inter = util.intersect(self, clipobject)
-    #     if inter is None:
-    #         raise IOError('no extent overlap')
-    #     clip = [int(ceil((inter.left-ext.left)/self.res[0])), int(ceil((ext.top-inter.top)/self.res[1])),
-    #             int(floor((inter.right-inter.left)/self.res[0])), int(floor((inter.top-inter.bottom)/self.res[1]))]
-    #     if outname is not None:
-    #         self.write(outname, dim=clip)
-    #     else:
-    #         return clip
+        with rasterize(vec, self) as vecmask:
+            mask = vecmask.matrix()
+
+        driver = gdal.GetDriverByName(driver_name)
+        outDataset = driver.Create(outname if outname is not None else '',
+                                   self.cols, self.rows, self.bands, dtypes(self.dtype))
+        driver = None
+        outDataset.SetMetadata(self.raster.GetMetadata())
+        outDataset.SetGeoTransform([self.geo[x] for x in ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']])
+        if self.projection is not None:
+            outDataset.SetProjection(self.projection)
+        for i in range(1, self.bands + 1):
+            outband = outDataset.GetRasterBand(i)
+            outband.SetNoDataValue(nodata)
+            mat = self.matrix(band=i)
+            mat = mat * mask
+            outband.WriteArray(mat)
+            del mat
+            outband.FlushCache()
+            outband = None
+        if format == 'GTiff' and outname is not None:
+            outDataset.SetMetadataItem('TIFFTAG_DATETIME', strftime('%Y:%m:%d %H:%M:%S', gmtime()))
+        if outname is not None:
+            outDataset = None
+        else:
+            return Raster(outDataset)
+
 
     # def reduce(self, outname=None, format='ENVI'):
     #     """
@@ -611,9 +696,9 @@ class Raster(object):
         scaled = fun(mat)
 
         # assign newly computed array to raster object
-        self.assign(scaled, index=0)
+        self.assign(scaled, band=0)
 
-    def write(self, outname, dtype='default', format='ENVI', dim='full', nodata='default', compress_tif=False):
+    def write(self, outname, dtype='default', format='ENVI', nodata='default', compress_tif=False):
         """
         write the raster object to a file.
 
@@ -626,9 +711,6 @@ class Raster(object):
             data type notations of GDAL (e.g. 'Float32') and numpy (e.g. 'int8') are supported.
         format:
             the file format; e.g. 'GTiff'
-        dim: list or tuple
-            a raster subset in pixel coordinates with (col_min, row_min, col_max, row_max).
-            By default (0, 0, ncols, nrows)
         nodata: int or float
             the nodata value to write to the file
         compress_tif: bool
@@ -638,10 +720,6 @@ class Raster(object):
         -------
 
         """
-        dim = (0, 0, self.cols, self.rows) if dim == 'full' else dim
-        col_f, row_f, col_l, row_l = dim
-        ncol = col_l - col_f
-        nrow = row_l - row_f
 
         if os.path.isfile(outname):
             raise RuntimeError('target file already exists')
@@ -656,23 +734,17 @@ class Raster(object):
         if format == 'GTiff' and compress_tif:
             options += ['COMPRESS=DEFLATE', 'PREDICTOR=2']
 
-        geo = self.geo
-        geo['xmin'] += col_f * self.res[0]
-        geo['xmax'] -= (self.cols - col_l) * self.res[0]
-        geo['ymin'] += (self.rows - row_l) * self.res[1]
-        geo['ymax'] -= row_f * self.res[1]
-
         driver = gdal.GetDriverByName(format)
-        outDataset = driver.Create(outname, ncol, nrow, self.bands, dtype, options)
+        outDataset = driver.Create(outname, self.cols, self.rows, self.bands, dtype, options)
         driver = None
         outDataset.SetMetadata(self.raster.GetMetadata())
-        outDataset.SetGeoTransform([geo[x] for x in ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']])
+        outDataset.SetGeoTransform([self.geo[x] for x in ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']])
         if self.projection is not None:
             outDataset.SetProjection(self.projection)
         for i in range(1, self.bands + 1):
             outband = outDataset.GetRasterBand(i)
             outband.SetNoDataValue(nodata)
-            mat = self.matrix(band=i, dim=dim)
+            mat = self.matrix(band=i)
             outband.WriteArray(mat)
             del mat
             outband.FlushCache()
@@ -917,7 +989,7 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     shutil.rmtree(tmpdir)
 
 
-def rasterize(vectorobject, outname, reference, burn_values=1, expressions=None, nodata=0, append=False):
+def rasterize(vectorobject, reference, outname=None, burn_values=1, expressions=None, nodata=0, append=False):
     """
     rasterize a vector object
 
@@ -925,10 +997,11 @@ def rasterize(vectorobject, outname, reference, burn_values=1, expressions=None,
     ----------
     vectorobject: Vector
         the vector object to be rasterized
-    outname: str
-        the name of the GeoTiff output file
     reference: Raster
         a reference Raster object to retrieve geo information and extent from
+    outname: str or None
+        the name of the GeoTiff output file; if None, an in-memory object of type Raster is returned and parameter
+        outname is ignored
     burn_values: int or list
         the values to be written to the raster file
     expressions: list
@@ -941,7 +1014,8 @@ def rasterize(vectorobject, outname, reference, burn_values=1, expressions=None,
 
     Returns
     -------
-
+    Raster or None
+        if outname is None, a Raster object pointing to an in-memory dataset else None
     Example
     -------
     >>> from spatialist import Vector, Raster, rasterize
@@ -950,7 +1024,7 @@ def rasterize(vectorobject, outname, reference, burn_values=1, expressions=None,
     >>> outname = 'target.tif'
     >>> expressions = ['ATTRIBUTE=1', 'ATTRIBUTE=2']
     >>> burn_values = [1, 2]
-    >>> rasterize(vec, outname, reference, burn_values, expressions)
+    >>> rasterize(vec, reference, outname, burn_values, expressions)
     """
     if expressions is None:
         expressions = ['']
@@ -968,12 +1042,15 @@ def rasterize(vectorobject, outname, reference, burn_values=1, expressions=None,
     if len(failed) > 0:
         raise RuntimeError('failed to set the following attribute filter(s): ["{}"]'.format('", '.join(failed)))
 
-    if append and os.path.isfile(outname):
+    if append and outname is not None and os.path.isfile(outname):
         target_ds = gdal.Open(outname, GA_Update)
     else:
         if not isinstance(reference, Raster):
             raise RuntimeError("parameter 'reference' must be of type Raster")
-        target_ds = gdal.GetDriverByName('GTiff').Create(outname, reference.cols, reference.rows, 1, gdal.GDT_Byte)
+        if outname is not None:
+            target_ds = gdal.GetDriverByName('GTiff').Create(outname, reference.cols, reference.rows, 1, gdal.GDT_Byte)
+        else:
+            target_ds = gdal.GetDriverByName('MEM').Create('', reference.cols, reference.rows, 1, gdal.GDT_Byte)
         target_ds.SetGeoTransform(reference.raster.GetGeoTransform())
         target_ds.SetProjection(reference.raster.GetProjection())
         band = target_ds.GetRasterBand(1)
@@ -984,7 +1061,10 @@ def rasterize(vectorobject, outname, reference, burn_values=1, expressions=None,
         vectorobject.layer.SetAttributeFilter(expression)
         gdal.RasterizeLayer(target_ds, [1], vectorobject.layer, burn_values=[value])
     vectorobject.layer.SetAttributeFilter('')
-    target_ds = None
+    if outname is None:
+        return Raster(target_ds)
+    else:
+        target_ds = None
 
 
 def dtypes(typestring):
