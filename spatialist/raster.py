@@ -584,6 +584,42 @@ class Raster(object):
                     mat[mat == self.nodata] = np.nan
         return mat
 
+    def __maskbyvector(self, vec, outname=None, format='GTiff', nodata=0):
+
+        if outname is not None:
+            driver_name = format
+        else:
+            driver_name = 'MEM'
+
+        with rasterize(vec, self) as vecmask:
+            mask = vecmask.matrix()
+
+        driver = gdal.GetDriverByName(driver_name)
+        outDataset = driver.Create(outname if outname is not None else '',
+                                   self.cols, self.rows, self.bands, dtypes(self.dtype))
+        print(outDataset)
+        driver = None
+        outDataset.SetMetadata(self.raster.GetMetadata())
+        outDataset.SetGeoTransform([self.geo[x] for x in ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']])
+        if self.projection is not None:
+            outDataset.SetProjection(self.projection)
+        for i in range(1, self.bands + 1):
+            outband = outDataset.GetRasterBand(i)
+            outband.SetNoDataValue(nodata)
+            mat = self.matrix(band=i)
+            mat = mat * mask
+            outband.WriteArray(mat)
+            del mat
+            outband.FlushCache()
+            outband = None
+        print(Raster(outDataset))
+        if format == 'GTiff' and outname is not None:
+            outDataset.SetMetadataItem('TIFFTAG_DATETIME', strftime('%Y:%m:%d %H:%M:%S', gmtime()))
+        if outname is not None:
+            outDataset = None
+        else:
+            return Raster(outDataset)
+
 
     # def reduce(self, outname=None, format='ENVI'):
     #     """
