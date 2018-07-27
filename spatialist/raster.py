@@ -81,10 +81,17 @@ class Raster(object):
 
     def __getitem__(self, index):
         if isinstance(index, Vector):
+            # reproject vector object on the fly
             index.reproject(self.proj4)
-            inter = intersect(self.bbox(), index)
-            sl = self.__extent2slice(inter.extent)
-            return self[sl]
+            # intersect vector object with raster bounding box
+            with intersect(self.bbox(), index) as inter:
+                # get raster indexing slices from intersect bounding box extent
+                sl = self.__extent2slice(inter.extent)
+                # subset raster object with slices
+                with self[sl] as sub:
+                    # mask subsetted raster object with vector geometries
+                    masked = sub.__maskbyvector(inter)
+            return masked
 
         if isinstance(index, tuple):
             ras_dim = 2 if self.raster.RasterCount == 1 else 3
