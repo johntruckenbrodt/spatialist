@@ -84,13 +84,16 @@ class Raster(object):
             # reproject vector object on the fly
             index.reproject(self.proj4)
             # intersect vector object with raster bounding box
-            with intersect(self.bbox(), index) as inter:
-                # get raster indexing slices from intersect bounding box extent
-                sl = self.__extent2slice(inter.extent)
-                # subset raster object with slices
-                with self[sl] as sub:
-                    # mask subsetted raster object with vector geometries
-                    masked = sub.__maskbyvector(inter)
+            inter = intersect(self.bbox(), index)
+            if inter is None:
+                raise RuntimeError('no intersection between Raster and Vector object')
+            # get raster indexing slices from intersect bounding box extent
+            sl = self.__extent2slice(inter.extent)
+            # subset raster object with slices
+            with self[sl] as sub:
+                # mask subsetted raster object with vector geometries
+                masked = sub.__maskbyvector(inter)
+            inter = None
             return masked
 
         if isinstance(index, tuple):
@@ -104,10 +107,12 @@ class Raster(object):
 
         # create index lists from subset slices
         subset = dict()
-        subset['rows'] = range(0, self.rows)[index[0]]
-        subset['cols'] = range(0, self.cols)[index[1]]
+        subset['rows'] = list(range(0, self.rows))[index[0]]
+        subset['cols'] = list(range(0, self.cols))[index[1]]
         if len(index) > 2:
-            subset['bands'] = range(0, self.bands)[index[2]]
+            subset['bands'] = list(range(0, self.bands))[index[2]]
+            if not isinstance(subset['bands'], list):
+                subset['bands'] = [subset['bands']]
         else:
             subset['bands'] = [0]
 
@@ -604,7 +609,6 @@ class Raster(object):
         driver = gdal.GetDriverByName(driver_name)
         outDataset = driver.Create(outname if outname is not None else '',
                                    self.cols, self.rows, self.bands, dtypes(self.dtype))
-        print(outDataset)
         driver = None
         outDataset.SetMetadata(self.raster.GetMetadata())
         outDataset.SetGeoTransform([self.geo[x] for x in ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']])
@@ -619,7 +623,6 @@ class Raster(object):
             del mat
             outband.FlushCache()
             outband = None
-        print(Raster(outDataset))
         if format == 'GTiff' and outname is not None:
             outDataset.SetMetadataItem('TIFFTAG_DATETIME', strftime('%Y:%m:%d %H:%M:%S', gmtime()))
         if outname is not None:
