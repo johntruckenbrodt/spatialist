@@ -240,22 +240,22 @@ def test_rasterize(tmpdir, testdata):
 
         # test length mismatch between burn_values and expressions
         with pytest.raises(RuntimeError):
-            rasterize(vec, outname, reference=ras, burn_values=[1], expressions=['foo', 'bar'])
+            rasterize(vec, reference=ras, outname=outname, burn_values=[1], expressions=['foo', 'bar'])
 
         # test a faulty expression
         with pytest.raises(RuntimeError):
-            rasterize(vec, outname, reference=ras, burn_values=[1], expressions=['foo'])
+            rasterize(vec, reference=ras, outname=outname, burn_values=[1], expressions=['foo'])
 
         # test default parametrization
-        rasterize(vec, outname, reference=ras)
+        rasterize(vec, reference=ras, outname=outname)
         assert os.path.isfile(outname)
 
         # test appending to existing file with valid expression
-        rasterize(vec, outname, reference=ras, append=True, burn_values=[1], expressions=['id=1'])
+        rasterize(vec, reference=ras, outname=outname, append=True, burn_values=[1], expressions=['id=1'])
 
         # test wrong input type for reference
         with pytest.raises(RuntimeError):
-            rasterize(vec, outname, reference='foobar')
+            rasterize(vec, reference='foobar', outname=outname)
 
 
 def test_envi(tmpdir):
