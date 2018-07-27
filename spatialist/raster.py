@@ -69,7 +69,7 @@ class Raster(object):
         vals['rows'], vals['cols'], vals['bands'] = self.dim
         vals.update(self.geo)
         vals['proj4'] = self.proj4
-        vals['filename'] = self.filename
+        vals['filename'] = self.filename if self.filename is not None else 'memory'
 
         info = 'class      : spatialist Raster object\n' \
                'dimensions : {rows}, {cols}, {bands} (rows, cols, bands)\n' \
