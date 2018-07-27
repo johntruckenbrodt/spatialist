@@ -30,7 +30,7 @@ Data Exploration
 Some general examples
 =====================
 in-memory vector object rasterization
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------------------
 | Here we create a new raster data set with the same geo-information and extent as a reference data set
  and burn the geometries from a shapefile into it.
 | In this example, the shapefile contains an attribute ``Site_name`` and one of the geometries in the shapefile has a
