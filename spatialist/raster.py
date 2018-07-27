@@ -121,6 +121,27 @@ class Raster(object):
         out = gdalbuildvrt(src=self.filename, dst=outname, options=opts, void=False)
         return Raster(out)
 
+    def __extent2slice(self, extent):
+        extent_bbox = bbox(extent, self.proj4)
+        inter = intersect(self.bbox(), extent_bbox)
+        extent_bbox.close()
+        if inter:
+            ext_inter = inter.extent
+            ext_ras = self.geo
+            xres, yres = self.res
+
+            colmin = int(floor((ext_inter['xmin'] - ext_ras['xmin']) / xres))
+            colmax = int(ceil((ext_ras['xmax'] - ext_inter['xmin']) / xres))
+            rowmin = int(floor((ext_ras['ymax'] - ext_inter['ymax']) / yres))
+            rowmax = int(ceil((ext_ras['ymax'] - ext_inter['ymin']) / yres))
+            inter.close()
+            if self.bands == 1:
+                return slice(rowmin, rowmax), slice(colmin, colmax)
+            else:
+                return slice(rowmin, rowmax), slice(colmin, colmax), slice(0, self.bands)
+        else:
+            raise RuntimeError('extent does not overlap with raster object')
+
     @property
     def files(self):
         """
