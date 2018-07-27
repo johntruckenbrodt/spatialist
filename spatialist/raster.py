@@ -968,7 +968,7 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     shutil.rmtree(tmpdir)
 
 
-def rasterize(vectorobject, outname, reference, burn_values=1, expressions=None, nodata=0, append=False):
+def rasterize(vectorobject, reference, outname=None, burn_values=1, expressions=None, nodata=0, append=False):
     """
     rasterize a vector object
 
@@ -976,10 +976,11 @@ def rasterize(vectorobject, outname, reference, burn_values=1, expressions=None,
     ----------
     vectorobject: Vector
         the vector object to be rasterized
-    outname: str
-        the name of the GeoTiff output file
     reference: Raster
         a reference Raster object to retrieve geo information and extent from
+    outname: str or None
+        the name of the GeoTiff output file; if None, an in-memory object of type Raster is returned and parameter
+        outname is ignored
     burn_values: int or list
         the values to be written to the raster file
     expressions: list
@@ -992,7 +993,8 @@ def rasterize(vectorobject, outname, reference, burn_values=1, expressions=None,
 
     Returns
     -------
-
+    Raster or None
+        if outname is None, a Raster object pointing to an in-memory dataset else None
     Example
     -------
     >>> from spatialist import Vector, Raster, rasterize
@@ -1001,7 +1003,7 @@ def rasterize(vectorobject, outname, reference, burn_values=1, expressions=None,
     >>> outname = 'target.tif'
     >>> expressions = ['ATTRIBUTE=1', 'ATTRIBUTE=2']
     >>> burn_values = [1, 2]
-    >>> rasterize(vec, outname, reference, burn_values, expressions)
+    >>> rasterize(vec, reference, outname, burn_values, expressions)
     """
     if expressions is None:
         expressions = ['']
@@ -1019,12 +1021,15 @@ def rasterize(vectorobject, outname, reference, burn_values=1, expressions=None,
     if len(failed) > 0:
         raise RuntimeError('failed to set the following attribute filter(s): ["{}"]'.format('", '.join(failed)))
 
-    if append and os.path.isfile(outname):
+    if append and outname is not None and os.path.isfile(outname):
         target_ds = gdal.Open(outname, GA_Update)
     else:
         if not isinstance(reference, Raster):
             raise RuntimeError("parameter 'reference' must be of type Raster")
-        target_ds = gdal.GetDriverByName('GTiff').Create(outname, reference.cols, reference.rows, 1, gdal.GDT_Byte)
+        if outname is not None:
+            target_ds = gdal.GetDriverByName('GTiff').Create(outname, reference.cols, reference.rows, 1, gdal.GDT_Byte)
+        else:
+            target_ds = gdal.GetDriverByName('MEM').Create('', reference.cols, reference.rows, 1, gdal.GDT_Byte)
         target_ds.SetGeoTransform(reference.raster.GetGeoTransform())
         target_ds.SetProjection(reference.raster.GetProjection())
         band = target_ds.GetRasterBand(1)
@@ -1035,7 +1040,10 @@ def rasterize(vectorobject, outname, reference, burn_values=1, expressions=None,
         vectorobject.layer.SetAttributeFilter(expression)
         gdal.RasterizeLayer(target_ds, [1], vectorobject.layer, burn_values=[value])
     vectorobject.layer.SetAttributeFilter('')
-    target_ds = None
+    if outname is None:
+        return Raster(target_ds)
+    else:
+        target_ds = None
 
 
 def dtypes(typestring):
