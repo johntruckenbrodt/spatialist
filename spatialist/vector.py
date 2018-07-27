@@ -274,27 +274,29 @@ class Vector(object):
 
         srs_out = crsConvert(projection, 'osr')
 
-        # create the CoordinateTransformation
-        coordTrans = osr.CoordinateTransformation(self.srs, srs_out)
+        if self.srs.IsSame(srs_out) == 0:
 
-        layername = self.layername
-        geomType = self.geomType
-        features = self.getfeatures()
-        feat_def = features[0].GetDefnRef()
-        fields = [feat_def.GetFieldDefn(x) for x in range(0, feat_def.GetFieldCount())]
+            # create the CoordinateTransformation
+            coordTrans = osr.CoordinateTransformation(self.srs, srs_out)
 
-        self.__init__()
-        self.addlayer(layername, srs_out, geomType)
-        self.layer.CreateFields(fields)
+            layername = self.layername
+            geomType = self.geomType
+            features = self.getfeatures()
+            feat_def = features[0].GetDefnRef()
+            fields = [feat_def.GetFieldDefn(x) for x in range(0, feat_def.GetFieldCount())]
 
-        for feature in features:
-            geom = feature.GetGeometryRef()
-            geom.Transform(coordTrans)
-            newfeature = feature.Clone()
-            newfeature.SetGeometry(geom)
-            self.layer.CreateFeature(newfeature)
-            newfeature = None
-        self.init_features()
+            self.__init__()
+            self.addlayer(layername, srs_out, geomType)
+            self.layer.CreateFields(fields)
+
+            for feature in features:
+                geom = feature.GetGeometryRef()
+                geom.Transform(coordTrans)
+                newfeature = feature.Clone()
+                newfeature.SetGeometry(geom)
+                self.layer.CreateFeature(newfeature)
+                newfeature = None
+            self.init_features()
 
     def setCRS(self, crs):
         """
