@@ -24,7 +24,7 @@ from osgeo import (gdal, gdal_array, osr)
 from osgeo.gdalconst import (GA_ReadOnly, GA_Update, GDT_Byte, GDT_Int16, GDT_UInt16,
                              GDT_Int32, GDT_UInt32, GDT_Float32, GDT_Float64)
 
-os.environ['GDAL_PAM_PROXY_DIR'] = '/tmp'
+os.environ['GDAL_PAM_PROXY_DIR'] = tempfile.gettempdir()
 
 gdal.UseExceptions()
 
