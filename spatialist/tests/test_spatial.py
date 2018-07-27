@@ -131,6 +131,23 @@ def test_Raster(tmpdir, testdata):
             ras.write(os.path.join(str(tmpdir), 'test.tif'), format='GTiff')
 
 
+def test_Raster_subset(testdata):
+    with Raster(testdata['tif']) as ras:
+        ext = ras.bbox().extent
+        xres, yres = ras.res
+        ext['xmin'] += xres
+        ext['xmax'] -= xres
+        ext['ymin'] += yres
+        ext['ymax'] -= yres
+        with bbox(ext, ras.proj4) as vec:
+            with ras[vec] as sub:
+                xres, yres = ras.res
+                assert sub.geo['xmin'] - ras.geo['xmin'] == xres
+                assert ras.geo['xmax'] - sub.geo['xmax'] == xres
+                assert sub.geo['ymin'] - ras.geo['ymin'] == xres
+                assert ras.geo['ymax'] - sub.geo['ymax'] == xres
+
+
 def test_Raster_extract(testdata):
     with Raster(testdata['tif']) as ras:
         assert ras.extract(px=624000, py=4830000, radius=5) == -10.48837461270875
