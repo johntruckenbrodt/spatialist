@@ -584,31 +584,6 @@ class Raster(object):
                     mat[mat == self.nodata] = np.nan
         return mat
 
-    # compute basic statistic measures from selected bands (provided by either single integer keys or a list of integers)
-    # def getstat(self, statistic, bands='all'):
-    #     statistics = {'min': 0, 'max': 1, 'mean': 2, 'sdev': 3}
-    #     if statistic not in statistics:
-    #         raise IOError('statistic not supported')
-    #     if type(bands) == int:
-    #         return self.allstats[bands-1][statistics[statistic]]
-    #     elif bands == 'all':
-    #         return [self.allstats[x-1][statistics[statistic]] for x in range(1, self.bands+1)]
-    #     elif type(bands) == list:
-    #         return [self.allstats[x-1][statistics[statistic]] for x in bands]
-
-    # crop a raster object using another raster or extent object
-    # if no name for an output file is provided, a list of pixel coordinates for cropping is returned
-    # def crop(self, clipobject, outname=None):
-    #     ext = Extent(self)
-    #     inter = util.intersect(self, clipobject)
-    #     if inter is None:
-    #         raise IOError('no extent overlap')
-    #     clip = [int(ceil((inter.left-ext.left)/self.res[0])), int(ceil((ext.top-inter.top)/self.res[1])),
-    #             int(floor((inter.right-inter.left)/self.res[0])), int(floor((inter.top-inter.bottom)/self.res[1]))]
-    #     if outname is not None:
-    #         self.write(outname, dim=clip)
-    #     else:
-    #         return clip
 
     # def reduce(self, outname=None, format='ENVI'):
     #     """
