@@ -452,6 +452,20 @@ def centerdist(obj1, obj2):
 
 
 def intersect(obj1, obj2):
+    """
+    intersect two Vector objects
+    Parameters
+    ----------
+    obj1: Vector
+        the first vector geometry
+    obj2: Vector
+        the second vector geometry
+
+    Returns
+    -------
+    Vector
+        the intersect of obj1 and obj2
+    """
     if not isinstance(obj1, Vector) or not isinstance(obj2, Vector):
         raise RuntimeError('both objects must be of type Vector')
 
@@ -468,7 +482,13 @@ def intersect(obj1, obj2):
 
     intersect = geometry2.Intersection(geometry1)
 
-    return intersect if intersect.GetArea() > 0 else None
+    if intersect.GetArea() > 0:
+        intersection = Vector(driver='Memory')
+        intersection.addlayer('intersect', obj2.srs, ogr.wkbPolygon)
+        intersection.addfield('id', type=ogr.OFTInteger)
+        intersection.addfeature(intersect, {'id': 1})
+        geom = None
+        return intersection
 
 
 def dissolve(infile, outfile, field, layername=None):
