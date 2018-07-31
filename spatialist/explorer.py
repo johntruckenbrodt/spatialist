@@ -1,10 +1,20 @@
+import os
+import re
 import numpy as np
 from .raster import Raster
 from .envi import HDRobject
 import matplotlib
 import matplotlib.pyplot as plt
+
+import sys
+if sys.version_info >= (3, 0):
+    from tkinter import filedialog, Tk
+else:
+    from Tkinter import Tk
+    import tkFileDialog as filedialog
+
 from IPython.display import display
-from ipywidgets import interactive_output, IntSlider, Layout, Checkbox, Button, HBox, Label
+from ipywidgets import interactive_output, IntSlider, Layout, Checkbox, Button, HBox, Label, VBox
 
 """
 This module is intended for gathering functionalities for plotting spatial data with jupyter notebooks
@@ -79,7 +89,7 @@ class RasterViewer(object):
         # define some options for display of the widget box
         self.layout = Layout(
             display='flex',
-            flex_flow='row',
+            flex_flow='column',
             border='solid 2px',
             align_items='stretch',
             width='100%'
@@ -110,13 +120,16 @@ class RasterViewer(object):
         self.clearbutton = Button(description='clear vertical plot')
         self.clearbutton.on_click(lambda x: self.__init_vertical_plot())
 
+        self.write_csv = Button(description='export csv')
+        self.write_csv.on_click(lambda x: self.__csv())
+
         if self.format == 'ENVI':
             self.sliderlabel = Label(value=self.bandnames[self.slider.value], layout={'width': '500px'})
-            children = [self.slider, self.sliderlabel, self.checkbox, self.clearbutton]
+            children = [HBox([self.slider, self.sliderlabel]), HBox([self.checkbox, self.clearbutton, self.write_csv])]
         else:
-            children = [self.slider, self.checkbox, self.clearbutton]
+            children = [self.slider, HBox([self.checkbox, self.clearbutton, self.write_csv])]
 
-        form = HBox(children=children, layout=self.layout)
+        form = VBox(children=children, layout=self.layout)
 
         display(form)
 
@@ -249,3 +262,27 @@ class RasterViewer(object):
             label = 'x: {0:03}; y: {1:03}'.format(x, y)
             self.ax2.plot(self.timestamps, subset_vertical, label=label)
             self.ax2_legend = self.ax2.legend(loc=0, prop={'size': 7}, markerscale=1)
+
+    def __csv(self):
+        profiles = self.ax2.get_lines()
+        if len(profiles) == 0:
+            return
+        root = Tk()
+        # Hide the main window
+        root.withdraw()
+        f = filedialog.asksaveasfile(initialdir=os.environ['HOME'], mode='w', defaultextension='.csv',
+                                     filetypes=(('csv', '*.csv'), ('all files', '*.*')))
+        if f is None:
+            return
+        f.write('id;bandname;row;column;xdata;ydata\n')
+        for i in range(0, len(profiles)):
+            line = profiles[i]
+            xdata = line.get_xdata()
+            ydata = line.get_ydata()
+
+            col, row = [int(x) for x in re.sub('[xy: ]', '', self.ax2.get_legend().texts[i].get_text()).split(';')]
+
+            for j in range(0, self.bands):
+                entry = '{};{};{};{};{};{}\n'.format(i+1, self.bandnames[j], row, col, xdata[j], ydata[j])
+                f.write(entry)
+        f.close()
