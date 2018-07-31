@@ -154,7 +154,7 @@ class Raster(object):
             xres, yres = self.res
 
             colmin = int(floor((ext_inter['xmin'] - ext_ras['xmin']) / xres))
-            colmax = int(ceil((ext_ras['xmax'] - ext_inter['xmin']) / xres))
+            colmax = int(ceil((ext_inter['xmax'] - ext_ras['xmin']) / xres))
             rowmin = int(floor((ext_ras['ymax'] - ext_inter['ymax']) / yres))
             rowmax = int(ceil((ext_ras['ymax'] - ext_inter['ymin']) / yres))
             inter.close()
