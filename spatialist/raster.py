@@ -80,6 +80,7 @@ class Raster(object):
         return info
 
     def __getitem__(self, index):
+        # subsetting via Vector object
         if isinstance(index, Vector):
             # reproject vector object on the fly
             index.reproject(self.proj4)
@@ -95,7 +96,8 @@ class Raster(object):
                 masked = sub.__maskbyvector(inter)
             inter = None
             return masked
-
+        #####################################################################################################
+        # subsetting via slices
         if isinstance(index, tuple):
             ras_dim = 2 if self.raster.RasterCount == 1 else 3
             if ras_dim != len(index):
@@ -115,6 +117,9 @@ class Raster(object):
                 subset['bands'] = [subset['bands']]
         else:
             subset['bands'] = [0]
+
+        if len(subset['rows']) == 0 or len(subset['cols']) == 0 or len(subset['bands']) == 0:
+            raise RuntimeError('no suitable subset for defined slice:\n  {}'.format(index))
 
         # update geo dimensions from subset list indices
         geo = self.geo
