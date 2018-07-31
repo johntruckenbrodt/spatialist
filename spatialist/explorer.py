@@ -32,12 +32,16 @@ class RasterViewer(object):
         the minimum percentile for linear histogram stretching
     pmax: int
         the maximum percentile for linear histogram stretching
+    ts_convert: function or None
+        a function to read time stamps from the band names
 
     """
 
-    def __init__(self, filename, cmap='jet', band_indices=None, pmin=2, pmax=98):
+    def __init__(self, filename, cmap='jet', band_indices=None, pmin=2, pmax=98, ts_convert=None):
 
         matplotlib.rcParams['figure.figsize'] = (13, 4)
+
+        self.ts_convert = ts_convert
 
         self.filename = filename
         with Raster(filename) as ras:
@@ -52,6 +56,8 @@ class RasterViewer(object):
             if self.format == 'ENVI':
                 self.bandnames = HDRobject(filename+'.hdr').band_names
                 self.slider_readout = False
+
+        self.timestamps = range(0, self.bands) if ts_convert is None else [ts_convert(x) for x in self.bandnames]
 
         xlab = self.crs.GetAxisName(None, 0)
         ylab = self.crs.GetAxisName(None, 1)
@@ -241,5 +247,5 @@ class RasterViewer(object):
 
             # plot the vertical profile
             label = 'x: {0:03}; y: {1:03}'.format(x, y)
-            self.ax2.plot(range(0, self.bands), subset_vertical, label=label)
+            self.ax2.plot(self.timestamps, subset_vertical, label=label)
             self.ax2_legend = self.ax2.legend(loc=0, prop={'size': 7}, markerscale=1)
