@@ -26,9 +26,9 @@ year = datetime.datetime.now().year
 # built documents.
 #
 # The short X.Y version.
-version = '0.1'
+version = '0.2'
 # The full version, including alpha/beta/rc tags.
-release = '0.1'
+release = '0.2'
 
 
 # If extensions (or modules to document with autodoc) are in another directory,
