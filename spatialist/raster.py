@@ -758,11 +758,12 @@ class Raster(object):
             outband = None
         if format == 'GTiff':
             outDataset.SetMetadataItem('TIFFTAG_DATETIME', strftime('%Y:%m:%d %H:%M:%S', gmtime()))
-        elif format == 'ENVI':
+        outDataset = None
+        if format == 'ENVI':
             with HDRobject(outname+'.hdr') as hdr:
                 hdr.band_names = self.bandnames
                 hdr.write()
-        outDataset = None
+
 
         # write a png image of three raster bands (provided in a list of 1-based integers); percent controls the size ratio of input and output
         # def png(self, bands, outname, percent=10):
