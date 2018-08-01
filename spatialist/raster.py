@@ -705,7 +705,7 @@ class Raster(object):
         """
         return osr.SpatialReference(wkt=self.projection)
 
-    def write(self, outname, dtype='default', format='ENVI', nodata='default', compress_tif=False):
+    def write(self, outname, dtype='default', format='ENVI', nodata='default', compress_tif=False, overwrite=False):
         """
         write the raster object to a file.
 
@@ -722,13 +722,15 @@ class Raster(object):
             the nodata value to write to the file
         compress_tif: bool
             if the format is GeoTiff, compress the written file?
+        overwrite: bool
+            overwrite an already existing file?
 
         Returns
         -------
 
         """
 
-        if os.path.isfile(outname):
+        if os.path.isfile(outname) and not overwrite:
             raise RuntimeError('target file already exists')
 
         if format == 'GTiff' and not re.search('\.tif[f]*$', outname):
