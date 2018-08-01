@@ -1,12 +1,9 @@
 # spatialist
-[![Linux Build Status][1]][2] [![Windows Build status][3]][4] [![Coverage Status][5]][6] [![Documentation Status][7]][8] [![Binder][9]][10]
+[![Linux Build Status][1]][2] [![Windows Build status][3]][4] [![Coverage Status][5]][6] [![Documentation Status][7]][8] [![Binder][9]][10] [![PyPI version][12]][13]
 
 ### A Python module for spatial data handling
 
-This package is currently being extracted from the [pyroSAR](https://github.com/johntruckenbrodt/pyroSAR) project.
-
-This software used to run on a local server and is currently being restructured into a Python package.
-Not everything is working properly, stay tuned...
+This package offers functionalities for user-friendly geo data processing using GDAL and OGR.
 
 ### Documentation
 A description of spatialist's functionality can be found [here][8].
@@ -85,7 +82,11 @@ On Linux:
 ```sh
 sudo apt-get install python-pip git
 ```
-Once everything is set up, spatialist is ready to be installed:
+Once everything is set up, spatialist is ready to be installed. You can install stable releases like this:
+```bash
+python -m pip install spatialist
+```
+or the latest developer version like this:
 ```sh
 sudo python -m pip install git+https://github.com/johntruckenbrodt/spatialist.git
 ```
@@ -103,3 +104,5 @@ On Windows you need to use the Anaconda Prompt and leave out `sudo` in the above
 [9]: https://mybinder.org/badge.svg
 [10]: https://mybinder.org/v2/gh/johntruckenbrodt/spatialist/master?filepath=spatialist_tutorial.ipynb
 [11]: https://github.com/johntruckenbrodt/spatialist/blob/master/spatialist_tutorial.ipynb
+[12]: https://badge.fury.io/py/spatialist.svg
+[13]: https://badge.fury.io/py/spatialist
