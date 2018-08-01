@@ -270,7 +270,7 @@ class RasterViewer(object):
         root = Tk()
         # Hide the main window
         root.withdraw()
-        f = filedialog.asksaveasfile(initialdir=os.environ['HOME'], mode='w', defaultextension='.csv',
+        f = filedialog.asksaveasfile(initialdir=os.path.expanduser('~'), mode='w', defaultextension='.csv',
                                      filetypes=(('csv', '*.csv'), ('all files', '*.*')))
         if f is None:
             return
