@@ -149,7 +149,10 @@ class Raster(object):
         outname = os.path.join('/vsimem/', os.path.basename(tempfile.mktemp()))
         out_ds = gdalbuildvrt(src=self.filename, dst=outname, options=opts, void=False)
         out = Raster(out_ds)
-        bandnames = self.bandnames[index[2]]
+        if len(index) > 2:
+            bandnames = self.bandnames[index[2]]
+        else:
+            bandnames = self.bandnames
         if not isinstance(bandnames, list):
             bandnames = [bandnames]
         out.bandnames = bandnames
