@@ -36,7 +36,9 @@ setup(name='spatialist',
       author='John Truckenbrodt',
       author_email='john.truckenbrodt@uni-jena.de',
       license='MIT',
-      zip_safe=False)
+      zip_safe=False,
+      long_description='an in-depth package description can be found on GitHub '
+                       '[here]("https://github.com/johntruckenbrodt/spatialist")')
 
 if platform.system() is 'Windows':
     subdir = os.path.join(directory, 'mod_spatialite')
