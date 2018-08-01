@@ -367,10 +367,11 @@ class Vector(object):
             outFeature = None
         self.layer.ResetReading()
 
-        srs_out = self.srs.Clone()
-        srs_out.MorphToESRI()
-        with open(os.path.join(outfilepath, basename+".prj"), "w") as prj:
-            prj.write(srs_out.ExportToWkt())
+        if format == 'ESRI Shapefile':
+            srs_out = self.srs.Clone()
+            srs_out.MorphToESRI()
+            with open(os.path.join(outfilepath, basename+'.prj'), 'w') as prj:
+                prj.write(srs_out.ExportToWkt())
 
         outdataset = None
 
