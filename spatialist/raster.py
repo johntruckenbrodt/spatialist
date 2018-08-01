@@ -165,224 +165,39 @@ class Raster(object):
         else:
             raise RuntimeError('extent does not overlap with raster object')
 
-    @property
-    def files(self):
-        """
+    def __maskbyvector(self, vec, outname=None, format='GTiff', nodata=0):
 
-        Returns
-        -------
-        list of str
-            a list of all absolute names of files associated with this raster data set
-        """
-        fl = self.raster.GetFileList()
-        if fl is not None:
-            return [os.path.abspath(x) for x in fl]
+        if outname is not None:
+            driver_name = format
+        else:
+            driver_name = 'MEM'
 
-    def close(self):
-        """
-        closes the GDAL raster file connection
-        Returns
-        -------
+        with rasterize(vec, self) as vecmask:
+            mask = vecmask.matrix()
 
-        """
-        self.raster = None
-
-    @property
-    def cols(self):
-        """
-
-        Returns
-        -------
-        int
-            the number of image columns
-        """
-        return self.raster.RasterXSize
-
-    @property
-    def rows(self):
-        """
-
-        Returns
-        -------
-        int
-            the number of image rows
-        """
-        return self.raster.RasterYSize
-
-    @property
-    def bands(self):
-        """
-
-        Returns
-        -------
-        int
-            the number of image bands
-        """
-        return self.raster.RasterCount
-
-    @property
-    def dim(self):
-        """
-
-        Returns
-        -------
-        tuple
-            (rows, columns, bands)
-        """
-        return (self.rows, self.cols, self.bands)
-
-    @property
-    def driver(self):
-        """
-
-        Returns
-        -------
-        gdal.Driver
-            a GDAL raster driver object. See `osgeo.gdal.Driver <http://gdal.org/python/osgeo.gdal.Driver-class.html>`_.
-        """
-        return self.raster.GetDriver()
-
-    @property
-    def format(self):
-        """
-
-        Returns
-        -------
-        str
-            the name of the image format
-        """
-        return self.driver.ShortName
-
-    @property
-    def dtype(self):
-        """
-
-        Returns
-        -------
-        str
-            the data type description; e.g. `Float32`
-        """
-        return gdal.GetDataTypeName(self.raster.GetRasterBand(1).DataType)
-
-    @property
-    def projection(self):
-        """
-
-        Returns
-        -------
-        str
-            the CRS Well Known Text (WKT) description
-        """
-        return self.raster.GetProjection()
-
-    @property
-    def srs(self):
-        """
-
-        Returns
-        -------
-        osr.SpatialReference
-            a spatial reference object.
-            See `osr.SpatialReference <http://gdal.org/python/osgeo.osr.SpatialReference-class.html>`_
-            for documentation.
-        """
-        return osr.SpatialReference(wkt=self.projection)
-
-    @property
-    def proj4(self):
-        """
-
-        Returns
-        -------
-        str
-            the CRS PROJ4 description
-        """
-        return self.srs.ExportToProj4()
-
-    @property
-    def epsg(self):
-        """
-
-        Returns
-        -------
-        int
-            the CRS EPSG code
-        """
-        return crsConvert(self.srs, 'epsg')
-
-    @property
-    def geogcs(self):
-        """
-
-        Returns
-        -------
-        str or None
-            an identifier of the geographic coordinate system
-        """
-        return self.srs.GetAttrValue('geogcs')
-
-    @property
-    def projcs(self):
-        """
-        Returns
-        -------
-        str or None
-            an identifier of the projected coordinate system; If the CRS is not projected None is returned
-        """
-        return self.srs.GetAttrValue('projcs') if self.srs.IsProjected() else None
-
-    @property
-    def geo(self):
-        """
-        General image geo information.
-
-        Returns
-        -------
-        dict
-            a dictionary with keys `xmin`, `xmax`, `xres`, `rotation_x`, `ymin`, `ymax`, `yres`, `rotation_y`
-        """
-        out = dict(zip(['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres'],
-                       self.raster.GetGeoTransform()))
-
-        # note: yres is negative!
-        out['xmax'] = out['xmin'] + out['xres'] * self.cols
-        out['ymin'] = out['ymax'] + out['yres'] * self.rows
-        return out
-
-    @property
-    def res(self):
-        """
-        the raster resolution in x and y direction
-
-        Returns
-        -------
-        tuple
-            (xres, yres)
-        """
-        return (abs(float(self.geo['xres'])), abs(float(self.geo['yres'])))
-
-    @property
-    def nodata(self):
-        """
-
-        Returns
-        -------
-        float
-            the raster nodata value
-        """
-        return self.raster.GetRasterBand(1).GetNoDataValue()
-
-    @property
-    def proj4args(self):
-        """
-
-        Returns
-        -------
-        dict
-            the proj4 string arguments as a dictionary
-        """
-        args = [x.split('=') for x in re.split('[+ ]+', self.proj4) if len(x) > 0]
-        return dict([(x[0], None) if len(x) == 1 else tuple(x) for x in args])
+        driver = gdal.GetDriverByName(driver_name)
+        outDataset = driver.Create(outname if outname is not None else '',
+                                   self.cols, self.rows, self.bands, dtypes(self.dtype))
+        driver = None
+        outDataset.SetMetadata(self.raster.GetMetadata())
+        outDataset.SetGeoTransform([self.geo[x] for x in ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']])
+        if self.projection is not None:
+            outDataset.SetProjection(self.projection)
+        for i in range(1, self.bands + 1):
+            outband = outDataset.GetRasterBand(i)
+            outband.SetNoDataValue(nodata)
+            mat = self.matrix(band=i)
+            mat = mat * mask
+            outband.WriteArray(mat)
+            del mat
+            outband.FlushCache()
+            outband = None
+        if format == 'GTiff' and outname is not None:
+            outDataset.SetMetadataItem('TIFFTAG_DATETIME', strftime('%Y:%m:%d %H:%M:%S', gmtime()))
+        if outname is not None:
+            outDataset = None
+        else:
+            return Raster(outDataset)
 
     def allstats(self, approximate=False):
         """
@@ -426,6 +241,17 @@ class Raster(object):
         """
         self.__data[band] = array
 
+    @property
+    def bands(self):
+        """
+
+        Returns
+        -------
+        int
+            the number of image bands
+        """
+        return self.raster.RasterCount
+
     def bbox(self, outname=None, format='ESRI Shapefile', overwrite=True):
         """
         Parameters
@@ -446,6 +272,70 @@ class Raster(object):
             return bbox(self.geo, self.proj4)
         else:
             bbox(self.geo, self.proj4, outname=outname, format=format, overwrite=overwrite)
+
+    def close(self):
+        """
+        closes the GDAL raster file connection
+        Returns
+        -------
+
+        """
+        self.raster = None
+
+    @property
+    def cols(self):
+        """
+
+        Returns
+        -------
+        int
+            the number of image columns
+        """
+        return self.raster.RasterXSize
+
+    @property
+    def dim(self):
+        """
+
+        Returns
+        -------
+        tuple
+            (rows, columns, bands)
+        """
+        return (self.rows, self.cols, self.bands)
+
+    @property
+    def driver(self):
+        """
+
+        Returns
+        -------
+        gdal.Driver
+            a GDAL raster driver object. See `osgeo.gdal.Driver <http://gdal.org/python/osgeo.gdal.Driver-class.html>`_.
+        """
+        return self.raster.GetDriver()
+
+    @property
+    def dtype(self):
+        """
+
+        Returns
+        -------
+        str
+            the data type description; e.g. `Float32`
+        """
+        return gdal.GetDataTypeName(self.raster.GetRasterBand(1).DataType)
+
+    @property
+    def epsg(self):
+        """
+
+        Returns
+        -------
+        int
+            the CRS EPSG code
+        """
+        return crsConvert(self.srs, 'epsg')
 
     def extract(self, px, py, radius=1, nodata=None):
         """
@@ -538,6 +428,59 @@ class Raster(object):
         else:
             return nodata
 
+    @property
+    def files(self):
+        """
+
+        Returns
+        -------
+        list of str
+            a list of all absolute names of files associated with this raster data set
+        """
+        fl = self.raster.GetFileList()
+        if fl is not None:
+            return [os.path.abspath(x) for x in fl]
+
+    @property
+    def format(self):
+        """
+
+        Returns
+        -------
+        str
+            the name of the image format
+        """
+        return self.driver.ShortName
+
+    @property
+    def geo(self):
+        """
+        General image geo information.
+
+        Returns
+        -------
+        dict
+            a dictionary with keys `xmin`, `xmax`, `xres`, `rotation_x`, `ymin`, `ymax`, `yres`, `rotation_y`
+        """
+        out = dict(zip(['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres'],
+                       self.raster.GetGeoTransform()))
+
+        # note: yres is negative!
+        out['xmax'] = out['xmin'] + out['xres'] * self.cols
+        out['ymin'] = out['ymax'] + out['yres'] * self.rows
+        return out
+
+    @property
+    def geogcs(self):
+        """
+
+        Returns
+        -------
+        str or None
+            an identifier of the geographic coordinate system
+        """
+        return self.srs.GetAttrValue('geogcs')
+
     def is_valid(self):
         """
         Check image integrity.
@@ -601,80 +544,72 @@ class Raster(object):
                     mat[mat == self.nodata] = np.nan
         return mat
 
-    def __maskbyvector(self, vec, outname=None, format='GTiff', nodata=0):
+    @property
+    def nodata(self):
+        """
 
-        if outname is not None:
-            driver_name = format
-        else:
-            driver_name = 'MEM'
+        Returns
+        -------
+        float
+            the raster nodata value
+        """
+        return self.raster.GetRasterBand(1).GetNoDataValue()
 
-        with rasterize(vec, self) as vecmask:
-            mask = vecmask.matrix()
+    @property
+    def projcs(self):
+        """
+        Returns
+        -------
+        str or None
+            an identifier of the projected coordinate system; If the CRS is not projected None is returned
+        """
+        return self.srs.GetAttrValue('projcs') if self.srs.IsProjected() else None
 
-        driver = gdal.GetDriverByName(driver_name)
-        outDataset = driver.Create(outname if outname is not None else '',
-                                   self.cols, self.rows, self.bands, dtypes(self.dtype))
-        driver = None
-        outDataset.SetMetadata(self.raster.GetMetadata())
-        outDataset.SetGeoTransform([self.geo[x] for x in ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']])
-        if self.projection is not None:
-            outDataset.SetProjection(self.projection)
-        for i in range(1, self.bands + 1):
-            outband = outDataset.GetRasterBand(i)
-            outband.SetNoDataValue(nodata)
-            mat = self.matrix(band=i)
-            mat = mat * mask
-            outband.WriteArray(mat)
-            del mat
-            outband.FlushCache()
-            outband = None
-        if format == 'GTiff' and outname is not None:
-            outDataset.SetMetadataItem('TIFFTAG_DATETIME', strftime('%Y:%m:%d %H:%M:%S', gmtime()))
-        if outname is not None:
-            outDataset = None
-        else:
-            return Raster(outDataset)
+    @property
+    def projection(self):
+        """
 
+        Returns
+        -------
+        str
+            the CRS Well Known Text (WKT) description
+        """
+        return self.raster.GetProjection()
 
-    # def reduce(self, outname=None, format='ENVI'):
-    #     """
-    #     remove all lines and columns containing only no data values
-    #
-    #     Args:
-    #         outname:
-    #         format:
-    #
-    #     Returns:
-    #
-    #     """
-    #     if self.bands != 1:
-    #         raise ValueError('only single band images supported')
-    #
-    #     stats = self.allstats[0]
-    #
-    #     if stats[0] == stats[1]:
-    #         raise ValueError('file does not contain valid pixels')
-    #
-    #     # load raster layer into an array
-    #     mat = self.matrix()
-    #
-    #     mask1 = ~np.all(mat == self.nodata, axis=0)
-    #     mask2 = ~np.all(mat == self.nodata, axis=1)
-    #     mask1_l = mask1.tolist()
-    #     mask2_l = mask2.tolist()
-    #
-    #     left = mask1_l.index(True)
-    #     cols = len(mask1_l) - mask1_l[::-1].index(True) - left
-    #     top = mask2_l.index(True)
-    #     rows = len(mask2_l) - mask2_l[::-1].index(True) - top
-    #
-    #     mat = mat[mask2, :]
-    #     mat = mat[:, mask1]
-    #
-    #     if outname is None:
-    #         self.assign(mat, dim=[left, top, cols, rows], index=0)
-    #     else:
-    #         self.write(outname, dim=[left, top, cols, rows], format=format)
+    @property
+    def proj4(self):
+        """
+
+        Returns
+        -------
+        str
+            the CRS PROJ4 description
+        """
+        return self.srs.ExportToProj4()
+
+    @property
+    def proj4args(self):
+        """
+
+        Returns
+        -------
+        dict
+            the proj4 string arguments as a dictionary
+        """
+        args = [x.split('=') for x in re.split('[+ ]+', self.proj4) if len(x) > 0]
+        return dict([(x[0], None) if len(x) == 1 else tuple(x) for x in args])
+
+    @property
+    def res(self):
+        """
+        the raster resolution in x and y direction
+
+        Returns
+        -------
+        tuple
+            (xres, yres)
+        """
+        return (abs(float(self.geo['xres'])), abs(float(self.geo['yres'])))
 
     def rescale(self, fun):
         """
@@ -702,6 +637,30 @@ class Raster(object):
 
         # assign newly computed array to raster object
         self.assign(scaled, band=0)
+
+    @property
+    def rows(self):
+        """
+
+        Returns
+        -------
+        int
+            the number of image rows
+        """
+        return self.raster.RasterYSize
+
+    @property
+    def srs(self):
+        """
+
+        Returns
+        -------
+        osr.SpatialReference
+            a spatial reference object.
+            See `osr.SpatialReference <http://gdal.org/python/osgeo.osr.SpatialReference-class.html>`_
+            for documentation.
+        """
+        return osr.SpatialReference(wkt=self.projection)
 
     def write(self, outname, dtype='default', format='ENVI', nodata='default', compress_tif=False):
         """
@@ -770,6 +729,149 @@ class Raster(object):
         #     exp_size = ['-outsize', str(percent)+'%', str(percent)+'%']
         #     cmd = dissolve([['gdal_translate', '-q', '-of', 'PNG', '-ot', 'Byte'], exp_size, exp_bands, exp_scale, self.filename, outname])
         #     sp.check_call([str(x) for x in cmd])
+
+    # def reduce(self, outname=None, format='ENVI'):
+    #     """
+    #     remove all lines and columns containing only no data values
+    #
+    #     Args:
+    #         outname:
+    #         format:
+    #
+    #     Returns:
+    #
+    #     """
+    #     if self.bands != 1:
+    #         raise ValueError('only single band images supported')
+    #
+    #     stats = self.allstats[0]
+    #
+    #     if stats[0] == stats[1]:
+    #         raise ValueError('file does not contain valid pixels')
+    #
+    #     # load raster layer into an array
+    #     mat = self.matrix()
+    #
+    #     mask1 = ~np.all(mat == self.nodata, axis=0)
+    #     mask2 = ~np.all(mat == self.nodata, axis=1)
+    #     mask1_l = mask1.tolist()
+    #     mask2_l = mask2.tolist()
+    #
+    #     left = mask1_l.index(True)
+    #     cols = len(mask1_l) - mask1_l[::-1].index(True) - left
+    #     top = mask2_l.index(True)
+    #     rows = len(mask2_l) - mask2_l[::-1].index(True) - top
+    #
+    #     mat = mat[mask2, :]
+    #     mat = mat[:, mask1]
+    #
+    #     if outname is None:
+    #         self.assign(mat, dim=[left, top, cols, rows], index=0)
+    #     else:
+    #         self.write(outname, dim=[left, top, cols, rows], format=format)
+
+
+def dtypes(typestring):
+    """
+    translate raster data type descriptions to GDAl data type codes
+
+    Args:
+        typestring: str
+            the data type string to be converted
+
+    Returns:
+    int
+        the GDAL data type code
+    """
+    # create dictionary with GDAL style descriptions
+    dictionary = {'Byte': GDT_Byte, 'Int16': GDT_Int16, 'UInt16': GDT_UInt16, 'Int32': GDT_Int32,
+                  'UInt32': GDT_UInt32, 'Float32': GDT_Float32, 'Float64': GDT_Float64}
+
+    # add numpy style descriptions
+    dictionary.update(typemap())
+
+    if typestring not in dictionary.keys():
+        raise ValueError("unknown data type; use one of the following: ['{}']".format("', '".join(dictionary.keys())))
+
+    return dictionary[typestring]
+
+
+def rasterize(vectorobject, reference, outname=None, burn_values=1, expressions=None, nodata=0, append=False):
+    """
+    rasterize a vector object
+
+    Parameters
+    ----------
+    vectorobject: Vector
+        the vector object to be rasterized
+    reference: Raster
+        a reference Raster object to retrieve geo information and extent from
+    outname: str or None
+        the name of the GeoTiff output file; if None, an in-memory object of type Raster is returned and parameter
+        outname is ignored
+    burn_values: int or list
+        the values to be written to the raster file
+    expressions: list
+        SQL expressions to filter the vector object by attributes
+    nodata: int
+        the nodata value of the target raster file
+    append: bool
+        if the output file already exists, update this file with new rasterized values?
+        If set to True and the output file exists, parameters reference and nodata are ignored.
+
+    Returns
+    -------
+    Raster or None
+        if outname is None, a Raster object pointing to an in-memory dataset else None
+    Example
+    -------
+    >>> from spatialist import Vector, Raster, rasterize
+    >>> vec = Vector('source.shp')
+    >>> ref = Raster('reference.tif')
+    >>> outname = 'target.tif'
+    >>> expressions = ['ATTRIBUTE=1', 'ATTRIBUTE=2']
+    >>> burn_values = [1, 2]
+    >>> rasterize(vec, reference, outname, burn_values, expressions)
+    """
+    if expressions is None:
+        expressions = ['']
+    if isinstance(burn_values, (int, float)):
+        burn_values = [burn_values]
+    if len(expressions) != len(burn_values):
+        raise RuntimeError('expressions and burn_values of different length')
+
+    failed = []
+    for exp in expressions:
+        try:
+            vectorobject.layer.SetAttributeFilter(exp)
+        except RuntimeError:
+            failed.append(exp)
+    if len(failed) > 0:
+        raise RuntimeError('failed to set the following attribute filter(s): ["{}"]'.format('", '.join(failed)))
+
+    if append and outname is not None and os.path.isfile(outname):
+        target_ds = gdal.Open(outname, GA_Update)
+    else:
+        if not isinstance(reference, Raster):
+            raise RuntimeError("parameter 'reference' must be of type Raster")
+        if outname is not None:
+            target_ds = gdal.GetDriverByName('GTiff').Create(outname, reference.cols, reference.rows, 1, gdal.GDT_Byte)
+        else:
+            target_ds = gdal.GetDriverByName('MEM').Create('', reference.cols, reference.rows, 1, gdal.GDT_Byte)
+        target_ds.SetGeoTransform(reference.raster.GetGeoTransform())
+        target_ds.SetProjection(reference.raster.GetProjection())
+        band = target_ds.GetRasterBand(1)
+        band.SetNoDataValue(nodata)
+        band.FlushCache()
+        band = None
+    for expression, value in zip(expressions, burn_values):
+        vectorobject.layer.SetAttributeFilter(expression)
+        gdal.RasterizeLayer(target_ds, [1], vectorobject.layer, burn_values=[value])
+    vectorobject.layer.SetAttributeFilter('')
+    if outname is None:
+        return Raster(target_ds)
+    else:
+        target_ds = None
 
 
 def reproject(rasterobject, reference, outname, targetres=None, resampling='bilinear', format='GTiff'):
@@ -992,109 +1094,6 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
 
     # remove temporary directory and files
     shutil.rmtree(tmpdir)
-
-
-def rasterize(vectorobject, reference, outname=None, burn_values=1, expressions=None, nodata=0, append=False):
-    """
-    rasterize a vector object
-
-    Parameters
-    ----------
-    vectorobject: Vector
-        the vector object to be rasterized
-    reference: Raster
-        a reference Raster object to retrieve geo information and extent from
-    outname: str or None
-        the name of the GeoTiff output file; if None, an in-memory object of type Raster is returned and parameter
-        outname is ignored
-    burn_values: int or list
-        the values to be written to the raster file
-    expressions: list
-        SQL expressions to filter the vector object by attributes
-    nodata: int
-        the nodata value of the target raster file
-    append: bool
-        if the output file already exists, update this file with new rasterized values?
-        If set to True and the output file exists, parameters reference and nodata are ignored.
-
-    Returns
-    -------
-    Raster or None
-        if outname is None, a Raster object pointing to an in-memory dataset else None
-    Example
-    -------
-    >>> from spatialist import Vector, Raster, rasterize
-    >>> vec = Vector('source.shp')
-    >>> ref = Raster('reference.tif')
-    >>> outname = 'target.tif'
-    >>> expressions = ['ATTRIBUTE=1', 'ATTRIBUTE=2']
-    >>> burn_values = [1, 2]
-    >>> rasterize(vec, reference, outname, burn_values, expressions)
-    """
-    if expressions is None:
-        expressions = ['']
-    if isinstance(burn_values, (int, float)):
-        burn_values = [burn_values]
-    if len(expressions) != len(burn_values):
-        raise RuntimeError('expressions and burn_values of different length')
-
-    failed = []
-    for exp in expressions:
-        try:
-            vectorobject.layer.SetAttributeFilter(exp)
-        except RuntimeError:
-            failed.append(exp)
-    if len(failed) > 0:
-        raise RuntimeError('failed to set the following attribute filter(s): ["{}"]'.format('", '.join(failed)))
-
-    if append and outname is not None and os.path.isfile(outname):
-        target_ds = gdal.Open(outname, GA_Update)
-    else:
-        if not isinstance(reference, Raster):
-            raise RuntimeError("parameter 'reference' must be of type Raster")
-        if outname is not None:
-            target_ds = gdal.GetDriverByName('GTiff').Create(outname, reference.cols, reference.rows, 1, gdal.GDT_Byte)
-        else:
-            target_ds = gdal.GetDriverByName('MEM').Create('', reference.cols, reference.rows, 1, gdal.GDT_Byte)
-        target_ds.SetGeoTransform(reference.raster.GetGeoTransform())
-        target_ds.SetProjection(reference.raster.GetProjection())
-        band = target_ds.GetRasterBand(1)
-        band.SetNoDataValue(nodata)
-        band.FlushCache()
-        band = None
-    for expression, value in zip(expressions, burn_values):
-        vectorobject.layer.SetAttributeFilter(expression)
-        gdal.RasterizeLayer(target_ds, [1], vectorobject.layer, burn_values=[value])
-    vectorobject.layer.SetAttributeFilter('')
-    if outname is None:
-        return Raster(target_ds)
-    else:
-        target_ds = None
-
-
-def dtypes(typestring):
-    """
-    translate raster data type descriptions to GDAl data type codes
-
-    Args:
-        typestring: str
-            the data type string to be converted
-
-    Returns:
-    int
-        the GDAL data type code
-    """
-    # create dictionary with GDAL style descriptions
-    dictionary = {'Byte': GDT_Byte, 'Int16': GDT_Int16, 'UInt16': GDT_UInt16, 'Int32': GDT_Int32,
-                  'UInt32': GDT_UInt32, 'Float32': GDT_Float32, 'Float64': GDT_Float64}
-
-    # add numpy style descriptions
-    dictionary.update(typemap())
-
-    if typestring not in dictionary.keys():
-        raise ValueError("unknown data type; use one of the following: ['{}']".format("', '".join(dictionary.keys())))
-
-    return dictionary[typestring]
 
 
 def typemap():
