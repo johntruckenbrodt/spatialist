@@ -149,7 +149,10 @@ class Raster(object):
         outname = os.path.join('/vsimem/', os.path.basename(tempfile.mktemp()))
         out_ds = gdalbuildvrt(src=self.filename, dst=outname, options=opts, void=False)
         out = Raster(out_ds)
-        out.bandnames = self.bandnames[index[2]]
+        bandnames = self.bandnames[index[2]]
+        if not isinstance(bandnames, list):
+            bandnames = [bandnames]
+        out.bandnames = bandnames
         return out
 
     def __extent2slice(self, extent):
@@ -291,8 +294,11 @@ class Raster(object):
         -------
 
         """
-        if not isinstance(names, list) or len(names) != self.bands:
-            raise RuntimeError('the names to be set must be a list of same length as the number of bands')
+        if not isinstance(names, list):
+            raise TypeError('the names to be set must be of type list')
+        if len(names) != self.bands:
+            raise ValueError(
+                'length mismatch of names to be set ({}) and number of bands ({})'.format(len(names), self.bands))
         self.__bandnames = names
 
     def bbox(self, outname=None, format='ESRI Shapefile', overwrite=True):
@@ -762,10 +768,9 @@ class Raster(object):
             outDataset.SetMetadataItem('TIFFTAG_DATETIME', strftime('%Y:%m:%d %H:%M:%S', gmtime()))
         outDataset = None
         if format == 'ENVI':
-            with HDRobject(outname+'.hdr') as hdr:
+            with HDRobject(outname + '.hdr') as hdr:
                 hdr.band_names = self.bandnames
                 hdr.write()
-
 
         # write a png image of three raster bands (provided in a list of 1-based integers); percent controls the size ratio of input and output
         # def png(self, bands, outname, percent=10):
