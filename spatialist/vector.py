@@ -347,7 +347,7 @@ class Vector(object):
             if overwrite:
                 driver.DeleteDataSource(outfile)
             else:
-                raise IOError("file already exists")
+                raise RuntimeError('target file already exists')
 
         outdataset = driver.CreateDataSource(outfile)
         outlayer = outdataset.CreateLayer(self.layername, geom_type=self.geomType)
