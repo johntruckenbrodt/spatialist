@@ -49,8 +49,6 @@ class RasterViewer(object):
 
     def __init__(self, filename, cmap='jet', band_indices=None, pmin=2, pmax=98, ts_convert=None):
 
-        matplotlib.rcParams['figure.figsize'] = (13, 4)
-
         self.ts_convert = ts_convert
 
         self.filename = filename
