@@ -360,8 +360,8 @@ class Vector(object):
         for feature in self.layer:
             outFeature = ogr.Feature(outlayerdef)
             outFeature.SetGeometry(feature.GetGeometryRef())
-            for j in range(0, self.nfields):
-                outFeature.SetField(self.fieldnames[j], feature.GetField(j))
+            for name in self.fieldnames:
+                outFeature.SetField(name, feature.GetField(name))
             # add the feature to the shapefile
             outlayer.CreateFeature(outFeature)
             outFeature = None
