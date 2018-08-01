@@ -19,6 +19,7 @@ from . import envi
 from .auxil import gdalwarp, gdalbuildvrt
 from .vector import Vector, bbox, crsConvert, intersect
 from .ancillary import dissolve, multicore
+from .envi import HDRobject
 
 from osgeo import (gdal, gdal_array, osr)
 from osgeo.gdalconst import (GA_ReadOnly, GA_Update, GDT_Byte, GDT_Int16, GDT_UInt16,
@@ -57,6 +58,11 @@ class Raster(object):
 
         # a list to contain arrays
         self.__data = [None] * self.bands
+
+        if self.format == 'ENVI':
+            self.bandnames = HDRobject(self.filename + '.hdr').band_names
+        else:
+            self.bandnames = ['band{}'.format(x) for x in range(1, self.bands + 1)]
 
     def __enter__(self):
         return self
@@ -141,8 +147,10 @@ class Raster(object):
 
         # create an in-memory VRT file and return the output raster dataset as new Raster object
         outname = os.path.join('/vsimem/', os.path.basename(tempfile.mktemp()))
-        out = gdalbuildvrt(src=self.filename, dst=outname, options=opts, void=False)
-        return Raster(out)
+        out_ds = gdalbuildvrt(src=self.filename, dst=outname, options=opts, void=False)
+        out = Raster(out_ds)
+        out.bandnames = self.bandnames
+        return out
 
     def __extent2slice(self, extent):
         extent_bbox = bbox(extent, self.proj4)
@@ -192,12 +200,18 @@ class Raster(object):
             del mat
             outband.FlushCache()
             outband = None
-        if format == 'GTiff' and outname is not None:
-            outDataset.SetMetadataItem('TIFFTAG_DATETIME', strftime('%Y:%m:%d %H:%M:%S', gmtime()))
         if outname is not None:
+            if format == 'GTiff':
+                outDataset.SetMetadataItem('TIFFTAG_DATETIME', strftime('%Y:%m:%d %H:%M:%S', gmtime()))
+            elif format == 'ENVI':
+                with HDRobject(outname + '.hdr') as hdr:
+                    hdr.band_names = self.bandnames
+                    hdr.write()
             outDataset = None
         else:
-            return Raster(outDataset)
+            out = Raster(outDataset)
+            out.bandnames = self.bandnames
+            return out
 
     def allstats(self, approximate=False):
         """
@@ -251,6 +265,35 @@ class Raster(object):
             the number of image bands
         """
         return self.raster.RasterCount
+
+    @property
+    def bandnames(self):
+        """
+
+        Returns
+        -------
+        list
+            the names of the bands
+        """
+        return self.__bandnames
+
+    @bandnames.setter
+    def bandnames(self, names):
+        """
+        set the names of the raster bands
+
+        Parameters
+        ----------
+        names: list of str
+            the names to be set; must be of same length as the number of bands
+
+        Returns
+        -------
+
+        """
+        if not isinstance(names, list) or len(names) != self.bands:
+            raise RuntimeError('the names to be set must be a list of same length as the number of bands')
+        self.__bandnames = names
 
     def bbox(self, outname=None, format='ESRI Shapefile', overwrite=True):
         """
@@ -715,6 +758,10 @@ class Raster(object):
             outband = None
         if format == 'GTiff':
             outDataset.SetMetadataItem('TIFFTAG_DATETIME', strftime('%Y:%m:%d %H:%M:%S', gmtime()))
+        elif format == 'ENVI':
+            with HDRobject(outname+'.hdr') as hdr:
+                hdr.band_names = self.bandnames
+                hdr.write()
         outDataset = None
 
         # write a png image of three raster bands (provided in a list of 1-based integers); percent controls the size ratio of input and output
