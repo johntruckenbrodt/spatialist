@@ -470,25 +470,58 @@ def intersect(obj1, obj2):
     if not isinstance(obj1, Vector) or not isinstance(obj2, Vector):
         raise RuntimeError('both objects must be of type Vector')
 
-    if obj1.nfeatures > 1 or obj2.nfeatures > 1:
-        raise RuntimeError('only objects with one feature are currently supported')
-
     obj1.reproject(obj2.srs)
 
-    feature1 = obj1.getFeatureByIndex(0)
-    geometry1 = feature1.GetGeometryRef()
-
-    feature2 = obj2.getFeatureByIndex(0)
-    geometry2 = feature2.GetGeometryRef()
-
-    intersect = geometry2.Intersection(geometry1)
-
-    if intersect.GetArea() > 0:
+    #######################################################
+    # create basic overlap
+    union1 = ogr.Geometry(ogr.wkbMultiPolygon)
+    # union all the geometrical features of layer 1
+    for feat in obj1.layer:
+        union1.AddGeometry(feat.GetGeometryRef())
+    obj1.layer.ResetReading()
+    union1.Simplify(0)
+    # same for layer2
+    union2 = ogr.Geometry(ogr.wkbMultiPolygon)
+    for feat in obj2.layer:
+        union2.AddGeometry(feat.GetGeometryRef())
+    obj2.layer.ResetReading()
+    union2.Simplify(0)
+    # intersection
+    intersect_base = union1.Intersection(union2)
+    union1 = None
+    union2 = None
+    #######################################################
+    # compute detailed per-geometry overlaps
+    if intersect_base.GetArea() > 0:
         intersection = Vector(driver='Memory')
-        intersection.addlayer('intersect', obj2.srs, ogr.wkbPolygon)
-        intersection.addfield('id', type=ogr.OFTInteger)
-        intersection.addfeature(intersect, {'id': 1})
-        geom = None
+        intersection.addlayer('intersect', obj1.srs, ogr.wkbPolygon)
+        fieldmap = []
+        for index, fielddef in enumerate([obj1.fieldDefs, obj2.fieldDefs]):
+            for field in fielddef:
+                name = field.GetName()
+                i = 2
+                while name in intersection.fieldnames:
+                    name = '{}_{}'.format(field.GetName(), i)
+                    i += 1
+                fieldmap.append((index, field.GetName(), name))
+                intersection.addfield(name, type=field.GetType(), width=field.GetWidth())
+
+        for feature1 in obj1.layer:
+            geom1 = feature1.GetGeometryRef()
+            if geom1.Intersects(intersect_base):
+                for feature2 in obj2.layer:
+                    geom2 = feature2.GetGeometryRef()
+                    # select only the intersections
+                    if geom2.Intersects(intersect_base):
+                        intersect = geom2.Intersection(geom1)
+                        fields = {}
+                        for item in fieldmap:
+                            if item[0] == 0:
+                                fields[item[2]] = feature1.GetField(item[1])
+                            else:
+                                fields[item[2]] = feature2.GetField(item[1])
+                        intersection.addfeature(intersect, fields)
+        intersect_base = None
         return intersection
 
 
