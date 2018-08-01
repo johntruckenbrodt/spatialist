@@ -149,7 +149,7 @@ class Raster(object):
         outname = os.path.join('/vsimem/', os.path.basename(tempfile.mktemp()))
         out_ds = gdalbuildvrt(src=self.filename, dst=outname, options=opts, void=False)
         out = Raster(out_ds)
-        out.bandnames = self.bandnames
+        out.bandnames = self.bandnames[index[2]]
         return out
 
     def __extent2slice(self, extent):
