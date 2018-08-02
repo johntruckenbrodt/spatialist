@@ -47,7 +47,7 @@ class RasterViewer(object):
 
     """
 
-    def __init__(self, filename, cmap='jet', band_indices=None, pmin=2, pmax=98, ts_convert=None):
+    def __init__(self, filename, cmap='jet', band_indices=None, pmin=2, pmax=98, ts_convert=None, title=None):
 
         self.ts_convert = ts_convert
 
@@ -131,7 +131,7 @@ class RasterViewer(object):
 
         display(form)
 
-        self.fig = plt.figure()
+        self.fig = plt.figure(num=title)
 
         # display of SLC amplitude
         self.ax1 = self.fig.add_subplot(121)
