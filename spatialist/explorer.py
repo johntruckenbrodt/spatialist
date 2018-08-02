@@ -15,6 +15,7 @@ else:
 
 from IPython.display import display
 from ipywidgets import interactive_output, IntSlider, Layout, Checkbox, Button, HBox, Label, VBox
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 """
 This module is intended for gathering functionalities for plotting spatial data with jupyter notebooks
@@ -34,7 +35,7 @@ class RasterViewer(object):
         the name of the file to display
     cmap: str
         the color map for displaying the image.
-        See `matplotlib.pyplot.imshow <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.imshow.html>`_
+        See `matplotlib.pyplot.imshow <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.imshow.html>`_.
     band_indices: list or None
         a list of indices for renaming the individual band indices in `filename`;
         e.g. -70:70, instead of the raw band indices, e.g. 1:140.
@@ -47,10 +48,13 @@ class RasterViewer(object):
         a function to read time stamps from the band names
     title: str or None
         the plot title to be displayed; per default, if set to `None`: `Figure 1`, `Figure 2`, ...
+    datalabel: str
+        a label for the units of the displayed data. This also supports LaTeX mathematical notation.
+        See `Text rendering With LaTeX <https://matplotlib.org/users/usetex.html>`_.
 
     """
 
-    def __init__(self, filename, cmap='jet', band_indices=None, pmin=2, pmax=98, ts_convert=None, title=None):
+    def __init__(self, filename, cmap='jet', band_indices=None, pmin=2, pmax=98, ts_convert=None, title=None, datalabel='data'):
 
         self.ts_convert = ts_convert
 
@@ -69,6 +73,8 @@ class RasterViewer(object):
                 self.slider_readout = False
 
         self.timestamps = range(0, self.bands) if ts_convert is None else [ts_convert(x) for x in self.bandnames]
+
+        self.datalabel = datalabel
 
         xlab = self.crs.GetAxisName(None, 0)
         ylab = self.crs.GetAxisName(None, 1)
@@ -175,6 +181,7 @@ class RasterViewer(object):
         cmap.set_bad('white')
         self.ax1.imshow(masked, vmin=pmin, vmax=pmax, extent=self.extent, cmap=cmap)
         self.sliderlabel.value = self.bandnames[self.slider.value]
+        self._set_colorbar(self.ax1, self.datalabel)
 
     def __read_band(self, band):
         with Raster(self.filename) as ras:
@@ -226,7 +233,7 @@ class RasterViewer(object):
         if len(self.ax2.lines) > 0:
             self.ax2.cla()
         # set up the vertical profile plot
-        self.ax2.set_ylabel('values', fontsize=12)
+        self.ax2.set_ylabel(self.datalabel, fontsize=12)
         self.ax2.set_xlabel('time', fontsize=12)
         self.ax2.set_title('vertical point profiles', fontsize=12)
 
@@ -287,3 +294,14 @@ class RasterViewer(object):
                 entry = '{};{};{};{};{};{}\n'.format(i+1, self.bandnames[j], row, col, xdata[j], ydata[j])
                 f.write(entry)
         f.close()
+
+    def _set_colorbar(self, axis, label):
+        if len(axis.images) > 1:
+            axis.images[0].colorbar.remove()
+            del axis.images[0]
+
+        divider = make_axes_locatable(axis)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+
+        cbar = self.fig.colorbar(axis.images[0], cax=cax)
+        cbar.ax.set_ylabel(label, fontsize=12)
