@@ -32,7 +32,14 @@ except RuntimeError:
 
 def sqlite_setup(driver=':memory:', extensions=None):
     """
-    setup a sqlite3 connection and load extensions to it
+    Setup a sqlite3 connection and load extensions to it.
+    This function intends to simplify the process of loading extensions to `sqlite3`, which can be quite difficult
+    depending on the version used.
+    Particularly loading `spatialite` has caused quite some trouble. In recent distributions of Ubuntu this has
+    become much easier due to a new apt package `libsqlite3-mod-spatialite`. For use in Windows, `spatialist` comes
+    with its own `spatialite` DLL distribution.
+    See `here <https://www.gaia-gis.it/fossil/libspatialite/wiki?name=mod_spatialite>`_ for more details on loading
+    `spatialite` as an `sqlite3` extension.
 
     Parameters
     ----------
@@ -45,6 +52,11 @@ def sqlite_setup(driver=':memory:', extensions=None):
     -------
     sqlite3.Connection
         the database connection
+
+    Example
+    -------
+    >>> from spatialist.sqlite_util import sqlite_setup
+    >>> conn = sqlite_setup(extensions=['spatialite'])
     """
     conn = __Handler(driver, extensions)
     return conn.conn
