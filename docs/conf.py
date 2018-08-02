@@ -38,7 +38,9 @@ sys.path.insert(0, os.path.abspath('..') + os.sep)
 
 # -- General configuration ------------------------------------------------
 MOCK_MODULES = ['osgeo', 'osgeo.gdal', 'osgeo.osr', 'osgeo.gdalconst',
-                'matplotlib', 'matplotlib.pyplot',
+                'matplotlib', 'matplotlib.pyplot', 'matplotlib.cbook', 'matplotlib.axes', 'matplotlib.transforms',
+                'matplotlib.gridspec', 'matplotlib.artist', 'matplotlib.axis',
+                'mpl_toolkits', 'mpl_toolkits.axes_grid1',
                 'IPython', 'IPython.display', 'ipywidgets']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
