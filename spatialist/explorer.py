@@ -23,9 +23,10 @@ This module is intended for gathering functionalities for plotting spatial data 
 
 class RasterViewer(object):
     """
-    plotting utility for displaying a geocoded image stack file.
-
-    On moving the slider, the band at the slider position is read from the file and displayed.
+    | Plotting utility for displaying a geocoded image stack file.
+    | On moving the slider, the band at the slider position is read from the file and displayed.
+    | By clicking on the band image display, you can display time series profiles.
+    | The collected profiles can be saved to a csv file.
 
     Parameters
     ----------
