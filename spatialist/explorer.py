@@ -34,7 +34,7 @@ class RasterViewer(object):
     cmap: str
         the color map for displaying the image.
         See `matplotlib.pyplot.imshow <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.imshow.html>`_
-    band_indices: list
+    band_indices: list or None
         a list of indices for renaming the individual band indices in `filename`;
         e.g. -70:70, instead of the raw band indices, e.g. 1:140.
         The number of unique elements must of same length as the number of bands in `filename`.
@@ -44,6 +44,8 @@ class RasterViewer(object):
         the maximum percentile for linear histogram stretching
     ts_convert: function or None
         a function to read time stamps from the band names
+    title: str or None
+        the plot title to be displayed; per default, if set to `None`: `Figure 1`, `Figure 2`, ...
 
     """
 
