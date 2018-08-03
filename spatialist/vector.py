@@ -757,18 +757,20 @@ def dissolve(infile, outfile, field, layername=None):
 def feature2vector(feature, ref, layername=None):
     """
     create a Vector object from ogr features
+
     Parameters
     ----------
-    feature: ogr.Feature or list
+    feature: list of ogr.Feature or ogr.Feature
         a single feature or a list of features
     ref: Vector
-        a reference Vector object to retrieve geo information
+        a reference Vector object to retrieve geo information from
     layername: str or None
-        the name of the output layer; retrieved from ref if None
+        the name of the output layer; retrieved from `ref` if `None`
 
     Returns
     -------
-
+    Vector
+        the new Vector object
     """
     features = feature if isinstance(feature, list) else [feature]
     layername = layername if layername is not None else ref.layername
