@@ -578,11 +578,6 @@ class Vector(object):
         """
         return self.layer.GetSpatialRef()
 
-    # todo Should return the wkt of the object, not of the projection
-    @property
-    def wkt(self):
-        return self.srs.ExportToWkt()
-
     def write(self, outfile, format='ESRI Shapefile', overwrite=True):
         """
         write the Vector object to a file
