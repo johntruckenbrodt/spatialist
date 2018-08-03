@@ -40,6 +40,13 @@ Database Tools
     :undoc-members:
     :show-inheritance:
 
+ENVI HDR file manipulation
+==========================
+
+.. automodule:: spatialist.envi
+    :members:
+    :undoc-members:
+
 Data Exploration
 ================
 
