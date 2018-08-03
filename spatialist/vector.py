@@ -77,85 +77,6 @@ class Vector(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
-    def close(self):
-        self.vector = None
-        for feature in self.__features:
-            if feature is not None:
-                feature = None
-
-    def init_layer(self):
-        self.layer = self.vector.GetLayer()
-        self.__features = [None]*self.nfeatures
-
-    def init_features(self):
-        del self.__features
-        self.__features = [None]*self.nfeatures
-
-    @property
-    def extent(self):
-        return dict(zip(["xmin", "xmax", "ymin", "ymax"], self.layer.GetExtent()))
-
-    @property
-    def fieldDefs(self):
-        return [self.layerdef.GetFieldDefn(x) for x in range(0, self.nfields)]
-
-    @property
-    def fieldnames(self):
-        return sorted([field.GetName() for field in self.fieldDefs])
-
-    @property
-    def geomType(self):
-        return self.layerdef.GetGeomType()
-
-    @property
-    def layerdef(self):
-        return self.layer.GetLayerDefn()
-
-    @property
-    def layername(self):
-        return self.layer.GetName()
-
-    @property
-    def nlayers(self):
-        return self.vector.GetLayerCount()
-
-    @property
-    def nfeatures(self):
-        return len(self.layer)
-
-    @property
-    def nfields(self):
-        return self.layerdef.GetFieldCount()
-
-    def getProjection(self, type):
-        """
-        type can be either "epsg", "wkt", "proj4" or "osr"
-        """
-        return crsConvert(self.layer.GetSpatialRef(), type)
-
-    @property
-    def proj4(self):
-        return self.srs.ExportToProj4().strip()
-
-    @property
-    def srs(self):
-        return self.layer.GetSpatialRef()
-
-    # todo Should return the wkt of the object, not of the projection
-    @property
-    def wkt(self):
-        return self.srs.ExportToWkt()
-
-    def addfield(self, name, type=ogr.OFTString, width=10):
-        fieldDefn = ogr.FieldDefn(name, type)
-        if type == ogr.OFTString:
-            fieldDefn.SetWidth(width)
-        self.layer.CreateField(fieldDefn)
-
-    def addlayer(self, name, srs, geomType):
-        self.vector.CreateLayer(name, srs, geomType)
-        self.init_layer()
-
     def addfeature(self, geometry, fields):
         """
         add a feature to the vector object from a geometry
@@ -184,6 +105,16 @@ class Vector(object):
         feature = None
         self.init_features()
 
+    def addfield(self, name, type=ogr.OFTString, width=10):
+        fieldDefn = ogr.FieldDefn(name, type)
+        if type == ogr.OFTString:
+            fieldDefn.SetWidth(width)
+        self.layer.CreateField(fieldDefn)
+
+    def addlayer(self, name, srs, geomType):
+        self.vector.CreateLayer(name, srs, geomType)
+        self.init_layer()
+
     def addvector(self, vec):
         """
         add a vector object to the current one
@@ -210,6 +141,12 @@ class Vector(object):
         else:
             bbox(self.extent, self.srs, outname=outname, format=format, overwrite=overwrite)
 
+    def close(self):
+        self.vector = None
+        for feature in self.__features:
+            if feature is not None:
+                feature = None
+
     def convert2wkt(self, set3D=True):
         """
         export the geometry of each feature as a wkt string
@@ -223,6 +160,22 @@ class Vector(object):
                 feature.geometry().SetCoordinateDimension(dim)
 
         return [feature.geometry().ExportToWkt() for feature in features]
+
+    @property
+    def extent(self):
+        return dict(zip(["xmin", "xmax", "ymin", "ymax"], self.layer.GetExtent()))
+
+    @property
+    def fieldDefs(self):
+        return [self.layerdef.GetFieldDefn(x) for x in range(0, self.nfields)]
+
+    @property
+    def fieldnames(self):
+        return sorted([field.GetName() for field in self.fieldDefs])
+
+    @property
+    def geomType(self):
+        return self.layerdef.GetGeomType()
 
     def getArea(self):
         return sum([x.GetGeometryRef().GetArea() for x in self.getfeatures()])
@@ -252,23 +205,61 @@ class Vector(object):
             feature = self.getfeatures()[index]
         return feature
 
-    def getUniqueAttributes(self, fieldname):
-        self.layer.ResetReading()
-        attributes = list(set([x.GetField(fieldname) for x in self.layer]))
-        self.layer.ResetReading()
-        return sorted(attributes)
-
     def getfeatures(self):
         self.layer.ResetReading()
         features = [x.Clone() for x in self.layer]
         self.layer.ResetReading()
         return features
 
+    def getProjection(self, type):
+        """
+        type can be either "epsg", "wkt", "proj4" or "osr"
+        """
+        return crsConvert(self.layer.GetSpatialRef(), type)
+
+    def getUniqueAttributes(self, fieldname):
+        self.layer.ResetReading()
+        attributes = list(set([x.GetField(fieldname) for x in self.layer]))
+        self.layer.ResetReading()
+        return sorted(attributes)
+
+    def init_features(self):
+        del self.__features
+        self.__features = [None]*self.nfeatures
+
+    def init_layer(self):
+        self.layer = self.vector.GetLayer()
+        self.__features = [None]*self.nfeatures
+
+    @property
+    def layerdef(self):
+        return self.layer.GetLayerDefn()
+
+    @property
+    def layername(self):
+        return self.layer.GetName()
+
     def load(self):
         self.layer.ResetReading()
         for i in range(self.nfeatures):
             if self.__features[i] is None:
                 self.__features[i] = self.layer[i]
+
+    @property
+    def nfeatures(self):
+        return len(self.layer)
+
+    @property
+    def nfields(self):
+        return self.layerdef.GetFieldCount()
+
+    @property
+    def nlayers(self):
+        return self.vector.GetLayerCount()
+
+    @property
+    def proj4(self):
+        return self.srs.ExportToProj4().strip()
 
     def reproject(self, projection):
 
@@ -337,6 +328,15 @@ class Vector(object):
             self.layer.CreateFeature(feat)
         self.init_features()
 
+    @property
+    def srs(self):
+        return self.layer.GetSpatialRef()
+
+    # todo Should return the wkt of the object, not of the projection
+    @property
+    def wkt(self):
+        return self.srs.ExportToWkt()
+
     def write(self, outfile, format='ESRI Shapefile', overwrite=True):
         (outfilepath, outfilename) = os.path.split(outfile)
         basename = os.path.splitext(outfilename)[0]
@@ -374,35 +374,6 @@ class Vector(object):
                 prj.write(srs_out.ExportToWkt())
 
         outdataset = None
-
-
-def feature2vector(feature, ref, layername=None):
-    """
-    create a Vector object from ogr features
-    Parameters
-    ----------
-    feature: ogr.Feature or list
-        a single feature or a list of features
-    ref: Vector
-        a reference Vector object to retrieve geo information
-    layername: str or None
-        the name of the output layer; retrieved from ref if None
-
-    Returns
-    -------
-
-    """
-    features = feature if isinstance(feature, list) else [feature]
-    layername = layername if layername is not None else ref.layername
-    vec = Vector(driver='Memory')
-    vec.addlayer(layername, ref.srs, ref.geomType)
-    feat_def = features[0].GetDefnRef()
-    fields = [feat_def.GetFieldDefn(x) for x in range(0, feat_def.GetFieldCount())]
-    vec.layer.CreateFields(fields)
-    for feat in features:
-        vec.layer.CreateFeature(feat)
-    vec.init_features()
-    return vec
 
 
 def bbox(coordinates, crs, outname=None, format='ESRI Shapefile', overwrite=True):
@@ -450,6 +421,84 @@ def centerdist(obj1, obj2):
     center2 = geometry2.Centroid()
 
     return center1.Distance(center2)
+
+
+def dissolve(infile, outfile, field, layername=None):
+    """
+    dissolve the polygons of a vector file by an attribute field
+    Parameters
+    ----------
+    infile: str
+        the input vector file
+    outfile: str
+        the output shapefile
+    field: str
+        the field name to merge the polygons by
+    layername: str
+        the name of the output vector layer;
+        If set to None the layername will be the basename of infile without extension
+
+    Returns
+    -------
+
+    """
+    with Vector(infile) as vec:
+        srs = vec.srs
+        feat = vec.layer[0]
+        d = feat.GetFieldDefnRef(field)
+        width = d.width
+        type = d.type
+        feat = None
+
+    layername = layername if layername is not None else os.path.splitext(os.path.basename(infile))[0]
+
+    # the following can be used if GDAL was compiled with the spatialite extension
+    # not tested, might need some additional/different lines
+    # with Vector(infile) as vec:
+    #     vec.vector.ExecuteSQL('SELECT ST_Union(geometry), {0} FROM {1} GROUP BY {0}'.format(field, vec.layername),
+    #                          dialect='SQLITE')
+    #     vec.write(outfile)
+
+    conn = sqlite_setup(extensions=['spatialite', 'gdal'])
+    conn.execute('CREATE VIRTUAL TABLE merge USING VirtualOGR("{}");'.format(infile))
+    select = conn.execute('SELECT {0},asText(ST_Union(geometry)) as geometry FROM merge GROUP BY {0};'.format(field))
+    fetch = select.fetchall()
+    with Vector(driver='Memory') as merge:
+        merge.addlayer(layername, srs, ogr.wkbPolygon)
+        merge.addfield(field, type=type, width=width)
+        for i in range(len(fetch)):
+            merge.addfeature(ogr.CreateGeometryFromWkt(fetch[i][1]), {field: fetch[i][0]})
+        merge.write(outfile)
+    conn.close()
+
+
+def feature2vector(feature, ref, layername=None):
+    """
+    create a Vector object from ogr features
+    Parameters
+    ----------
+    feature: ogr.Feature or list
+        a single feature or a list of features
+    ref: Vector
+        a reference Vector object to retrieve geo information
+    layername: str or None
+        the name of the output layer; retrieved from ref if None
+
+    Returns
+    -------
+
+    """
+    features = feature if isinstance(feature, list) else [feature]
+    layername = layername if layername is not None else ref.layername
+    vec = Vector(driver='Memory')
+    vec.addlayer(layername, ref.srs, ref.geomType)
+    feat_def = features[0].GetDefnRef()
+    fields = [feat_def.GetFieldDefn(x) for x in range(0, feat_def.GetFieldCount())]
+    vec.layer.CreateFields(fields)
+    for feat in features:
+        vec.layer.CreateFeature(feat)
+    vec.init_features()
+    return vec
 
 
 def intersect(obj1, obj2):
@@ -523,52 +572,3 @@ def intersect(obj1, obj2):
                         intersection.addfeature(intersect, fields)
         intersect_base = None
         return intersection
-
-
-def dissolve(infile, outfile, field, layername=None):
-    """
-    dissolve the polygons of a vector file by an attribute field
-    Parameters
-    ----------
-    infile: str
-        the input vector file
-    outfile: str
-        the output shapefile
-    field: str
-        the field name to merge the polygons by
-    layername: str
-        the name of the output vector layer;
-        If set to None the layername will be the basename of infile without extension
-
-    Returns
-    -------
-
-    """
-    with Vector(infile) as vec:
-        srs = vec.srs
-        feat = vec.layer[0]
-        d = feat.GetFieldDefnRef(field)
-        width = d.width
-        type = d.type
-        feat = None
-
-    layername = layername if layername is not None else os.path.splitext(os.path.basename(infile))[0]
-
-    # the following can be used if GDAL was compiled with the spatialite extension
-    # not tested, might need some additional/different lines
-    # with Vector(infile) as vec:
-    #     vec.vector.ExecuteSQL('SELECT ST_Union(geometry), {0} FROM {1} GROUP BY {0}'.format(field, vec.layername),
-    #                          dialect='SQLITE')
-    #     vec.write(outfile)
-
-    conn = sqlite_setup(extensions=['spatialite', 'gdal'])
-    conn.execute('CREATE VIRTUAL TABLE merge USING VirtualOGR("{}");'.format(infile))
-    select = conn.execute('SELECT {0},asText(ST_Union(geometry)) as geometry FROM merge GROUP BY {0};'.format(field))
-    fetch = select.fetchall()
-    with Vector(driver='Memory') as merge:
-        merge.addlayer(layername, srs, ogr.wkbPolygon)
-        merge.addfield(field, type=type, width=width)
-        for i in range(len(fetch)):
-            merge.addfeature(ogr.CreateGeometryFromWkt(fetch[i][1]), {field: fetch[i][0]})
-        merge.write(outfile)
-    conn.close()
