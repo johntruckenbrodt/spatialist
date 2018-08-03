@@ -107,7 +107,24 @@ class Vector(object):
         feature = None
         self.init_features()
 
-    def addfield(self, name, type=ogr.OFTString, width=10):
+    def addfield(self, name, type, width=10):
+        """
+        add a field to the vector layer
+
+        Parameters
+        ----------
+        name: str
+            the field name
+        type: int
+            the OGR Field Type (OFT), e.g. ogr.OFTString.
+            See `Module ogr <https://gdal.org/python/osgeo.ogr-module.html>`_.
+        width: int
+            the width of the new field (only for ogr.OFTString fields)
+
+        Returns
+        -------
+
+        """
         fieldDefn = ogr.FieldDefn(name, type)
         if type == ogr.OFTString:
             fieldDefn.SetWidth(width)
