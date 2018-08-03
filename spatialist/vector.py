@@ -45,12 +45,14 @@ class Vector(object):
     def __getitem__(self, expression):
         """
         subset the vector object by index or attribute.
-        See `ogr.Layer.SetAttributeFilter <http://gdal.org/python/osgeo.ogr.Layer-class.html#SetAttributeFilter>`_
-        for details on the expression syntax.
+
         Parameters
         ----------
         expression: int or str
-            the key or expression to be used for subsetting
+            the key or expression to be used for subsetting.
+            See `ogr.Layer.SetAttributeFilter <http://gdal.org/python/osgeo.ogr.Layer-class.html#SetAttributeFilter>`_
+            for details on the expression syntax.
+
         Returns
         -------
         Vector
@@ -112,12 +114,30 @@ class Vector(object):
         self.layer.CreateField(fieldDefn)
 
     def addlayer(self, name, srs, geomType):
+        """
+        add a layer to the vector layer
+
+        Parameters
+        ----------
+        name: str
+            the layer name
+        srs: int, str or osr.SpatialReference
+            the spatial reference system. See :func:`spatialist.auxil.crsConvert` for options.
+        geomType: ogr.wkb
+            an OGR well-known binary data type.
+            See `Module ogr <https://gdal.org/python/osgeo.ogr-module.html>`_.
+
+        Returns
+        -------
+
+        """
         self.vector.CreateLayer(name, srs, geomType)
         self.init_layer()
 
     def addvector(self, vec):
         """
-        add a vector object to the current one
+        add a vector object to the layer of the current Vector object
+
         Parameters
         ----------
         vec: Vector
@@ -136,12 +156,36 @@ class Vector(object):
         vec.layer.ResetReading()
 
     def bbox(self, outname=None, format='ESRI Shapefile', overwrite=True):
+        """
+        create a bounding box from the extent of the Vector object
+
+        Parameters
+        ----------
+        outname: str or None
+            the name of the vector file to be written; if None, a Vector object is returned
+        format: str
+            the name of the file format to write
+        overwrite: bool
+            overwrite an already existing file?
+
+        Returns
+        -------
+        Vector or None
+            if outname is None, the bounding box Vector object
+        """
         if outname is None:
             return bbox(self.extent, self.srs)
         else:
             bbox(self.extent, self.srs, outname=outname, format=format, overwrite=overwrite)
 
     def close(self):
+        """
+        closes the OGR vector file connection
+
+        Returns
+        -------
+
+        """
         self.vector = None
         for feature in self.__features:
             if feature is not None:
@@ -150,6 +194,15 @@ class Vector(object):
     def convert2wkt(self, set3D=True):
         """
         export the geometry of each feature as a wkt string
+
+        Parameters
+        ----------
+        set3D: bool
+            keep the third (height) dimension?
+
+        Returns
+        -------
+
         """
         features = self.getfeatures()
         for feature in features:
@@ -163,24 +216,75 @@ class Vector(object):
 
     @property
     def extent(self):
-        return dict(zip(["xmin", "xmax", "ymin", "ymax"], self.layer.GetExtent()))
+        """
+        the extent of the vector object
+
+        Returns
+        -------
+        dict
+            a dictionary with keys `xmin`, `xmax`, `ymin`, `ymax`
+        """
+        return dict(zip(['xmin', 'xmax', 'ymin', 'ymax'], self.layer.GetExtent()))
 
     @property
     def fieldDefs(self):
+        """
+
+        Returns
+        -------
+        list of ogr.FieldDefn
+            the field definition for each field of the Vector object
+        """
         return [self.layerdef.GetFieldDefn(x) for x in range(0, self.nfields)]
 
     @property
     def fieldnames(self):
+        """
+
+        Returns
+        -------
+        list of str
+            the names of the fields
+        """
         return sorted([field.GetName() for field in self.fieldDefs])
 
     @property
     def geomType(self):
+        """
+
+        Returns
+        -------
+        int
+            the layer geometry type
+        """
         return self.layerdef.GetGeomType()
 
     def getArea(self):
+        """
+
+        Returns
+        -------
+        float
+            the area of the vector geometries
+        """
         return sum([x.GetGeometryRef().GetArea() for x in self.getfeatures()])
 
     def getFeatureByAttribute(self, fieldname, attribute):
+        """
+        get features by field attribute
+
+        Parameters
+        ----------
+        fieldname: str
+            the name of the queried field
+        attribute: int or str
+            the field value of interest
+
+        Returns
+        -------
+        list of ogr.Feature or ogr.Feature
+            the feature(s) matching the search query
+        """
         attr = attribute.strip() if isinstance(attribute, str) else attribute
         if fieldname not in self.fieldnames:
             raise KeyError('invalid field name')
@@ -200,12 +304,32 @@ class Vector(object):
             return out
 
     def getFeatureByIndex(self, index):
+        """
+        get features by numerical (positional) index
+
+        Parameters
+        ----------
+        index: int
+            the queried index
+
+        Returns
+        -------
+        ogr.Feature
+            the requested feature
+        """
         feature = self.layer[index]
         if feature is None:
             feature = self.getfeatures()[index]
         return feature
 
     def getfeatures(self):
+        """
+
+        Returns
+        -------
+        list of ogr.Feature
+            a list of cloned features
+        """
         self.layer.ResetReading()
         features = [x.Clone() for x in self.layer]
         self.layer.ResetReading()
@@ -213,33 +337,90 @@ class Vector(object):
 
     def getProjection(self, type):
         """
-        type can be either "epsg", "wkt", "proj4" or "osr"
+        get the CRS of the Vector object. See :func:`spatialist.auxil.crsConvert`.
+
+        Parameters
+        ----------
+        type: str
+            the type of projection required.
+
+        Returns
+        -------
+        int, str or osr.SpatialReference
+            the output CRS
         """
         return crsConvert(self.layer.GetSpatialRef(), type)
 
     def getUniqueAttributes(self, fieldname):
+        """
+
+        Parameters
+        ----------
+        fieldname: str
+            the name of the field of interest
+
+        Returns
+        -------
+        list of str or int
+            the unique attributes of the field
+        """
         self.layer.ResetReading()
         attributes = list(set([x.GetField(fieldname) for x in self.layer]))
         self.layer.ResetReading()
         return sorted(attributes)
 
     def init_features(self):
+        """
+        delete all in-memory features
+
+        Returns
+        -------
+
+        """
         del self.__features
         self.__features = [None]*self.nfeatures
 
     def init_layer(self):
+        """
+        initialize a layer object
+
+        Returns
+        -------
+
+        """
         self.layer = self.vector.GetLayer()
         self.__features = [None]*self.nfeatures
 
     @property
     def layerdef(self):
+        """
+
+        Returns
+        -------
+        ogr.FeatureDefn
+            the layer's feature definition
+        """
         return self.layer.GetLayerDefn()
 
     @property
     def layername(self):
+        """
+
+        Returns
+        -------
+        str
+            the name of the layer
+        """
         return self.layer.GetName()
 
     def load(self):
+        """
+        load all feature into memory
+
+        Returns
+        -------
+
+        """
         self.layer.ResetReading()
         for i in range(self.nfeatures):
             if self.__features[i] is None:
@@ -247,22 +428,61 @@ class Vector(object):
 
     @property
     def nfeatures(self):
+        """
+
+        Returns
+        -------
+        int
+            the number of features
+        """
         return len(self.layer)
 
     @property
     def nfields(self):
+        """
+
+        Returns
+        -------
+        int
+            the number of fields
+        """
         return self.layerdef.GetFieldCount()
 
     @property
     def nlayers(self):
+        """
+
+        Returns
+        -------
+        int
+            the number of layers
+        """
         return self.vector.GetLayerCount()
 
     @property
     def proj4(self):
+        """
+
+        Returns
+        -------
+        str
+            the CRS in PRO4 format
+        """
         return self.srs.ExportToProj4().strip()
 
     def reproject(self, projection):
+        """
+        in-memory reprojection
 
+        Parameters
+        ----------
+        projection: int, str or osr.SpatialReference
+            the target CRS. See :func:`spatialist.auxil.crsConvert`.
+
+        Returns
+        -------
+
+        """
         srs_out = crsConvert(projection, 'osr')
 
         if self.srs.IsSame(srs_out) == 0:
@@ -291,7 +511,9 @@ class Vector(object):
 
     def setCRS(self, crs):
         """
-        directly reset the spatial reference system of the vector object
+        directly reset the spatial reference system of the vector object.
+        This is not going to reproject the Vector object, see :meth:`reproject` instead.
+
         Parameters
         ----------
         crs: int, str or osr.SpatialReference
@@ -330,6 +552,13 @@ class Vector(object):
 
     @property
     def srs(self):
+        """
+
+        Returns
+        -------
+        str
+            the CRS in WKT format
+        """
         return self.layer.GetSpatialRef()
 
     # todo Should return the wkt of the object, not of the projection
@@ -338,6 +567,22 @@ class Vector(object):
         return self.srs.ExportToWkt()
 
     def write(self, outfile, format='ESRI Shapefile', overwrite=True):
+        """
+        write the Vector object to a file
+
+        Parameters
+        ----------
+        outfile:
+            the name of the file to write
+        format: str
+            the output file format
+        overwrite: bool
+            overwrite an already existing file?
+
+        Returns
+        -------
+
+        """
         (outfilepath, outfilename) = os.path.split(outfile)
         basename = os.path.splitext(outfilename)[0]
 
