@@ -1,9 +1,8 @@
 Raster Class
 ============
 
-.. automodule:: spatialist.raster
-    :members: Raster
-    :undoc-members:
+.. autoclass:: spatialist.raster.Raster
+    :members:
 
 Raster Tools
 ============
@@ -15,8 +14,14 @@ Raster Tools
 Vector Class
 ============
 
+.. autoclass:: spatialist.vector.Vector
+    :members:
+
+Vector Tools
+============
+
 .. automodule:: spatialist.vector
-    :members: Vector
+    :members: intersect
     :undoc-members:
 
 General Spatial Tools
