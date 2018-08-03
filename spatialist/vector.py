@@ -4,10 +4,6 @@
 # John Truckenbrodt 2015-2018
 ##############################################################
 
-"""
-This is intended as a vector meta information handler with options for reading and writing vector data in a convenient
-manner by simplifying the numerous options provided by the OGR python binding
-"""
 
 import os
 
@@ -22,6 +18,18 @@ osr.UseExceptions()
 
 
 class Vector(object):
+    """
+    This is intended as a vector meta information handler with options for reading and writing vector data in a
+    convenient manner by simplifying the numerous options provided by the OGR python binding.
+
+    Parameters
+    ----------
+    filename: str
+        the vector file to read; if filename is None, a new in-memory Vector object is created. In this case `driver` is
+        overridden and set to `Memory`.
+    driver: str
+        the vector file format
+    """
     def __init__(self, filename=None, driver='ESRI Shapefile'):
 
         if driver not in ['ESRI Shapefile', 'Memory']:
@@ -761,12 +769,13 @@ def feature2vector(feature, ref, layername=None):
 def intersect(obj1, obj2):
     """
     intersect two Vector objects
+
     Parameters
     ----------
     obj1: Vector
-        the first vector geometry
+        the first vector object
     obj2: Vector
-        the second vector geometry
+        the second vector object
 
     Returns
     -------
