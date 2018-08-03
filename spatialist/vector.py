@@ -644,8 +644,25 @@ class Vector(object):
 def bbox(coordinates, crs, outname=None, format='ESRI Shapefile', overwrite=True):
     """
     create a bounding box vector object or shapefile from coordinates and coordinate reference system
-    coordinates must be provided in a dictionary containing numerical variables with names 'xmin', 'xmax', 'ymin' and 'ymax'
     the coordinate reference system can be in either WKT, EPSG or PROJ4 format
+
+    Parameters
+    ----------
+    coordinates: dict
+        a dictionary containing numerical variables with keys `xmin`, `xmax`, `ymin` and `ymax`
+    crs: int, str or osr.SpatialReference
+        the CRS of the `coordinates`. See :func:`spatialist.auxil.crsConvert` for options.
+    outname: str
+        the file to write to. If `None` the bounding box is returned as Vector object
+    format: str
+        the output file format
+    overwrite: bool
+        overwrite an existing file?
+
+    Returns
+    -------
+    Vector or None
+        the bounding box Vector object
     """
     srs = crsConvert(crs, 'osr')
 
