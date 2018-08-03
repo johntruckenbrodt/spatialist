@@ -12,6 +12,13 @@ Raster Tools
     :members: stack, rasterize
     :undoc-members:
 
+Vector Class
+============
+
+.. automodule:: spatialist.vector
+    :members: Vector
+    :undoc-members:
+
 General Spatial Tools
 =====================
 
