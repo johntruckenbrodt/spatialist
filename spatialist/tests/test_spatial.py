@@ -34,7 +34,6 @@ def test_Vector(testdata):
     assert bbox1.nlayers == 1
     assert bbox1.getProjection('epsg') == 32631
     assert bbox1.proj4 == '+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs'
-    assert isinstance(bbox1.wkt, str)
     assert isinstance(bbox1.getFeatureByIndex(0), ogr.Feature)
     with pytest.raises(IndexError):
         bbox1.getFeatureByIndex(1)
