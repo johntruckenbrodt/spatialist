@@ -38,16 +38,14 @@ class HDRobject(object):
         the file or dictionary to get the info from; If None (default), an object with default values for an empty
         raster file is returned
 
-    Returns
-    -------
-    the hdr metadata handler
-
     Examples
     --------
-    # open a HDR file and rewrite it with changed band names
-    >>>with HDRobject('E:/test.hdr') as hdr:
-    >>>    hdr.band_names = ['one', 'two']
-    >>>    hdr.write()
+
+    >>> from spatialist.envi import HDRobject
+    >>> with HDRobject('E:/test.hdr') as hdr:
+    >>>     hdr.band_names = ['one', 'two']
+    >>>     print(hdr)
+    >>>     hdr.write()
     """
 
     def __init__(self, data=None):
