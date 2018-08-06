@@ -7,6 +7,10 @@ directory = os.path.join(os.path.expanduser('~'), '.spatialist')
 if not os.path.exists(directory):
     os.makedirs(directory)
 
+directory = os.path.abspath(os.path.dirname(__file__))
+with open(os.path.join(directory, 'README.md'), encoding='utf-8') as f:
+    long_description = f.read()
+
 setup(name='spatialist',
       packages=find_packages(),
       include_package_data=True,
@@ -29,5 +33,5 @@ setup(name='spatialist',
       author_email='john.truckenbrodt@uni-jena.de',
       license='MIT',
       zip_safe=False,
-      long_description='an in-depth package description can be found on GitHub '
-                       '[here]("https://github.com/johntruckenbrodt/spatialist")')
+      long_description=long_description,
+      long_description_content_type='text/markdown')
