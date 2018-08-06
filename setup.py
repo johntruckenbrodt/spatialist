@@ -18,7 +18,7 @@ setup(name='spatialist',
       packages=find_packages(),
       include_package_data=True,
       package_data=package_data,
-      version='0.2.1',
+      version='0.2.2',
       description='A Python module for spatial data handling',
       classifiers=[
           'Programming Language :: Python',
