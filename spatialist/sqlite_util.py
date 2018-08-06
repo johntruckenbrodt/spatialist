@@ -1,6 +1,7 @@
 import os
 import re
 import platform
+import zipfile as zf
 
 from ctypes.util import find_library
 
@@ -62,6 +63,26 @@ def sqlite_setup(driver=':memory:', extensions=None):
     return conn.conn
 
 
+def spatialite_setup():
+    if platform.system() is 'Windows':
+        directory = os.path.join(os.path.expanduser('~'), '.spatialist')
+        subdir = os.path.join(directory, 'mod_spatialite')
+        if not os.path.isdir(subdir):
+            os.makedirs(subdir)
+        mod_spatialite = os.path.join(subdir, 'mod_spatialite.dll')
+        if not os.path.isfile(mod_spatialite):
+            source_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                      'pkgs', 'mod_spatialite')
+            # print('machine: {}'.format(platform.machine()))
+            suffix = 'amd64' if platform.machine().endswith('64') else 'x86'
+            source = os.path.join(source_dir, 'mod_spatialite-4.3.0a-win-{}.zip'.format(suffix))
+            # print('extracting {} to {}'.format(os.path.basename(source), subdir))
+            archive = zf.ZipFile(source, 'r')
+            archive.extractall(subdir)
+            archive.close()
+        os.environ['PATH'] = '{}{}{}'.format(os.environ['PATH'], os.path.pathsep, subdir)
+
+
 class __Handler(object):
     def __init__(self, driver=':memory:', extensions=None):
         self.conn = sqlite3.connect(driver)
@@ -98,13 +119,7 @@ class __Handler(object):
 
     def load_extension(self, extension):
         if re.search('spatialite', extension):
-            if platform.system() == 'Windows':
-                ext_path = os.path.join(os.path.expanduser('~'), '.spatialist', 'mod_spatialite')
-                print('mod_spatialite ext_path exists? {}'.format(os.path.isdir(ext_path)))
-                file_exists = os.path.isfile(os.path.join(ext_path, 'mod_spatialite.dll'))
-                print('mod_spatialite.dll exists? {}'.format(file_exists))
-                print('appending to PATH: {}'.format(ext_path))
-                os.environ['PATH'] = '{}{}{}'.format(os.environ['PATH'], os.path.pathsep, ext_path)
+            spatialite_setup()
             select = None
             # first try to load the dedicated mod_spatialite adapter
             for option in ['mod_spatialite', 'mod_spatialite.so', 'mod_spatialite.dll']:
