@@ -31,9 +31,9 @@ sys.path.insert(0, os.path.abspath('..') + os.sep)
 # built documents.
 #
 # The short X.Y version.
-version = '0.2.2'
+version = '0.2.3'
 # The full version, including alpha/beta/rc tags.
-release = '0.2.2'
+release = '0.2.3'
 
 # -- General configuration ------------------------------------------------
 MOCK_MODULES = ['osgeo', 'osgeo.gdal', 'osgeo.osr', 'osgeo.gdalconst',
