@@ -8,7 +8,7 @@ with open(os.path.join(directory, 'README.md'), encoding='utf-8') as f:
 setup(name='spatialist',
       packages=find_packages(),
       include_package_data=True,
-      version='0.2.3',
+      version='0.2.4',
       description='A Python module for spatial data handling',
       classifiers=[
           'Programming Language :: Python',
