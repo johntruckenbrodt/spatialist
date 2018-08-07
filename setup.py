@@ -1,9 +1,14 @@
 from setuptools import setup, find_packages
 import os
+import sys
 
 directory = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(directory, 'README.md'), encoding='utf-8') as f:
-    long_description = f.read()
+if sys.version_info >= (3, 0):
+    with open(os.path.join(directory, 'README.md'), encoding='utf-8') as f:
+        long_description = f.read()
+else:
+    with open(os.path.join(directory, 'README.md')) as f:
+        long_description = f.read()
 
 setup(name='spatialist',
       packages=find_packages(),
