@@ -1,9 +1,14 @@
 
 try:
     from osgeo import gdal
-    if gdal.__version__ < '2.1':
-        raise ImportError('GDAL version < 2.1. Please refer to the installation isntructions under\n'
-                          '    https://github.com/johntruckenbrodt/spatialist')
+    try:
+        gdalversion = gdal.__version__
+        if gdalversion < '2.1':
+            raise ImportError('GDAL version < 2.1. Please refer to the installation isntructions under\n'
+                              '    https://github.com/johntruckenbrodt/spatialist')
+    except AttributeError:
+        pass
+
 except ImportError:
     raise ImportError('could not import GDAL. You can install it like this:\n'
                       '    Linux   : sudo apt-get install python3-gdal\n'
