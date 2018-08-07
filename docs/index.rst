@@ -6,10 +6,6 @@
 Welcome to spatialist's documentation!
 ======================================
 
-Contents:
-
-This is the documentation of spatialist.
-
 .. toctree::
 
    spatialist

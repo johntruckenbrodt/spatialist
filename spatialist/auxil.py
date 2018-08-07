@@ -95,19 +95,19 @@ def haversine(lat1, lon1, lat2, lon2):
     Returns
     -------
     float
-        the distance between point 1 and point2 in meters
+        the distance between point 1 and point 2 in meters
 
     """
     radius = 6371000
     lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
-    a = math.sin((lat2-lat1)/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2-lon1)/2)**2
+    a = math.sin((lat2 - lat1) / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2
     c = 2 * math.asin(math.sqrt(a))
     return radius * c
 
 
 def gdalwarp(src, dst, options):
     """
-    a simple wrapper for gdal.Warp
+    a simple wrapper for `gdal.Warp <https://gdal.org/python/osgeo.gdal-module.html#Warp>`_
 
     Parameters
     ----------
@@ -117,7 +117,7 @@ def gdalwarp(src, dst, options):
         the output data set
     options: dict
         additional parameters passed to gdal.Warp;
-        see http://gdal.org/python/osgeo.gdal-module.html#WarpOptions
+        see `gdal.WarpOptions <http://gdal.org/python/osgeo.gdal-module.html#WarpOptions>`_
 
     Returns
     -------
@@ -129,7 +129,7 @@ def gdalwarp(src, dst, options):
 
 def gdalbuildvrt(src, dst, options=None, void=True):
     """
-    a simple wrapper for gdal.BuildVRT
+    a simple wrapper for `gdal.BuildVRT <https://gdal.org/python/osgeo.gdal-module.html#BuildVRT>`_
 
     Parameters
     ----------
@@ -139,7 +139,7 @@ def gdalbuildvrt(src, dst, options=None, void=True):
         the output data set
     options: dict
         additional parameters passed to gdal.BuildVRT;
-        see http://gdal.org/python/osgeo.gdal-module.html#BuildVRTOptions
+        see `gdal.BuildVRTOptions <http://gdal.org/python/osgeo.gdal-module.html#BuildVRTOptions>`_
     void: bool
         just write the results and don't return anything? If not, the spatial object is returned
 
@@ -157,7 +157,7 @@ def gdalbuildvrt(src, dst, options=None, void=True):
 
 def gdal_translate(src, dst, options):
     """
-    a simple wrapper for gdal.Translate
+    a simple wrapper for `gdal.Translate <https://gdal.org/python/osgeo.gdal-module.html#Translate>`_
 
     Parameters
     ----------
@@ -167,7 +167,7 @@ def gdal_translate(src, dst, options):
         the output data set
     options: dict
         additional parameters passed to gdal.Translate;
-        see http://gdal.org/python/osgeo.gdal-module.html#TranslateOptions
+        see `gdal.TranslateOptions <http://gdal.org/python/osgeo.gdal-module.html#TranslateOptions>`_
 
     Returns
     -------
@@ -179,7 +179,7 @@ def gdal_translate(src, dst, options):
 
 def ogr2ogr(src, dst, options):
     """
-    a simple wrapper for gdal.VectorTranslate aka ogr2ogr
+    a simple wrapper for gdal.VectorTranslate aka `ogr2ogr <https://www.gdal.org/ogr2ogr.html>`_
 
     Parameters
     ----------
@@ -189,7 +189,7 @@ def ogr2ogr(src, dst, options):
         the output data set
     options: dict
         additional parameters passed to gdal.VectorTranslate;
-        see http://gdal.org/python/osgeo.gdal-module.html#VectorTranslateOptions
+        see `gdal.VectorTranslateOptions <http://gdal.org/python/osgeo.gdal-module.html#VectorTranslateOptions>`_
 
     Returns
     -------
@@ -211,7 +211,7 @@ def gdal_rasterize(src, dst, options):
         the output data set
     options: dict
         additional parameters passed to gdal.Rasterize;
-        see http://gdal.org/python/osgeo.gdal-module.html#RasterizeOptions
+        see `gdal.RasterizeOptions <http://gdal.org/python/osgeo.gdal-module.html#RasterizeOptions>`_
 
     Returns
     -------
