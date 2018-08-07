@@ -86,6 +86,22 @@ class Raster(object):
         return info
 
     def __getitem__(self, index):
+        """
+        subset the object by slices or vector geometry. If slices are provided, one slice for each raster dimension
+        needs to be defined. I.e., if the raster object contains several image bands, three slices are necessary. If a
+        :class:`~spatialist.vector.Vector` geometry is defined, it is internally projected to the raster CRS if necessary, its extent
+        derived and the extent converted to raster pixel slices, which are then used for subsetting.
+
+        Parameters
+        ----------
+        index: tuple of slices or Vector
+            the subsetting indices to be used
+
+        Returns
+        -------
+        Raster
+            a new raster object referenced through an in-memory GDAL VRT file
+        """
         # subsetting via Vector object
         if isinstance(index, Vector):
             # reproject vector object on the fly
@@ -231,7 +247,7 @@ class Raster(object):
         Returns
         -------
         list of dicts
-            a list with a dictionary of statistics for each band. Keys: 'min', 'max', 'mean', 'sdev'.
+            a list with a dictionary of statistics for each band. Keys: `min`, `max`, `mean`, `sdev`.
             See `gdal.Band.ComputeStatistics <http://www.gdal.org/classGDALRasterBand.html#a48883c1dae195b21b37b51b10e910f9b>`_.
         """
         statcollect = []
@@ -309,7 +325,7 @@ class Raster(object):
         Parameters
         ----------
         outname: str or None
-            the name od the file to write; If None, the bounding box is returned as vector object
+            the name of the file to write; If `None`, the bounding box is returned as vector object
         format: str
             The file format to write
         overwrite: bool
@@ -317,7 +333,7 @@ class Raster(object):
 
         Returns
         -------
-        spatialist.vector.Vector or None
+        Vector or None
             the bounding box vector object
         """
         if outname is None:
@@ -402,7 +418,7 @@ class Raster(object):
         radius: int or float
             the radius around the point to extract pixel values from; defined as multiples of the pixel resolution
         nodata: int
-            a value to ignore from the computations; If None, the nodata value of the Raster object is used
+            a value to ignore from the computations; If `None`, the nodata value of the Raster object is used
 
         Returns
         -------
@@ -540,7 +556,10 @@ class Raster(object):
         See this forum entry:
         `How to check if image is valid? <https://lists.osgeo.org/pipermail/gdal-dev/2013-November/037520.html>`_.
 
-        :return: (logical) is the file valid?
+        Returns
+        -------
+        bool
+            is the file valid?
         """
         for i in range(self.raster.RasterCount):
             try:
@@ -613,7 +632,7 @@ class Raster(object):
         Returns
         -------
         str or None
-            an identifier of the projected coordinate system; If the CRS is not projected None is returned
+            an identifier of the projected coordinate system; If the CRS is not projected `None` is returned
         """
         return self.srs.GetAttrValue('projcs') if self.srs.IsProjected() else None
 
@@ -708,7 +727,7 @@ class Raster(object):
         Returns
         -------
         osr.SpatialReference
-            a spatial reference object.
+            the spatial reference system of the data set.
             See `osr.SpatialReference <http://gdal.org/python/osgeo.osr.SpatialReference-class.html>`_
             for documentation.
         """
@@ -724,7 +743,7 @@ class Raster(object):
             the file to be written
         dtype: str
             the data type of the written file;
-            data type notations of GDAL (e.g. 'Float32') and numpy (e.g. 'int8') are supported.
+            data type notations of GDAL (e.g. `Float32`) and numpy (e.g. `int8`) are supported.
         format:
             the file format; e.g. 'GTiff'
         nodata: int or float
@@ -865,8 +884,8 @@ def rasterize(vectorobject, reference, outname=None, burn_values=1, expressions=
     reference: Raster
         a reference Raster object to retrieve geo information and extent from
     outname: str or None
-        the name of the GeoTiff output file; if None, an in-memory object of type Raster is returned and parameter
-        outname is ignored
+        the name of the GeoTiff output file; if None, an in-memory object of type :class:`Raster` is returned and
+        parameter outname is ignored
     burn_values: int or list
         the values to be written to the raster file
     expressions: list
@@ -875,12 +894,12 @@ def rasterize(vectorobject, reference, outname=None, burn_values=1, expressions=
         the nodata value of the target raster file
     append: bool
         if the output file already exists, update this file with new rasterized values?
-        If set to True and the output file exists, parameters reference and nodata are ignored.
+        If True and the output file exists, parameters `reference` and `nodata` are ignored.
 
     Returns
     -------
     Raster or None
-        if outname is None, a Raster object pointing to an in-memory dataset else None
+        if outname is `None`, a raster object pointing to an in-memory dataset else `None`
     Example
     -------
     >>> from spatialist import Vector, Raster, rasterize
@@ -997,26 +1016,26 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     Parameters
     ----------
     srcfiles: list
-        a list of file names or a list of lists; each sub-list is treated as an order to mosaic its containing files
+        a list of file names or a list of lists; each sub-list is treated as task to mosaic its containing files
     dstfile: str
-        the destination file (if sesparate) or a directory
+        the destination file or a directory (if separate is True)
     resampling: {near, bilinear, cubic, cubicspline, lanczos, average, mode, max, min, med, Q1, Q3}
-        the resampling method; see documentation of gdalwarp
+        the resampling method; see `documentation of gdalwarp <https://www.gdal.org/gdalwarp.html>`_.
     targetres: tuple
-        a list with two entries for x and y spatial resolution in units of the source CRS
+        two entries for x and y spatial resolution in units of the source CRS
     srcnodata: int or float
         the nodata value of the source files
     dstnodata: int or float
         the nodata value of the destination file(s)
-    shapefile: str, spatial.vector.Vector or None
+    shapefile: str, Vector or None
         a shapefile for defining the area of the destination files
     layernames: list
-        the names of the output layers; if None, the basenames of the input files are used
+        the names of the output layers; if `None`, the basenames of the input files are used
     sortfun: function
         a function for sorting the input files; this is needed for defining the mosaicking order
     separate: bool
         should the files be written to a single raster block or separate files?
-        If separate, each tile is written to geotiff.
+        If True, each tile is written to GeoTiff.
     overwrite: bool
         overwrite the file if it already exists?
     compress: bool
@@ -1030,8 +1049,8 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     Notes
     -----
     This function does not reproject any raster files. Thus, the CRS must be the same for all input raster files.
-    This is checked prior to executing gdalwarp. In case a shapefile is defined, it is reprojected internally prior to
-    retrieving the extent.
+    This is checked prior to executing gdalwarp. In case a shapefile is defined, it is internally reprojected to the
+    raster CRS prior to retrieving its extent.
     """
     if len(dissolve(srcfiles)) == 0:
         raise IOError('no input files provided to function raster.stack')
