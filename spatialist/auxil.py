@@ -111,8 +111,11 @@ def gdalwarp(src, dst, options):
 
     Parameters
     ----------
-    src: str, ogr.DataSource or gdal.DataSource
+    src: str, `ogr.DataSource`_ or `gdal.Dataset`_
         the input data set
+
+        .. _ogr.DataSource: https://gdal.org/python/osgeo.ogr.DataSource-class.html
+        .. _gdal.Dataset: https://gdal.org/python/osgeo.gdal.Dataset-class.html
     dst: str
         the output data set
     options: dict
@@ -133,8 +136,11 @@ def gdalbuildvrt(src, dst, options=None, void=True):
 
     Parameters
     ----------
-    src: str, ogr.DataSource or gdal.DataSource
+    src: str, `ogr.DataSource`_ or `gdal.Dataset`_
         the input data set
+
+        .. _ogr.DataSource: https://gdal.org/python/osgeo.ogr.DataSource-class.html
+        .. _gdal.Dataset: https://gdal.org/python/osgeo.gdal.Dataset-class.html
     dst: str
         the output data set
     options: dict
@@ -161,8 +167,11 @@ def gdal_translate(src, dst, options):
 
     Parameters
     ----------
-    src: str, ogr.DataSource or gdal.DataSource
+    src: str, `ogr.DataSource`_ or `gdal.Dataset`_
         the input data set
+
+        .. _ogr.DataSource: https://gdal.org/python/osgeo.ogr.DataSource-class.html
+        .. _gdal.Dataset: https://gdal.org/python/osgeo.gdal.Dataset-class.html
     dst: str
         the output data set
     options: dict
@@ -183,7 +192,7 @@ def ogr2ogr(src, dst, options):
 
     Parameters
     ----------
-    src: str or ogr.DataSource
+    src: str or `ogr.DataSource <https://gdal.org/python/osgeo.ogr.DataSource-class.html>`__
         the input data set
     dst: str
         the output data set
@@ -205,7 +214,7 @@ def gdal_rasterize(src, dst, options):
 
     Parameters
     ----------
-    src: str or ogr.DataSource
+    src: str or `ogr.DataSource <https://gdal.org/python/osgeo.ogr.DataSource-class.html>`__
         the input data set
     dst: str
         the output data set

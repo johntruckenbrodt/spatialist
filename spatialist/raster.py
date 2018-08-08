@@ -41,7 +41,7 @@ class Raster(object):
 
     Parameters
     ----------
-    filename: str or gdal.Dataset
+    filename: str or `gdal.Dataset <https://gdal.org/python/osgeo.gdal.Dataset-class.html>`__
         the raster file/object to read
     """
 
