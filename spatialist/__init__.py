@@ -4,7 +4,7 @@ try:
     try:
         gdalversion = gdal.__version__
         if gdalversion < '2.1':
-            raise ImportError('GDAL version < 2.1. Please refer to the installation isntructions under\n'
+            raise ImportError('GDAL version < 2.1. Please refer to the installation instructions under\n'
                               '    https://github.com/johntruckenbrodt/spatialist')
     except (TypeError, AttributeError):
         pass
