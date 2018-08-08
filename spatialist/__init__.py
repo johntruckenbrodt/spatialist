@@ -6,7 +6,7 @@ try:
         if gdalversion < '2.1':
             raise ImportError('GDAL version < 2.1. Please refer to the installation isntructions under\n'
                               '    https://github.com/johntruckenbrodt/spatialist')
-    except AttributeError:
+    except (TypeError, AttributeError):
         pass
 
 except ImportError:
