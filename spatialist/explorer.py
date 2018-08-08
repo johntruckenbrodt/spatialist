@@ -34,8 +34,8 @@ class RasterViewer(object):
     filename: str
         the name of the file to display
     cmap: str
-        the color map for displaying the image.
-        See `matplotlib.pyplot.imshow <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.imshow.html>`_.
+        the color map name for displaying the image.
+        See :class:`matplotlib.colors.Colormap`.
     band_indices: list or None
         a list of indices for renaming the individual band indices in `filename`;
         e.g. -70:70, instead of the raw band indices, e.g. 1:140.
@@ -52,6 +52,9 @@ class RasterViewer(object):
         a label for the units of the displayed data. This also supports LaTeX mathematical notation.
         See `Text rendering With LaTeX <https://matplotlib.org/users/usetex.html>`_.
 
+    See Also
+    --------
+    :func:`matplotlib.pyplot.imshow`
     """
 
     def __init__(self, filename, cmap='jet', band_indices=None, pmin=2, pmax=98, ts_convert=None, title=None, datalabel='data'):

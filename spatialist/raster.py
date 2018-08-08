@@ -94,7 +94,7 @@ class Raster(object):
 
         Parameters
         ----------
-        index: tuple of slices or Vector
+        index: :obj:`tuple` of :obj:`slice` or :obj:`~spatialist.vector.Vector`
             the subsetting indices to be used
 
         Returns
@@ -266,7 +266,7 @@ class Raster(object):
 
         Parameters
         ----------
-        array: np.ndarray
+        array: numpy.ndarray
             the array to be assigned to the Raster object
         band: int
             the index of the band to assign to
@@ -595,12 +595,12 @@ class Raster(object):
         band: int
             the band to read the matrix from; 1-based indexing
         mask_nan: bool
-            convert nodata values to numpy.nan? As numpy.nan requires at least float values, any integer array is cast
+            convert nodata values to :obj:`numpy.nan`? As :obj:`numpy.nan` requires at least float values, any integer array is cast
             to float32.
 
         Returns
         -------
-        np.ndarray
+        numpy.ndarray
             the matrix (subset) of the selected band
         """
 
@@ -744,7 +744,7 @@ class Raster(object):
         dtype: str
             the data type of the written file;
             data type notations of GDAL (e.g. `Float32`) and numpy (e.g. `int8`) are supported.
-        format:
+        format: str
             the file format; e.g. 'GTiff'
         nodata: int or float
             the nodata value to write to the file
