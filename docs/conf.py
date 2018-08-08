@@ -47,12 +47,17 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.coverage',
     'sphinx.ext.napoleon',
-    'sphinx.ext.intersphinx'
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.extlinks'
 ]
 
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
                        'matplotlib': ('https://matplotlib.org', None),
                        'numpy': ('http://docs.scipy.org/doc/numpy', None)}
+
+extlinks = {'gdal': ('https://gdal.org/python/osgeo.gdal.%s-class.html', 'gdal.'),
+            'ogr': ('https://gdal.org/python/osgeo.ogr.%s-class.html', 'ogr.'),
+            'osr': ('https://gdal.org/python/osgeo.osr.%s-class.html', 'osr.')}
 
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
