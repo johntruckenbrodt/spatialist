@@ -14,7 +14,6 @@
 
 import sys
 import os
-import mock
 import datetime
 
 project = 'spatialist'
@@ -36,16 +35,10 @@ version = '0.2.5'
 release = '0.2.5'
 
 # -- General configuration ------------------------------------------------
-MOCK_MODULES = ['osgeo', 'osgeo.gdal', 'osgeo.osr', 'osgeo.gdalconst',
-                'matplotlib', 'matplotlib.pyplot', 'matplotlib.cbook', 'matplotlib.axes', 'matplotlib.transforms',
-                'matplotlib.gridspec', 'matplotlib.artist', 'matplotlib.axis',
-                'mpl_toolkits', 'mpl_toolkits.axes_grid1',
-                'IPython', 'IPython.display', 'ipywidgets']
-for mod_name in MOCK_MODULES:
-    sys.modules[mod_name] = mock.Mock()
+autodoc_mock_imports = ['osgeo', 'matplotlib', 'mpl_toolkits', 'IPython', 'ipywidgets']
 
 # If your documentation needs a minimal Sphinx version, state it here.
-# needs_sphinx = '1.0'
+needs_sphinx = '1.6'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -53,8 +46,13 @@ for mod_name in MOCK_MODULES:
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.coverage',
-    'sphinx.ext.napoleon'
+    'sphinx.ext.napoleon',
+    'sphinx.ext.intersphinx'
 ]
+
+intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
+                       'matplotlib': ('https://matplotlib.org', None),
+                       'numpy': ('http://docs.scipy.org/doc/numpy', None)}
 
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
