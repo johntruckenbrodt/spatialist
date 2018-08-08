@@ -15,15 +15,19 @@ def crsConvert(crsIn, crsOut):
 
     Parameters
     ----------
-    crsIn: int, str or osr.SpatialReference
+    crsIn: int, str or `osr.SpatialReference`__
         the input CRS
     crsOut: {'wkt', 'proj4', 'epsg', 'osr', 'opengis' or 'prettyWkt'}
         the output CRS type
 
     Returns
     -------
-    int, str or osr.SpatialReference
+    int, str or `osr.SpatialReference`__
         the output CRS
+
+
+    .. __: https://gdal.org/python/osgeo.osr.SpatialReference-class.html
+    .. __: https://gdal.org/python/osgeo.osr.SpatialReference-class.html
 
     Examples
     --------
