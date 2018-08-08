@@ -41,7 +41,7 @@ class Raster(object):
 
     Parameters
     ----------
-    filename: str or `gdal.Dataset <https://gdal.org/python/osgeo.gdal.Dataset-class.html>`__
+    filename: str or :gdal:`Dataset`
         the raster file/object to read
     """
 
@@ -379,7 +379,7 @@ class Raster(object):
         Returns
         -------
         gdal.Driver
-            a GDAL raster driver object. See `osgeo.gdal.Driver <http://gdal.org/python/osgeo.gdal.Driver-class.html>`_.
+            a GDAL raster driver object. See :gdal:`Driver`.
         """
         return self.raster.GetDriver()
 
@@ -573,9 +573,8 @@ class Raster(object):
 
         Returns
         -------
-        list of gdal.Band
-            a list containing a `gdal.Band <http://gdal.org/python/osgeo.gdal.Band-class.html>`_
-            object for each image band
+        list of :gdal:`Band`
+            a list containing a :gdal:`Band` object for each image band
         """
         return [self.raster.GetRasterBand(band) for band in range(1, self.bands + 1)]
 
@@ -726,10 +725,8 @@ class Raster(object):
 
         Returns
         -------
-        osr.SpatialReference
+        :osr:`SpatialReference`
             the spatial reference system of the data set.
-            See `osr.SpatialReference <http://gdal.org/python/osgeo.osr.SpatialReference-class.html>`_
-            for documentation.
         """
         return osr.SpatialReference(wkt=self.projection)
 

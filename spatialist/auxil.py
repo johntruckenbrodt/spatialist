@@ -15,19 +15,15 @@ def crsConvert(crsIn, crsOut):
 
     Parameters
     ----------
-    crsIn: int, str or `osr.SpatialReference`__
+    crsIn: int, str or :osr:`SpatialReference`
         the input CRS
     crsOut: {'wkt', 'proj4', 'epsg', 'osr', 'opengis' or 'prettyWkt'}
         the output CRS type
 
     Returns
     -------
-    int, str or `osr.SpatialReference`__
+    int, str or :osr:`SpatialReference`
         the output CRS
-
-
-    .. __: https://gdal.org/python/osgeo.osr.SpatialReference-class.html
-    .. __: https://gdal.org/python/osgeo.osr.SpatialReference-class.html
 
     Examples
     --------
@@ -115,11 +111,8 @@ def gdalwarp(src, dst, options):
 
     Parameters
     ----------
-    src: str, `ogr.DataSource`_ or `gdal.Dataset`_
+    src: str, :ogr:`DataSource` or :gdal:`Dataset`
         the input data set
-
-        .. _ogr.DataSource: https://gdal.org/python/osgeo.ogr.DataSource-class.html
-        .. _gdal.Dataset: https://gdal.org/python/osgeo.gdal.Dataset-class.html
     dst: str
         the output data set
     options: dict
@@ -140,11 +133,8 @@ def gdalbuildvrt(src, dst, options=None, void=True):
 
     Parameters
     ----------
-    src: str, `ogr.DataSource`_ or `gdal.Dataset`_
+    src: str, :ogr:`DataSource` or :gdal:`Dataset`
         the input data set
-
-        .. _ogr.DataSource: https://gdal.org/python/osgeo.ogr.DataSource-class.html
-        .. _gdal.Dataset: https://gdal.org/python/osgeo.gdal.Dataset-class.html
     dst: str
         the output data set
     options: dict
@@ -171,11 +161,8 @@ def gdal_translate(src, dst, options):
 
     Parameters
     ----------
-    src: str, `ogr.DataSource`_ or `gdal.Dataset`_
+    src: str, :ogr:`DataSource` or :gdal:`Dataset`
         the input data set
-
-        .. _ogr.DataSource: https://gdal.org/python/osgeo.ogr.DataSource-class.html
-        .. _gdal.Dataset: https://gdal.org/python/osgeo.gdal.Dataset-class.html
     dst: str
         the output data set
     options: dict
@@ -196,7 +183,7 @@ def ogr2ogr(src, dst, options):
 
     Parameters
     ----------
-    src: str or `ogr.DataSource <https://gdal.org/python/osgeo.ogr.DataSource-class.html>`__
+    src: str or :ogr:`DataSource`
         the input data set
     dst: str
         the output data set
@@ -218,7 +205,7 @@ def gdal_rasterize(src, dst, options):
 
     Parameters
     ----------
-    src: str or `ogr.DataSource <https://gdal.org/python/osgeo.ogr.DataSource-class.html>`__
+    src: str or :ogr:`DataSource`
         the input data set
     dst: str
         the output data set
