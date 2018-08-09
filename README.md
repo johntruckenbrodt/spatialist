@@ -9,8 +9,7 @@ This package offers functionalities for user-friendly geo data processing using 
 A description of spatialist's functionality can be found [here][8].
 
 ### Installation
-Detailed instructions can be found in the documentation 
-[here](https://spatialist.readthedocs.io/en/latest/installation.html).
+Detailed instructions can be found in the documentation [here][14].
 
 ### Tutorial
 We are currently developing a tutorial jupyter notebook [spatialist_tutorial.ipynb][11]. 
@@ -29,3 +28,4 @@ You can interactively use it by launching binder on the top.
 [11]: https://github.com/johntruckenbrodt/spatialist/blob/master/spatialist_tutorial.ipynb
 [12]: https://badge.fury.io/py/spatialist.svg
 [13]: https://badge.fury.io/py/spatialist
+[14]: https://spatialist.readthedocs.io/en/latest/installation.html
