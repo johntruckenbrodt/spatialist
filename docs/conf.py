@@ -55,7 +55,7 @@ extensions = [
 
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
                        'matplotlib': ('https://matplotlib.org', None),
-                       'numpy': ('http://docs.scipy.org/doc/numpy', None)}
+                       'numpy': ('https://docs.scipy.org/doc/numpy', None)}
 
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
