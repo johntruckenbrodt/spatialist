@@ -44,7 +44,7 @@ class Raster(object):
     filename: str or :osgeo:class:`gdal.Dataset`
         the raster file/object to read
     """
-
+    
     # todo: init a Raster object from array data not only from a filename
     def __init__(self, filename):
         if isinstance(filename, gdal.Dataset):
@@ -55,28 +55,28 @@ class Raster(object):
             self.raster = gdal.Open(filename, GA_ReadOnly)
         else:
             raise OSError('file does not exist')
-
+        
         # a list to contain arrays
         self.__data = [None] * self.bands
-
+        
         if self.format == 'ENVI':
             self.bandnames = HDRobject(self.filename + '.hdr').band_names
         else:
             self.bandnames = ['band{}'.format(x) for x in range(1, self.bands + 1)]
-
+    
     def __enter__(self):
         return self
-
+    
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
-
+    
     def __str__(self):
         vals = dict()
         vals['rows'], vals['cols'], vals['bands'] = self.dim
         vals.update(self.geo)
         vals['proj4'] = self.proj4
         vals['filename'] = self.filename if self.filename is not None else 'memory'
-
+        
         info = 'class      : spatialist Raster object\n' \
                'dimensions : {rows}, {cols}, {bands} (rows, cols, bands)\n' \
                'resolution : {xres}, {yres} (x, y)\n' \
@@ -84,7 +84,7 @@ class Raster(object):
                'coord. ref.: {proj4}\n' \
                'data source: {filename}'.format(**vals)
         return info
-
+    
     def __getitem__(self, index):
         """
         subset the object by slices or vector geometry. If slices are provided, one slice for each raster dimension
@@ -128,7 +128,7 @@ class Raster(object):
             for i in [0, 1]:
                 if index[i].step is not None:
                     raise IndexError('step slicing of {} is not allowed'.format(['rows', 'bands'][i]))
-
+        
         # create index lists from subset slices
         subset = dict()
         subset['rows'] = list(range(0, self.rows))[index[0]]
@@ -139,19 +139,19 @@ class Raster(object):
                 subset['bands'] = [subset['bands']]
         else:
             subset['bands'] = [0]
-
+        
         if len(subset['rows']) == 0 or len(subset['cols']) == 0 or len(subset['bands']) == 0:
             raise RuntimeError('no suitable subset for defined slice:\n  {}'.format(index))
-
+        
         # update geo dimensions from subset list indices
         geo = self.geo
         geo['xmin'] = geo['xmin'] + min(subset['cols']) * geo['xres']
         geo['ymax'] = geo['ymax'] - min(subset['rows']) * abs(geo['yres'])
-
+        
         # note: yres is negative!
         geo['xmax'] = geo['xmin'] + geo['xres'] * len(subset['cols'])
         geo['ymin'] = geo['ymax'] + geo['yres'] * len(subset['rows'])
-
+        
         # create options for creating a GDAL VRT dataset
         opts = dict()
         opts['xRes'], opts['yRes'] = self.res
@@ -160,7 +160,7 @@ class Raster(object):
         opts['VRTNodata'] = self.nodata
         opts['bandList'] = [x + 1 for x in subset['bands']]
         opts['outputBounds'] = (geo['xmin'], geo['ymin'], geo['xmax'], geo['ymax'])
-
+        
         # create an in-memory VRT file and return the output raster dataset as new Raster object
         outname = os.path.join('/vsimem/', os.path.basename(tempfile.mktemp()))
         out_ds = gdalbuildvrt(src=self.filename, dst=outname, options=opts, void=False)
@@ -173,7 +173,7 @@ class Raster(object):
             bandnames = [bandnames]
         out.bandnames = bandnames
         return out
-
+    
     def __extent2slice(self, extent):
         extent_bbox = bbox(extent, self.proj4)
         inter = intersect(self.bbox(), extent_bbox)
@@ -182,7 +182,7 @@ class Raster(object):
             ext_inter = inter.extent
             ext_ras = self.geo
             xres, yres = self.res
-
+            
             colmin = int(floor((ext_inter['xmin'] - ext_ras['xmin']) / xres))
             colmax = int(ceil((ext_inter['xmax'] - ext_ras['xmin']) / xres))
             rowmin = int(floor((ext_ras['ymax'] - ext_inter['ymax']) / yres))
@@ -194,17 +194,17 @@ class Raster(object):
                 return slice(rowmin, rowmax), slice(colmin, colmax), slice(0, self.bands)
         else:
             raise RuntimeError('extent does not overlap with raster object')
-
+    
     def __maskbyvector(self, vec, outname=None, format='GTiff', nodata=0):
-
+        
         if outname is not None:
             driver_name = format
         else:
             driver_name = 'MEM'
-
+        
         with rasterize(vec, self) as vecmask:
             mask = vecmask.matrix()
-
+        
         driver = gdal.GetDriverByName(driver_name)
         outDataset = driver.Create(outname if outname is not None else '',
                                    self.cols, self.rows, self.bands, dtypes(self.dtype))
@@ -234,7 +234,7 @@ class Raster(object):
             out = Raster(outDataset)
             out.bandnames = self.bandnames
             return out
-
+    
     def allstats(self, approximate=False):
         """
         Compute some basic raster statistics
@@ -259,7 +259,7 @@ class Raster(object):
             stats = dict(zip(['min', 'max', 'mean', 'sdev'], stats))
             statcollect.append(stats)
         return statcollect
-
+    
     def assign(self, array, band):
         """
         assign an array to an existing Raster object
@@ -276,7 +276,7 @@ class Raster(object):
 
         """
         self.__data[band] = array
-
+    
     @property
     def bands(self):
         """
@@ -287,7 +287,7 @@ class Raster(object):
             the number of image bands
         """
         return self.raster.RasterCount
-
+    
     @property
     def bandnames(self):
         """
@@ -298,7 +298,7 @@ class Raster(object):
             the names of the bands
         """
         return self.__bandnames
-
+    
     @bandnames.setter
     def bandnames(self, names):
         """
@@ -319,7 +319,7 @@ class Raster(object):
             raise ValueError(
                 'length mismatch of names to be set ({}) and number of bands ({})'.format(len(names), self.bands))
         self.__bandnames = names
-
+    
     def bbox(self, outname=None, format='ESRI Shapefile', overwrite=True):
         """
         Parameters
@@ -340,7 +340,7 @@ class Raster(object):
             return bbox(self.geo, self.proj4)
         else:
             bbox(self.geo, self.proj4, outname=outname, format=format, overwrite=overwrite)
-
+    
     def close(self):
         """
         closes the GDAL raster file connection
@@ -349,7 +349,7 @@ class Raster(object):
 
         """
         self.raster = None
-
+    
     @property
     def cols(self):
         """
@@ -360,7 +360,7 @@ class Raster(object):
             the number of image columns
         """
         return self.raster.RasterXSize
-
+    
     @property
     def dim(self):
         """
@@ -371,7 +371,7 @@ class Raster(object):
             (rows, columns, bands)
         """
         return (self.rows, self.cols, self.bands)
-
+    
     @property
     def driver(self):
         """
@@ -382,7 +382,7 @@ class Raster(object):
             a GDAL raster driver object.
         """
         return self.raster.GetDriver()
-
+    
     @property
     def dtype(self):
         """
@@ -393,7 +393,7 @@ class Raster(object):
             the data type description; e.g. `Float32`
         """
         return gdal.GetDataTypeName(self.raster.GetRasterBand(1).DataType)
-
+    
     @property
     def epsg(self):
         """
@@ -404,7 +404,7 @@ class Raster(object):
             the CRS EPSG code
         """
         return crsConvert(self.srs, 'epsg')
-
+    
     def extract(self, px, py, radius=1, nodata=None):
         """
         extract weighted average of pixels intersecting with a defined radius to a point.
@@ -428,35 +428,35 @@ class Raster(object):
         """
         if not self.geo['xmin'] <= px <= self.geo['xmax']:
             raise RuntimeError('px is out of bounds')
-
+        
         if not self.geo['ymin'] <= py <= self.geo['ymax']:
             raise RuntimeError('py is out of bounds')
-
+        
         if nodata is None:
             nodata = self.nodata
-
+        
         xres, yres = self.res
-
+        
         hx = xres / 2.0
         hy = yres / 2.0
-
+        
         xlim = float(xres * radius)
         ylim = float(yres * radius)
-
+        
         # compute minimum x and y pixel coordinates
         xmin = int(floor((px - self.geo['xmin'] - xlim) / xres))
         ymin = int(floor((self.geo['ymax'] - py - ylim) / yres))
-
+        
         xmin = xmin if xmin >= 0 else 0
         ymin = ymin if ymin >= 0 else 0
-
+        
         # compute maximum x and y pixel coordinates
         xmax = int(ceil((px - self.geo['xmin'] + xlim) / xres))
         ymax = int(ceil((self.geo['ymax'] - py + ylim) / yres))
-
+        
         xmax = xmax if xmax <= self.cols else self.cols
         ymax = ymax if ymax <= self.rows else self.rows
-
+        
         # load array subset
         if self.__data[0] is not None:
             array = self.__data[0][ymin:ymax, xmin:xmax]
@@ -466,7 +466,7 @@ class Raster(object):
             array = self.raster.GetRasterBand(1).ReadAsArray(xmin, ymin, xmax - xmin, ymax - ymin)
             # print('loading array of size {}, '
             #       'indices [{}:{}, {}:{}] (row/y, col/x)'.format(array.shape, ymin, ymax, xmin, xmax))
-
+        
         sum = 0
         counter = 0
         weightsum = 0
@@ -476,26 +476,26 @@ class Raster(object):
                 val = array[y - ymin, x - xmin]
                 if val != nodata:
                     # compute distances of pixel center coordinate to requested point
-
+                    
                     xc = x * xres + hx + self.geo['xmin']
                     yc = self.geo['ymax'] - y * yres + hy
-
+                    
                     dx = abs(xc - px)
                     dy = abs(yc - py)
-
+                    
                     # check whether point lies within ellipse: if ((dx ** 2) / xlim ** 2) + ((dy ** 2) / ylim ** 2) <= 1
                     weight = sqrt(dx ** 2 + dy ** 2)
                     sum += val * weight
                     weightsum += weight
                     counter += 1
-
+        
         array = None
-
+        
         if counter > 0:
             return sum / weightsum
         else:
             return nodata
-
+    
     @property
     def files(self):
         """
@@ -508,7 +508,7 @@ class Raster(object):
         fl = self.raster.GetFileList()
         if fl is not None:
             return [os.path.abspath(x) for x in fl]
-
+    
     @property
     def format(self):
         """
@@ -519,7 +519,7 @@ class Raster(object):
             the name of the image format
         """
         return self.driver.ShortName
-
+    
     @property
     def geo(self):
         """
@@ -532,12 +532,12 @@ class Raster(object):
         """
         out = dict(zip(['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres'],
                        self.raster.GetGeoTransform()))
-
+        
         # note: yres is negative!
         out['xmax'] = out['xmin'] + out['xres'] * self.cols
         out['ymin'] = out['ymax'] + out['yres'] * self.rows
         return out
-
+    
     @property
     def geogcs(self):
         """
@@ -548,7 +548,7 @@ class Raster(object):
             an identifier of the geographic coordinate system
         """
         return self.srs.GetAttrValue('geogcs')
-
+    
     def is_valid(self):
         """
         Check image integrity.
@@ -567,7 +567,7 @@ class Raster(object):
             except RuntimeError:
                 return False
         return True
-
+    
     def layers(self):
         """
 
@@ -577,7 +577,7 @@ class Raster(object):
             a list containing a :osgeo:class:`gdal.Band` object for each image band
         """
         return [self.raster.GetRasterBand(band) for band in range(1, self.bands + 1)]
-
+    
     def load(self):
         """
         load all raster data to internal memory arrays.
@@ -585,7 +585,7 @@ class Raster(object):
         """
         for i in range(1, self.bands + 1):
             self.__data[i - 1] = self.matrix(i)
-
+    
     def matrix(self, band=1, mask_nan=True):
         """
         read a raster band (subset) into a numpy ndarray
@@ -603,7 +603,7 @@ class Raster(object):
         numpy.ndarray
             the matrix (subset) of the selected band
         """
-
+        
         mat = self.__data[band - 1]
         if mat is None:
             mat = self.raster.GetRasterBand(band).ReadAsArray()
@@ -614,7 +614,7 @@ class Raster(object):
                     mat = mat.astype('float32')
                     mat[mat == self.nodata] = np.nan
         return mat
-
+    
     @property
     def nodata(self):
         """
@@ -625,7 +625,7 @@ class Raster(object):
             the raster nodata value
         """
         return self.raster.GetRasterBand(1).GetNoDataValue()
-
+    
     @property
     def projcs(self):
         """
@@ -635,7 +635,7 @@ class Raster(object):
             an identifier of the projected coordinate system; If the CRS is not projected `None` is returned
         """
         return self.srs.GetAttrValue('projcs') if self.srs.IsProjected() else None
-
+    
     @property
     def projection(self):
         """
@@ -646,7 +646,7 @@ class Raster(object):
             the CRS Well Known Text (WKT) description
         """
         return self.raster.GetProjection()
-
+    
     @property
     def proj4(self):
         """
@@ -657,7 +657,7 @@ class Raster(object):
             the CRS PROJ4 description
         """
         return self.srs.ExportToProj4()
-
+    
     @property
     def proj4args(self):
         """
@@ -669,7 +669,7 @@ class Raster(object):
         """
         args = [x.split('=') for x in re.split('[+ ]+', self.proj4) if len(x) > 0]
         return dict([(x[0], None) if len(x) == 1 else tuple(x) for x in args])
-
+    
     @property
     def res(self):
         """
@@ -681,7 +681,7 @@ class Raster(object):
             (xres, yres)
         """
         return (abs(float(self.geo['xres'])), abs(float(self.geo['yres'])))
-
+    
     def rescale(self, fun):
         """
         perform raster computations with custom functions and assign them to the existing raster object in memory
@@ -699,16 +699,16 @@ class Raster(object):
         """
         if self.bands != 1:
             raise ValueError('only single band images are currently supported')
-
+        
         # load array
         mat = self.matrix()
-
+        
         # scale values
         scaled = fun(mat)
-
+        
         # assign newly computed array to raster object
         self.assign(scaled, band=0)
-
+    
     @property
     def rows(self):
         """
@@ -719,7 +719,7 @@ class Raster(object):
             the number of image rows
         """
         return self.raster.RasterYSize
-
+    
     @property
     def srs(self):
         """
@@ -730,7 +730,7 @@ class Raster(object):
             the spatial reference system of the data set.
         """
         return osr.SpatialReference(wkt=self.projection)
-
+    
     def write(self, outname, dtype='default', format='ENVI', nodata='default', compress_tif=False, overwrite=False):
         """
         write the raster object to a file.
@@ -755,20 +755,20 @@ class Raster(object):
         -------
 
         """
-
+        
         if os.path.isfile(outname) and not overwrite:
             raise RuntimeError('target file already exists')
-
+        
         if format == 'GTiff' and not re.search('\.tif[f]*$', outname):
             outname += '.tif'
-
+        
         dtype = dtypes(self.dtype if dtype == 'default' else dtype)
         nodata = self.nodata if nodata == 'default' else nodata
-
+        
         options = []
         if format == 'GTiff' and compress_tif:
             options += ['COMPRESS=DEFLATE', 'PREDICTOR=2']
-
+        
         driver = gdal.GetDriverByName(format)
         outDataset = driver.Create(outname, self.cols, self.rows, self.bands, dtype, options)
         driver = None
@@ -791,7 +791,7 @@ class Raster(object):
             with HDRobject(outname + '.hdr') as hdr:
                 hdr.band_names = self.bandnames
                 hdr.write()
-
+        
         # write a png image of three raster bands (provided in a list of 1-based integers); percent controls the size ratio of input and output
         # def png(self, bands, outname, percent=10):
         #     if len(bands) != 3 or max(bands) not in range(1, self.bands+1) or min(bands) not in range(1, self.bands+1):
@@ -804,7 +804,7 @@ class Raster(object):
         #     exp_size = ['-outsize', str(percent)+'%', str(percent)+'%']
         #     cmd = dissolve([['gdal_translate', '-q', '-of', 'PNG', '-ot', 'Byte'], exp_size, exp_bands, exp_scale, self.filename, outname])
         #     sp.check_call([str(x) for x in cmd])
-
+    
     # def reduce(self, outname=None, format='ENVI'):
     #     """
     #     remove all lines and columns containing only no data values
@@ -861,13 +861,13 @@ def dtypes(typestring):
     # create dictionary with GDAL style descriptions
     dictionary = {'Byte': GDT_Byte, 'Int16': GDT_Int16, 'UInt16': GDT_UInt16, 'Int32': GDT_Int32,
                   'UInt32': GDT_UInt32, 'Float32': GDT_Float32, 'Float64': GDT_Float64}
-
+    
     # add numpy style descriptions
     dictionary.update(typemap())
-
+    
     if typestring not in dictionary.keys():
         raise ValueError("unknown data type; use one of the following: ['{}']".format("', '".join(dictionary.keys())))
-
+    
     return dictionary[typestring]
 
 
@@ -914,7 +914,7 @@ def rasterize(vectorobject, reference, outname=None, burn_values=1, expressions=
         burn_values = [burn_values]
     if len(expressions) != len(burn_values):
         raise RuntimeError('expressions and burn_values of different length')
-
+    
     failed = []
     for exp in expressions:
         try:
@@ -923,7 +923,7 @@ def rasterize(vectorobject, reference, outname=None, burn_values=1, expressions=
             failed.append(exp)
     if len(failed) > 0:
         raise RuntimeError('failed to set the following attribute filter(s): ["{}"]'.format('", '.join(failed)))
-
+    
     if append and outname is not None and os.path.isfile(outname):
         target_ds = gdal.Open(outname, GA_Update)
     else:
@@ -1052,21 +1052,21 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     """
     if len(dissolve(srcfiles)) == 0:
         raise IOError('no input files provided to function raster.stack')
-
+    
     if layernames is not None:
         if len(layernames) != len(srcfiles):
             raise IOError('mismatch between number of source file groups and layernames')
-
+    
     if not isinstance(targetres, (list, tuple)) or len(targetres) != 2:
         raise RuntimeError('targetres must be a list or tuple with two entries for x and y resolution')
-
+    
     if len(srcfiles) == 1 and not isinstance(srcfiles[0], list):
         raise IOError('only one file specified; nothing to be done')
-
+    
     if resampling not in ['near', 'bilinear', 'cubic', 'cubicspline', 'lanczos', 'average', 'mode', 'max', 'min', 'med',
                           'Q1', 'Q3']:
         raise IOError('resampling method not supported')
-
+    
     projections = list()
     for x in dissolve(srcfiles):
         try:
@@ -1075,7 +1075,7 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
             print('cannot read file: {}'.format(x))
             raise e
         projections.append(projection)
-
+    
     projections = list(set(projections))
     if len(projections) > 1:
         raise IOError('raster projection mismatch')
@@ -1083,7 +1083,7 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
         raise RuntimeError('could not retrieve the projection from any of the {} input images'.format(len(srcfiles)))
     else:
         srs = projections[0]
-
+    
     # read shapefile bounding coordinates and reduce list of rasters to those overlapping with the shapefile
     if shapefile is not None:
         shp = shapefile if isinstance(shapefile, Vector) else Vector(shapefile)
@@ -1102,42 +1102,42 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
         srcfiles = filter(None, srcfiles)
     else:
         arg_ext = None
-
+    
     # create temporary directory for writing intermediate files
     dst_base = os.path.splitext(dstfile)[0]
     tmpdir = dst_base + '__tmp'
     if not os.path.isdir(tmpdir):
         os.makedirs(tmpdir)
-
+    
     options_warp = {'options': ['-q'],
                     'format': 'GTiff' if separate else 'ENVI',
                     'outputBounds': arg_ext, 'multithread': True,
                     'srcNodata': srcnodata, 'dstNodata': dstnodata,
                     'xRes': targetres[0], 'yRes': targetres[1],
                     'resampleAlg': resampling}
-
+    
     if overwrite:
         options_warp['options'] += ['-overwrite']
-
+    
     if separate and compress:
         options_warp['options'] += ['-co', 'COMPRESS=DEFLATE', '-co', 'PREDICTOR=2']
-
+    
     options_buildvrt = {'outputBounds': arg_ext, 'srcNodata': srcnodata}
-
+    
     # create VRT files for mosaicing
     for i in range(len(srcfiles)):
         base = srcfiles[i][0] if isinstance(srcfiles[i], list) else srcfiles[i]
         vrt = os.path.join(tmpdir, os.path.splitext(os.path.basename(base))[0] + '.vrt')
         gdalbuildvrt(srcfiles[i], vrt, options_buildvrt)
         srcfiles[i] = vrt
-
+    
     # if no specific layernames are defined and sortfun is not set to None,
     # sort files by custom function or, by default, the basename of the raster/VRT file
     if layernames is None and sortfun is not None:
         srcfiles = sorted(srcfiles, key=sortfun if sortfun else os.path.basename)
-
+    
     bandnames = [os.path.splitext(os.path.basename(x))[0] for x in srcfiles] if layernames is None else layernames
-
+    
     if separate or len(srcfiles) == 1:
         if not os.path.isdir(dstfile):
             os.makedirs(dstfile)
@@ -1151,22 +1151,22 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
                 shutil.rmtree(tmpdir)
                 return
         srcfiles, dstfiles = map(list, zip(*files))
-
+        
         multicore(gdalwarp, cores=cores, multiargs={'src': srcfiles, 'dst': dstfiles}, options=options_warp)
     else:
         # create VRT for stacking
         vrt = os.path.join(tmpdir, os.path.basename(dst_base) + '.vrt')
         options_buildvrt['options'] = ['-separate']
         gdalbuildvrt(srcfiles, vrt, options_buildvrt)
-
+        
         # warp files
         gdalwarp(vrt, dstfile, options_warp)
-
+        
         # edit ENVI HDR files to contain specific layer names
         with envi.HDRobject(dstfile + '.hdr') as hdr:
             hdr.band_names = bandnames
             hdr.write()
-
+    
     # remove temporary directory and files
     shutil.rmtree(tmpdir)
 
@@ -1181,7 +1181,7 @@ def typemap():
         the type map
     """
     tmap = {}
-
+    
     for group in ['int', 'uint', 'float', 'complex']:
         for dtype in np.sctypes[group]:
             code = gdal_array.NumericTypeCodeToGDALTypeCode(dtype)
