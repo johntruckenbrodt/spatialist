@@ -1,31 +1,34 @@
+API Documentation
+=================
+
 Raster Class
-============
+------------
 
 .. autoclass:: spatialist.raster.Raster
     :members:
 
 Raster Tools
-============
+------------
 
 .. automodule:: spatialist.raster
     :members: stack, rasterize
     :undoc-members:
 
 Vector Class
-============
+------------
 
 .. autoclass:: spatialist.vector.Vector
     :members:
 
 Vector Tools
-============
+------------
 
 .. automodule:: spatialist.vector
     :members: intersect, bbox, feature2vector
     :undoc-members:
 
 General Spatial Tools
-=====================
+---------------------
 
 .. automodule:: spatialist.auxil
     :members:
@@ -33,7 +36,7 @@ General Spatial Tools
     :show-inheritance:
 
 Database Tools
-==============
+--------------
 
 .. automodule:: spatialist.sqlite_util
     :members: sqlite_setup
@@ -41,14 +44,14 @@ Database Tools
     :show-inheritance:
 
 ENVI HDR file manipulation
-==========================
+--------------------------
 
 .. automodule:: spatialist.envi
     :members:
     :undoc-members:
 
 Data Exploration
-================
+----------------
 
 .. automodule:: spatialist.explorer
     :members:
