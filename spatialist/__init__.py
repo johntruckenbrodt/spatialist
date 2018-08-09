@@ -1,19 +1,3 @@
-
-try:
-    from osgeo import gdal
-    try:
-        gdalversion = gdal.__version__
-        if gdalversion < '2.1':
-            raise ImportError('GDAL version < 2.1. Please refer to the installation instructions under\n'
-                              '    https://github.com/johntruckenbrodt/spatialist')
-    except (TypeError, AttributeError):
-        pass
-
-except ImportError:
-    raise ImportError('could not import GDAL. You can install it like this:\n'
-                      '    Linux   : sudo apt-get install python3-gdal\n'
-                      '    Anaconda: conda install gdal')
-
 from . import vector
 from . import envi
 from . import ancillary
@@ -24,4 +8,3 @@ from .auxil import crsConvert, haversine, gdalbuildvrt, gdalwarp, gdal_translate
 from .vector import Vector, bbox, centerdist, intersect
 from .raster import Raster, stack, rasterize, dtypes
 from .sqlite_util import sqlite_setup, sqlite3
-
