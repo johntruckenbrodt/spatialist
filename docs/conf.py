@@ -23,7 +23,8 @@ year = datetime.datetime.now().year
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-sys.path.insert(0, os.path.abspath('..') + os.sep)
+sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.join(os.path.abspath('.'), '_extensions'))
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -54,8 +55,6 @@ extensions = [
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
                        'matplotlib': ('https://matplotlib.org', None),
                        'numpy': ('http://docs.scipy.org/doc/numpy', None)}
-
-sys.path.insert(0, os.path.abspath('.') + '/_extensions')
 
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
