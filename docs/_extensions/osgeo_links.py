@@ -1,3 +1,18 @@
+"""
+osgeo documentation hyperlink extension module for sphinx documentation
+John Truckenbrodt 2018
+
+this enables to place short rst link directives for osgeo gdal module methods, classes and functions.
+Instead of each time placing `gdal.Dataset <https://gdal.org/python/osgeo.gdal.Dataset-class.html>`__ into
+a docstring for linking to the class documentation, one can just type the following:
+
+:osgeo:class:`gdal.Dataset`             -> https://gdal.org/python/osgeo.gdal.Dataset-class.html
+:osgeo:meth:`gdal.Dataset.ReadAsArray`  -> https://gdal.org/python/osgeo.gdal.Dataset-class.html#ReadAsArray
+:osgeo:func:`ogr.CreateGeometryFromWkt` -> https://gdal.org/python/osgeo.ogr-module.html#CreateGeometryFromWkt
+
+This is only necessary if the documentation is not build by sphinx. In other cases, like e.g. matplotlib, the
+intersphinx extension is used.
+"""
 from docutils import nodes
 
 
