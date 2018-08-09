@@ -8,6 +8,7 @@ Welcome to spatialist's documentation!
 
 .. toctree::
 
+   installation
    spatialist
 
 
