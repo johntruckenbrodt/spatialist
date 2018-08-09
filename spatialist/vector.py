@@ -58,8 +58,7 @@ class Vector(object):
         ----------
         expression: int or str
             the key or expression to be used for subsetting.
-            See `ogr.Layer.SetAttributeFilter <http://gdal.org/python/osgeo.ogr.Layer-class.html#SetAttributeFilter>`_
-            for details on the expression syntax.
+            See :osgeo:meth:`ogr.Layer.SetAttributeFilter` for details on the expression syntax.
 
         Returns
         -------
@@ -93,7 +92,7 @@ class Vector(object):
 
         Parameters
         ----------
-        geometry: :ogr:`Geometry`
+        geometry: :osgeo:class:`ogr.Geometry`
             the geometry to add as a feature
         fields: dict
             the field names and attributes to assign to the new feature
@@ -146,7 +145,7 @@ class Vector(object):
         ----------
         name: str
             the layer name
-        srs: int, str or :osr:`SpatialReference`
+        srs: int, str or :osgeo:class:`osr.SpatialReference`
             the spatial reference system. See :func:`spatialist.auxil.crsConvert` for options.
         geomType: ogr.wkb
             an OGR well-known binary data type.
@@ -257,7 +256,7 @@ class Vector(object):
 
         Returns
         -------
-        list of :ogr:`FieldDefn`
+        list of :osgeo:class:`ogr.FieldDefn`
             the field definition for each field of the Vector object
         """
         return [self.layerdef.GetFieldDefn(x) for x in range(0, self.nfields)]
@@ -307,7 +306,7 @@ class Vector(object):
 
         Returns
         -------
-        list of :ogr:`Feature` or :ogr:`Feature`
+        list of :osgeo:class:`ogr.Feature` or :osgeo:class:`ogr.Feature`
             the feature(s) matching the search query
         """
         attr = attribute.strip() if isinstance(attribute, str) else attribute
@@ -339,7 +338,7 @@ class Vector(object):
 
         Returns
         -------
-        :ogr:`Feature`
+        :osgeo:class:`ogr.Feature`
             the requested feature
         """
         feature = self.layer[index]
@@ -352,7 +351,7 @@ class Vector(object):
 
         Returns
         -------
-        list of :ogr:`Feature`
+        list of :osgeo:class:`ogr.Feature`
             a list of cloned features
         """
         self.layer.ResetReading()
@@ -371,7 +370,7 @@ class Vector(object):
 
         Returns
         -------
-        int, str or :osr:`SpatialReference`
+        int, str or :osgeo:class:`osr.SpatialReference`
             the output CRS
         """
         return crsConvert(self.layer.GetSpatialRef(), type)
@@ -422,7 +421,7 @@ class Vector(object):
 
         Returns
         -------
-        :ogr:`FeatureDefn`
+        :osgeo:class:`ogr.FeatureDefn`
             the layer's feature definition
         """
         return self.layer.GetLayerDefn()
@@ -501,7 +500,7 @@ class Vector(object):
 
         Parameters
         ----------
-        projection: int, str or :osr:`SpatialReference`
+        projection: int, str or :osgeo:class:`osr.SpatialReference`
             the target CRS. See :func:`spatialist.auxil.crsConvert`.
 
         Returns
@@ -541,7 +540,7 @@ class Vector(object):
 
         Parameters
         ----------
-        crs: int, str or osr.SpatialReference
+        crs: int, str or :osgeo:class:`osr.SpatialReference`
             the input CRS
 
         Returns
@@ -650,7 +649,7 @@ def bbox(coordinates, crs, outname=None, format='ESRI Shapefile', overwrite=True
     ----------
     coordinates: dict
         a dictionary containing numerical variables with keys `xmin`, `xmax`, `ymin` and `ymax`
-    crs: int, str or :osr:`SpatialReference`
+    crs: int, str or :osgeo:class:`osr.SpatialReference`
         the CRS of the `coordinates`. See :func:`~spatialist.auxil.crsConvert` for options.
     outname: str
         the file to write to. If `None`, the bounding box is returned as :class:`~spatialist.vector.Vector` object
@@ -760,7 +759,7 @@ def feature2vector(feature, ref, layername=None):
 
     Parameters
     ----------
-    feature: list of :ogr:`Feature` or :ogr:`Feature`
+    feature: list of :osgeo:class:`ogr.Feature` or :osgeo:class:`ogr.Feature`
         a single feature or a list of features
     ref: Vector
         a reference Vector object to retrieve geo information from

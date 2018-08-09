@@ -15,14 +15,14 @@ def crsConvert(crsIn, crsOut):
 
     Parameters
     ----------
-    crsIn: int, str or :osr:`SpatialReference`
+    crsIn: int, str or :osgeo:class:`osr.SpatialReference`
         the input CRS
     crsOut: {'wkt', 'proj4', 'epsg', 'osr', 'opengis' or 'prettyWkt'}
         the output CRS type
 
     Returns
     -------
-    int, str or :osr:`SpatialReference`
+    int, str or :osgeo:class:`osr.SpatialReference`
         the output CRS
 
     Examples
@@ -107,17 +107,16 @@ def haversine(lat1, lon1, lat2, lon2):
 
 def gdalwarp(src, dst, options):
     """
-    a simple wrapper for `gdal.Warp <https://gdal.org/python/osgeo.gdal-module.html#Warp>`_
+    a simple wrapper for :osgeo:func:`gdal.Warp`
 
     Parameters
     ----------
-    src: str, :ogr:`DataSource` or :gdal:`Dataset`
+    src: str, :osgeo:class:`ogr.DataSource` or :osgeo:class:`gdal.Dataset`
         the input data set
     dst: str
         the output data set
     options: dict
-        additional parameters passed to gdal.Warp;
-        see `gdal.WarpOptions <http://gdal.org/python/osgeo.gdal-module.html#WarpOptions>`_
+        additional parameters passed to gdal.Warp; see :osgeo:func:`gdal.WarpOptions`
 
     Returns
     -------
@@ -129,17 +128,16 @@ def gdalwarp(src, dst, options):
 
 def gdalbuildvrt(src, dst, options=None, void=True):
     """
-    a simple wrapper for `gdal.BuildVRT <https://gdal.org/python/osgeo.gdal-module.html#BuildVRT>`_
+    a simple wrapper for :osgeo:func:`gdal.BuildVRT`
 
     Parameters
     ----------
-    src: str, :ogr:`DataSource` or :gdal:`Dataset`
+    src: str, :osgeo:class:`ogr.DataSource` or :osgeo:class:`gdal.Dataset`
         the input data set
     dst: str
         the output data set
     options: dict
-        additional parameters passed to gdal.BuildVRT;
-        see `gdal.BuildVRTOptions <http://gdal.org/python/osgeo.gdal-module.html#BuildVRTOptions>`_
+        additional parameters passed to gdal.BuildVRT; see :osgeo:func:`gdal.BuildVRTOptions`
     void: bool
         just write the results and don't return anything? If not, the spatial object is returned
 
@@ -161,7 +159,7 @@ def gdal_translate(src, dst, options):
 
     Parameters
     ----------
-    src: str, :ogr:`DataSource` or :gdal:`Dataset`
+    src: str, :osgeo:class:`ogr.DataSource` or :osgeo:class:`gdal.Dataset`
         the input data set
     dst: str
         the output data set
@@ -183,7 +181,7 @@ def ogr2ogr(src, dst, options):
 
     Parameters
     ----------
-    src: str or :ogr:`DataSource`
+    src: str or :osgeo:class:`ogr.DataSource`
         the input data set
     dst: str
         the output data set
@@ -205,13 +203,12 @@ def gdal_rasterize(src, dst, options):
 
     Parameters
     ----------
-    src: str or :ogr:`DataSource`
+    src: str or :osgeo:class:`ogr.DataSource`
         the input data set
     dst: str
         the output data set
     options: dict
-        additional parameters passed to gdal.Rasterize;
-        see `gdal.RasterizeOptions <http://gdal.org/python/osgeo.gdal-module.html#RasterizeOptions>`_
+        additional parameters passed to gdal.Rasterize; see :osgeo:func:`gdal.RasterizeOptions`
 
     Returns
     -------

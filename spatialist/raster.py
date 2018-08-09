@@ -41,7 +41,7 @@ class Raster(object):
 
     Parameters
     ----------
-    filename: str or :gdal:`Dataset`
+    filename: str or :osgeo:class:`gdal.Dataset`
         the raster file/object to read
     """
 
@@ -248,7 +248,7 @@ class Raster(object):
         -------
         list of dicts
             a list with a dictionary of statistics for each band. Keys: `min`, `max`, `mean`, `sdev`.
-            See `gdal.Band.ComputeStatistics <http://www.gdal.org/classGDALRasterBand.html#a48883c1dae195b21b37b51b10e910f9b>`_.
+            See :osgeo:meth:`gdal.Band.ComputeStatistics`.
         """
         statcollect = []
         for x in self.layers():
@@ -378,8 +378,8 @@ class Raster(object):
 
         Returns
         -------
-        gdal.Driver
-            a GDAL raster driver object. See :gdal:`Driver`.
+        :osgeo:class:`gdal.Driver`
+            a GDAL raster driver object.
         """
         return self.raster.GetDriver()
 
@@ -573,14 +573,15 @@ class Raster(object):
 
         Returns
         -------
-        list of :gdal:`Band`
-            a list containing a :gdal:`Band` object for each image band
+        list of :osgeo:class:`gdal.Band`
+            a list containing a :osgeo:class:`gdal.Band` object for each image band
         """
         return [self.raster.GetRasterBand(band) for band in range(1, self.bands + 1)]
 
     def load(self):
         """
-        load all raster data to arrays
+        load all raster data to internal memory arrays.
+        This shortens the read time of other methods like :meth:`matrix`.
         """
         for i in range(1, self.bands + 1):
             self.__data[i - 1] = self.matrix(i)
@@ -664,7 +665,7 @@ class Raster(object):
         Returns
         -------
         dict
-            the proj4 string arguments as a dictionary
+            the PROJ4 string arguments as a dictionary
         """
         args = [x.split('=') for x in re.split('[+ ]+', self.proj4) if len(x) > 0]
         return dict([(x[0], None) if len(x) == 1 else tuple(x) for x in args])
@@ -725,7 +726,7 @@ class Raster(object):
 
         Returns
         -------
-        :osr:`SpatialReference`
+        :osgeo:class:`osr.SpatialReference`
             the spatial reference system of the data set.
         """
         return osr.SpatialReference(wkt=self.projection)
