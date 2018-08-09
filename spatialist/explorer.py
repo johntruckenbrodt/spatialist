@@ -3,7 +3,6 @@ import re
 import numpy as np
 from .raster import Raster
 from .envi import HDRobject
-import matplotlib
 import matplotlib.pyplot as plt
 
 import sys
