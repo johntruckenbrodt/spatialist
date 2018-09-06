@@ -43,6 +43,10 @@ class RasterViewer(object):
         the minimum percentile for linear histogram stretching
     pmax: int
         the maximum percentile for linear histogram stretching
+    zmin: int or float
+        the minimum value of the displayed data range; overrides pmin
+    zmax: int of float
+        the maximum value of the displayed data range; overrides pmax
     ts_convert: function or None
         a function to read time stamps from the band names
     title: str or None
@@ -56,7 +60,8 @@ class RasterViewer(object):
     :func:`matplotlib.pyplot.imshow`
     """
 
-    def __init__(self, filename, cmap='jet', band_indices=None, pmin=2, pmax=98, ts_convert=None, title=None, datalabel='data'):
+    def __init__(self, filename, cmap='jet', band_indices=None, pmin=2, pmax=98, zmin=None, zmax=None,
+                 ts_convert=None, title=None, datalabel='data'):
 
         self.ts_convert = ts_convert
 
@@ -94,6 +99,7 @@ class RasterViewer(object):
         self.extent = (self.xmin, self.xmax, self.ymin, self.ymax)
 
         self.pmin, self.pmax = pmin, pmax
+        self.zmin, self.zmax = zmin, zmax
 
         # define some options for display of the widget box
         self.layout = Layout(
@@ -179,9 +185,11 @@ class RasterViewer(object):
         mat = self.__read_band(self.indices.index(h) + 1)
         masked = np.ma.array(mat, mask=np.isnan(mat))
         pmin, pmax = np.percentile(masked.compressed(), (self.pmin, self.pmax))
+        vmin = self.zmin if self.zmin is not None else pmin
+        vmax = self.zmax if self.zmax is not None else pmax
         cmap = plt.get_cmap(self.colormap)
         cmap.set_bad('white')
-        self.ax1.imshow(masked, vmin=pmin, vmax=pmax, extent=self.extent, cmap=cmap)
+        self.ax1.imshow(masked, vmin=vmin, vmax=vmax, extent=self.extent, cmap=cmap)
         self.sliderlabel.value = self.bandnames[self.slider.value]
         self._set_colorbar(self.ax1, self.datalabel)
 
