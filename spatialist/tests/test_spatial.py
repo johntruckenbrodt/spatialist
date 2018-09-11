@@ -3,9 +3,9 @@ import pytest
 import platform
 import numpy as np
 from osgeo import ogr
-from spatialist import crsConvert, haversine, Raster, stack, ogr2ogr, gdal_translate, gdal_rasterize, dtypes, bbox
+from spatialist import crsConvert, haversine, Raster, stack, ogr2ogr, gdal_translate, gdal_rasterize, bbox, rasterize
+from spatialist.raster import Dtype
 from spatialist.vector import feature2vector, dissolve, Vector, intersect
-from spatialist import rasterize
 from spatialist.envi import hdr, HDRobject
 from spatialist.sqlite_util import sqlite_setup, __Handler
 
@@ -171,9 +171,9 @@ def test_Raster_extract(testdata):
 
 
 def test_dtypes():
-    assert dtypes('Float32') == 6
+    assert Dtype('Float32').gdalint == 6
     with pytest.raises(ValueError):
-        dtypes('foobar')
+        Dtype('foobar')
 
 
 def test_stack(tmpdir, testdata):

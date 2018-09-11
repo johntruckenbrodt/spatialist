@@ -207,7 +207,7 @@ class Raster(object):
         
         driver = gdal.GetDriverByName(driver_name)
         outDataset = driver.Create(outname if outname is not None else '',
-                                   self.cols, self.rows, self.bands, dtypes(self.dtype))
+                                   self.cols, self.rows, self.bands, Dtype(self.dtype).gdalint)
         driver = None
         outDataset.SetMetadata(self.raster.GetMetadata())
         outDataset.SetGeoTransform([self.geo[x] for x in ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']])
@@ -762,7 +762,7 @@ class Raster(object):
         if format == 'GTiff' and not re.search('\.tif[f]*$', outname):
             outname += '.tif'
         
-        dtype = dtypes(self.dtype if dtype == 'default' else dtype)
+        dtype = Dtype(self.dtype if dtype == 'default' else dtype).gdalint
         nodata = self.nodata if nodata == 'default' else nodata
         
         options = []
@@ -844,31 +844,6 @@ class Raster(object):
     #         self.assign(mat, dim=[left, top, cols, rows], index=0)
     #     else:
     #         self.write(outname, dim=[left, top, cols, rows], format=format)
-
-
-def dtypes(typestring):
-    """
-    translate raster data type descriptions to GDAl data type codes
-
-    Args:
-        typestring: str
-            the data type string to be converted
-
-    Returns:
-    int
-        the GDAL data type code
-    """
-    # create dictionary with GDAL style descriptions
-    dictionary = {'Byte': GDT_Byte, 'Int16': GDT_Int16, 'UInt16': GDT_UInt16, 'Int32': GDT_Int32,
-                  'UInt32': GDT_UInt32, 'Float32': GDT_Float32, 'Float64': GDT_Float64}
-    
-    # add numpy style descriptions
-    dictionary.update(typemap())
-    
-    if typestring not in dictionary.keys():
-        raise ValueError("unknown data type; use one of the following: ['{}']".format("', '".join(dictionary.keys())))
-    
-    return dictionary[typestring]
 
 
 def rasterize(vectorobject, reference, outname=None, burn_values=1, expressions=None, nodata=0, append=False):
@@ -1171,20 +1146,73 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     shutil.rmtree(tmpdir)
 
 
-def typemap():
-    """
-    create a dictionary for mapping numpy data types to GDAL data type codes
-
-    Returns
-    -------
-    dict
-        the type map
-    """
-    tmap = {}
+class Dtype(object):
+    def __init__(self, dtype):
+        if isinstance(dtype, int):
+            if dtype in self.numpy2gdalint.values():
+                self.gdalint = dtype
+                self.numpystr = self.gdalint2numpystr[self.gdalint]
+                self.gdalstr = self.gdalint2gdalstr[self.gdalint]
+        elif isinstance(dtype, str):
+            if dtype in self.gdalstr2gdalint.keys():
+                self.gdalstr = dtype
+                self.gdalint = self.gdalstr2gdalint[self.gdalstr]
+                self.numpystr = self.gdalint2numpystr[self.gdalint]
+            elif dtype in self.numpy2gdalint.keys():
+                self.numpystr = dtype
+                self.gdalint = self.numpy2gdalint[self.numpystr]
+                self.gdalstr = self.gdalint2gdalstr[self.gdalint]
+        else:
+            raise TypeError('data type identifier must be of type int or str')
+        
+        required = ['gdalint', 'gdalstr', 'numpystr']
+        if sum([x in dir(self) for x in required]) != len(required):
+            raise ValueError('unknown data type identifer')
     
-    for group in ['int', 'uint', 'float', 'complex']:
-        for dtype in np.sctypes[group]:
-            code = gdal_array.NumericTypeCodeToGDALTypeCode(dtype)
-            if code is not None:
-                tmap[dtype().dtype.name] = code
-    return tmap
+    @property
+    def numpy2gdalint(self):
+        """
+        create a dictionary for mapping numpy data types to GDAL data type codes
+
+        Returns
+        -------
+        dict
+            the type map
+        """
+        if not hasattr(self, '__numpy2gdalint'):
+            tmap = {}
+            
+            for group in ['int', 'uint', 'float', 'complex']:
+                for dtype in np.sctypes[group]:
+                    code = gdal_array.NumericTypeCodeToGDALTypeCode(dtype)
+                    if code is not None:
+                        tmap[dtype().dtype.name] = code
+            self.__numpy2gdalint = tmap
+        return self.__numpy2gdalint
+    
+    @property
+    def gdalstr2gdalint(self):
+        map = []
+        for key in self.gdalint2numpystr.keys():
+            map.append((gdal.GetDataTypeName(key), key))
+        return dict(map)
+    
+    @property
+    def gdalint2numpystr(self):
+        code = 1
+        map = []
+        while True:
+            out = gdal_array.GDALTypeCodeToNumericTypeCode(code)
+            if out is None:
+                break
+            else:
+                map.append((code, out().dtype.name))
+                code += 1
+        return dict(map)
+    
+    @property
+    def gdalint2gdalstr(self):
+        map = []
+        for key in self.gdalint2numpystr.keys():
+            map.append((key, gdal.GetDataTypeName(key)))
+        return dict(map)
