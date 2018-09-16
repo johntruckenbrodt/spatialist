@@ -4,9 +4,10 @@
 ##############################################################
 import math
 import os
-from osgeo import osr, gdal
+from osgeo import osr, gdal, ogr
 
 osr.UseExceptions()
+ogr.UseExceptions()
 
 
 def crsConvert(crsIn, crsOut):
@@ -216,3 +217,30 @@ def gdal_rasterize(src, dst, options):
     """
     out = gdal.Rasterize(dst, src, options=gdal.RasterizeOptions(**options))
     out = None
+
+
+def coordinate_reproject(x, y, s_crs, t_crs):
+    """
+    reproject a coordinate from one CRS to another
+    
+    Parameters
+    ----------
+    x: int or float
+        the X coordinate component
+    y: int or float
+        the Y coordinate component
+    s_crs: int, str or :osgeo:class:`osr.SpatialReference`
+        the source CRS. See :func:`~spatialist.auxil.crsConvert` for options.
+    t_crs: int, str or :osgeo:class:`osr.SpatialReference`
+        the target CRS. See :func:`~spatialist.auxil.crsConvert` for options.
+
+    Returns
+    -------
+
+    """
+    source = crsConvert(s_crs, 'osr')
+    target = crsConvert(t_crs, 'osr')
+    transform = osr.CoordinateTransformation(source, target)
+    point = ogr.CreateGeometryFromWkt('POINT ({0} {1})'.format(x, y))
+    point.Transform(transform)
+    return point.GetX(), point.GetY()
