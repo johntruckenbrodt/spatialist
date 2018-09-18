@@ -682,7 +682,8 @@ def bbox(coordinates, crs, outname=None, format='ESRI Shapefile', overwrite=True
     
     bbox = Vector(driver='Memory')
     bbox.addlayer('bbox', srs, geom.GetGeometryType())
-    bbox.addfeature(geom)
+    bbox.addfield('area', ogr.OFTReal)
+    bbox.addfeature(geom, fields={'area': geom.Area()})
     geom = None
     if outname is None:
         return bbox
