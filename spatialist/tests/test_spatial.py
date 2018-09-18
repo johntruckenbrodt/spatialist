@@ -39,12 +39,12 @@ def test_Vector(testdata):
         bbox1.getFeatureByIndex(1)
     bbox1.reproject(4326)
     assert bbox1.proj4 == '+proj=longlat +datum=WGS84 +no_defs'
-    assert isinstance(bbox1['id=1'], Vector)
+    assert isinstance(bbox1['fid=0'], Vector)
     with pytest.raises(RuntimeError):
         test = bbox1[0.1]
-    assert bbox1.fieldnames == ['id']
-    assert bbox1.getUniqueAttributes('id') == [1]
-    feat = bbox1.getFeatureByAttribute('id', 1)
+    assert bbox1.fieldnames == ['area']
+    assert bbox1.getUniqueAttributes('area') == [23262400.0]
+    feat = bbox1.getFeatureByAttribute('area', 23262400.0)
     assert isinstance(feat, ogr.Feature)
     bbox2 = feature2vector(feat, ref=bbox1)
     bbox2.close()
@@ -80,7 +80,7 @@ def test_dissolve(tmpdir, travis, testdata):
         # this test is currently disabled for Travis as the current sqlite3 version on Travis seems to not support
         # loading gdal as extension; Travis CI setup: Ubuntu 14.04 (Trusty), sqlite3 version 3.8.2 (2018-06-04)
         bbox4_name = os.path.join(str(tmpdir), 'bbox4.shp')
-        dissolve(bbox3_name, bbox4_name, field='id')
+        dissolve(bbox3_name, bbox4_name, field='area')
         assert os.path.isfile(bbox4_name)
 
 
@@ -250,7 +250,7 @@ def test_rasterize(tmpdir, testdata):
         assert os.path.isfile(outname)
 
         # test appending to existing file with valid expression
-        rasterize(vec, reference=ras, outname=outname, append=True, burn_values=[1], expressions=['id=1'])
+        rasterize(vec, reference=ras, outname=outname, append=True, burn_values=[1], expressions=['area=23262400.0'])
 
         # test wrong input type for reference
         with pytest.raises(RuntimeError):
