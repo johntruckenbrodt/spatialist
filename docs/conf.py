@@ -31,9 +31,9 @@ sys.path.insert(0, os.path.join(os.path.abspath('.'), '_extensions'))
 # built documents.
 #
 # The short X.Y version.
-version = '0.2.5'
+version = '0.2.6'
 # The full version, including alpha/beta/rc tags.
-release = '0.2.5'
+release = '0.2.6'
 
 # -- General configuration ------------------------------------------------
 autodoc_mock_imports = ['osgeo', 'matplotlib', 'mpl_toolkits', 'IPython', 'ipywidgets']
