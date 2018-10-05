@@ -25,8 +25,8 @@ class Vector(object):
     Parameters
     ----------
     filename: str
-        the vector file to read; if filename is None, a new in-memory Vector object is created. In this case `driver` is
-        overridden and set to `Memory`.
+        the vector file to read; if filename is None, a new in-memory Vector object is created.
+        In this case `driver` is overridden and set to `Memory`.
     driver: str
         the vector file format
     """
