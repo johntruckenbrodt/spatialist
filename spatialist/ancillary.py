@@ -23,6 +23,8 @@ import inspect
 import itertools
 import os
 import subprocess as sp
+import tarfile as tf
+import zipfile as zf
 
 try:
     import pathos.multiprocessing as mp
@@ -41,11 +43,11 @@ class HiddenPrints:
     >>>     print('foobar')
     >>> print('foobar')
     """
-
+    
     def __enter__(self):
         self._original_stdout = sys.stdout
         sys.stdout = StringIO()
-
+    
     def __exit__(self, exc_type, exc_val, exc_tb):
         sys.stdout = self._original_stdout
 
@@ -89,14 +91,14 @@ def dissolve(inlist):
     return out
 
 
-def finder(folder, matchlist, foldermode=0, regex=False, recursive=True):
+def finder(target, matchlist, foldermode=0, regex=False, recursive=True):
     """
     function for finding files/folders in folders and their subdirectories
 
     Parameters
     ----------
-    folder: str or list of str
-        the directory or al ist of directories to be searched
+    target: str or list of str
+        a directory, zip- or tar-archive or a list of them to be searched
     matchlist: list
         a list of search patterns
     foldermode: int
@@ -106,32 +108,78 @@ def finder(folder, matchlist, foldermode=0, regex=False, recursive=True):
     regex: bool
         are the search patterns in matchlist regular expressions or unix shell standard (default)?
     recursive: bool
-        search folder recursively into all subdirectories or only in the top level?
+        search target recursively into all subdirectories or only in the top level?
+        This is currently only implemented for parameter `target` being a directory.
 
     Returns
     -------
     list of str
         the absolute names of files/folders matching the patterns
     """
+    if foldermode not in [0, 1, 2]:
+        raise ValueError("'foldermode' must be either 0, 1 or 2")
+    
     # match patterns
-    if isinstance(folder, str):
+    if isinstance(target, str):
+    
         pattern = r'|'.join(matchlist if regex else [fnmatch.translate(x) for x in matchlist])
-        if recursive:
-            out = dissolve([[os.path.join(root, x) for x in dirs + files if re.search(pattern, x)]
-                            for root, dirs, files in os.walk(folder)])
+        
+        if os.path.isdir(target):
+            if recursive:
+                out = dissolve([[os.path.join(root, x)
+                                 for x in dirs + files
+                                 if re.search(pattern, x)]
+                                for root, dirs, files in os.walk(target)])
+            else:
+                out = [os.path.join(target, x) for x in os.listdir(target) if re.search(pattern, x)]
+            
+            if foldermode == 0:
+                out = [x for x in out if not os.path.isdir(x)]
+            if foldermode == 2:
+                out = [x for x in out if os.path.isdir(x)]
+            
+            return sorted(out)
+        
+        elif zf.is_zipfile(target):
+            with zf.ZipFile(target, 'r') as zip:
+                out = [os.path.join(target, name)
+                       for name in zip.namelist()
+                       if re.search(pattern, os.path.basename(name.strip('/')))]
+            
+            if foldermode == 0:
+                out = [x for x in out if not x.endswith('/')]
+            elif foldermode == 1:
+                out = [x.strip('/') for x in out]
+            elif foldermode == 2:
+                out = [x.strip('/') for x in out if x.endswith('/')]
+            
+            return sorted(out)
+        
+        elif tf.is_tarfile(target):
+            tar = tf.open(target)
+            out = [name for name in tar.getnames()
+                   if re.search(pattern, os.path.basename(name.strip('/')))]
+            
+            if foldermode == 0:
+                out = [x for x in out if not tar.getmember(x).isdir()]
+            elif foldermode == 2:
+                out = [x for x in out if tar.getmember(x).isdir()]
+            
+            tar.close()
+            
+            out = [os.path.join(target, x) for x in out]
+            
+            return sorted(out)
+        
         else:
-            out = [os.path.join(folder, x) for x in os.listdir(folder) if re.search(pattern, x)]
-        # exclude directories
-        if foldermode == 0:
-            out = [x for x in out if not os.path.isdir(x)]
-        if foldermode == 2:
-            out = [x for x in out if os.path.isdir(x)]
-        return sorted(out)
-    elif isinstance(folder, list):
-        groups = [finder(x, matchlist, foldermode, regex, recursive) for x in folder]
+            raise TypeError("if parameter 'target' is of type str, it must be a directory, zipfile or tarfile")
+    
+    elif isinstance(target, list):
+        groups = [finder(x, matchlist, foldermode, regex, recursive) for x in target]
         return list(itertools.chain(*groups))
+    
     else:
-        raise TypeError("parameter 'folder' must be of type str or list")
+        raise TypeError("parameter 'target' must be of type str or list")
 
 
 def multicore(function, cores, multiargs, **singleargs):
@@ -178,7 +226,7 @@ def multicore(function, cores, multiargs, **singleargs):
     --------
     :mod:`pathos.multiprocessing`
     """
-
+    
     # compare the function arguments with the multi and single arguments and raise errors if mismatches occur
     if sys.version_info >= (3, 0):
         check = inspect.getfullargspec(function)
@@ -186,7 +234,7 @@ def multicore(function, cores, multiargs, **singleargs):
     else:
         check = inspect.getargspec(function)
         varkw = check.keywords
-
+    
     if not check.varargs and not varkw:
         multiargs_check = [x for x in multiargs if x not in check.args]
         singleargs_check = [x for x in singleargs if x not in check.args]
@@ -194,19 +242,19 @@ def multicore(function, cores, multiargs, **singleargs):
             raise AttributeError('incompatible multi arguments: {0}'.format(', '.join(multiargs_check)))
         if len(singleargs_check) > 0:
             raise AttributeError('incompatible single arguments: {0}'.format(', '.join(singleargs_check)))
-
+    
     # compare the list lengths of the multi arguments and raise errors if they are of different length
     arglengths = list(set([len(multiargs[x]) for x in multiargs]))
     if len(arglengths) > 1:
         raise AttributeError('multi argument lists of different length')
-
+    
     # prevent starting more threads than necessary
     cores = cores if arglengths[0] >= cores else arglengths[0]
-
+    
     # create a list of dictionaries each containing the arguments for individual function calls to be passed to the multicore processes
     processlist = [dictmerge(dict([(arg, multiargs[arg][i]) for arg in multiargs]), singleargs)
                    for i in range(len(multiargs[list(multiargs.keys())[0]]))]
-
+    
     # block printing of the executed function
     result = None
     with HiddenPrints():
@@ -218,7 +266,7 @@ def multicore(function, cores, multiargs, **singleargs):
         result = pool.imap(lambda x: function(**x), processlist)
         pool.close()
         pool.join()
-
+    
     # evaluate the return of the processing function;
     # if any value is not None then the whole list of results is returned
     result = list(result)
@@ -272,19 +320,19 @@ class Queue(object):
     """
     classical queue implementation
     """
-
+    
     def __init__(self, inlist=None):
         self.stack = [] if inlist is None else inlist
-
+    
     def empty(self):
         return len(self.stack) == 0
-
+    
     def length(self):
         return len(self.stack)
-
+    
     def push(self, x):
         self.stack.append(x)
-
+    
     def pop(self):
         if not self.empty():
             val = self.stack[0]
@@ -298,10 +346,10 @@ def rescale(inlist, newrange=(0, 1)):
     """
     OldMax = max(inlist)
     OldMin = min(inlist)
-
+    
     if OldMin == OldMax:
         raise RuntimeError('list contains of only one unique value')
-
+    
     OldRange = OldMax - OldMin
     NewRange = newrange[1] - newrange[0]
     result = [(((float(x) - OldMin) * NewRange) / OldRange) + newrange[0] for x in inlist]
@@ -356,7 +404,7 @@ class Stack(object):
     classical stack implementation
     input can be a list, a single value or None (i.e. Stack())
     """
-
+    
     def __init__(self, inlist=None):
         if isinstance(inlist, list):
             self.stack = inlist
@@ -364,25 +412,25 @@ class Stack(object):
             self.stack = []
         else:
             self.stack = [inlist]
-
+    
     def empty(self):
         """
         check whether stack is empty
         """
         return len(self.stack) == 0
-
+    
     def flush(self):
         """
         empty the stack
         """
         self.stack = []
-
+    
     def length(self):
         """
         get the length of the stack
         """
         return len(self.stack)
-
+    
     def push(self, x):
         """
         append items to the stack; input can be a single value or a list
@@ -392,7 +440,7 @@ class Stack(object):
                 self.stack.append(item)
         else:
             self.stack.append(x)
-
+    
     def pop(self):
         """
         return the last stack element and delete it from the list
@@ -436,10 +484,10 @@ def which(program, mode=os.F_OK | os.X_OK):
     str or None
         the full path and name of the command
     """
-
+    
     def is_exe(fpath, mode):
         return os.path.isfile(fpath) and os.access(fpath, mode)
-
+    
     fpath, fname = os.path.split(program)
     if fpath:
         if is_exe(program, mode):
