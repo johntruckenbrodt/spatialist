@@ -75,8 +75,7 @@ def test_finder(tmpdir, testdata):
     assert len(anc.finder(dir, ['test*'], foldermode=1)) == 4
     assert len(anc.finder(dir, ['test*'], foldermode=2)) == 2
     assert len(anc.finder([dir_sub1, dir_sub2], ['test*'])) == 2
-    with pytest.raises(TypeError):
-        anc.finder(1, [])
+
     assert len(anc.finder(testdata['zip'], ['file*'])) == 3
     assert len(anc.finder(testdata['zip'], ['*'], foldermode=1)) == 5
     assert len(anc.finder(testdata['zip'], ['[a-z]{1}'], foldermode=2, regex=True)) == 2
@@ -84,6 +83,15 @@ def test_finder(tmpdir, testdata):
     assert len(anc.finder(testdata['tar'], ['file*'])) == 3
     assert len(anc.finder(testdata['tar'], ['*'], foldermode=1)) == 5
     assert len(anc.finder(testdata['tar'], ['[a-z]{1}'], foldermode=2, regex=True)) == 2
+    
+    with pytest.raises(TypeError):
+        anc.finder(1, [])
+    
+    with pytest.raises(ValueError):
+        anc.finder(dir, ['test*'], foldermode=3)
+    
+    with pytest.raises(TypeError):
+        anc.finder('foobar', ['test*'], foldermode=2)
 
 
 def test_rescale():
