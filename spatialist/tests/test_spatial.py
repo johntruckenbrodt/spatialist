@@ -85,8 +85,6 @@ def test_dissolve(tmpdir, travis, testdata):
 
 
 def test_Raster(tmpdir, testdata):
-    with pytest.raises(OSError):
-        ras = Raster('foobar')
     with Raster(testdata['tif']) as ras:
         print(ras)
         assert ras.bands == 1
@@ -202,10 +200,6 @@ def test_stack(tmpdir, testdata):
 
     with pytest.raises(IOError):
         stack(srcfiles=[name, name], resampling='foobar', targetres=tr,
-              srcnodata=-99, dstnodata=-99, dstfile=outname)
-
-    with pytest.raises(OSError):
-        stack(srcfiles=[name, 'foobar'], resampling='near', targetres=tr,
               srcnodata=-99, dstnodata=-99, dstfile=outname)
 
     stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=True,
