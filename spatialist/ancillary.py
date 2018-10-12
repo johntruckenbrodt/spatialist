@@ -34,8 +34,8 @@ except ImportError:
 
 class HiddenPrints:
     """
-    Suppress console stdout prints, i.e. redirect them to a temporary string object.
-    Adapted from https://stackoverflow.com/questions/8391411/suppress-calls-to-print-python
+    | Suppress console stdout prints, i.e. redirect them to a temporary string object.
+    | Adapted from https://stackoverflow.com/questions/8391411/suppress-calls-to-print-python
 
     Examples
     --------
@@ -121,7 +121,7 @@ def finder(target, matchlist, foldermode=0, regex=False, recursive=True):
     
     # match patterns
     if isinstance(target, str):
-    
+        
         pattern = r'|'.join(matchlist if regex else [fnmatch.translate(x) for x in matchlist])
         
         if os.path.isdir(target):
@@ -131,7 +131,9 @@ def finder(target, matchlist, foldermode=0, regex=False, recursive=True):
                                  if re.search(pattern, x)]
                                 for root, dirs, files in os.walk(target)])
             else:
-                out = [os.path.join(target, x) for x in os.listdir(target) if re.search(pattern, x)]
+                out = [os.path.join(target, x)
+                       for x in os.listdir(target)
+                       if re.search(pattern, x)]
             
             if foldermode == 0:
                 out = [x for x in out if not os.path.isdir(x)]
@@ -140,39 +142,42 @@ def finder(target, matchlist, foldermode=0, regex=False, recursive=True):
             
             return sorted(out)
         
-        elif zf.is_zipfile(target):
-            with zf.ZipFile(target, 'r') as zip:
-                out = [os.path.join(target, name)
-                       for name in zip.namelist()
+        elif os.path.isfile(target):
+            if zf.is_zipfile(target):
+                with zf.ZipFile(target, 'r') as zip:
+                    out = [os.path.join(target, name)
+                           for name in zip.namelist()
+                           if re.search(pattern, os.path.basename(name.strip('/')))]
+                
+                if foldermode == 0:
+                    out = [x for x in out if not x.endswith('/')]
+                elif foldermode == 1:
+                    out = [x.strip('/') for x in out]
+                elif foldermode == 2:
+                    out = [x.strip('/') for x in out if x.endswith('/')]
+                
+                return sorted(out)
+            
+            elif tf.is_tarfile(target):
+                tar = tf.open(target)
+                out = [name for name in tar.getnames()
                        if re.search(pattern, os.path.basename(name.strip('/')))]
+                
+                if foldermode == 0:
+                    out = [x for x in out if not tar.getmember(x).isdir()]
+                elif foldermode == 2:
+                    out = [x for x in out if tar.getmember(x).isdir()]
+                
+                tar.close()
+                
+                out = [os.path.join(target, x) for x in out]
+                
+                return sorted(out)
             
-            if foldermode == 0:
-                out = [x for x in out if not x.endswith('/')]
-            elif foldermode == 1:
-                out = [x.strip('/') for x in out]
-            elif foldermode == 2:
-                out = [x.strip('/') for x in out if x.endswith('/')]
-            
-            return sorted(out)
-        
-        elif tf.is_tarfile(target):
-            tar = tf.open(target)
-            out = [name for name in tar.getnames()
-                   if re.search(pattern, os.path.basename(name.strip('/')))]
-            
-            if foldermode == 0:
-                out = [x for x in out if not tar.getmember(x).isdir()]
-            elif foldermode == 2:
-                out = [x for x in out if tar.getmember(x).isdir()]
-            
-            tar.close()
-            
-            out = [os.path.join(target, x) for x in out]
-            
-            return sorted(out)
-        
+            else:
+                raise TypeError("if parameter 'target' is a file, it must be a zip or tar archive")
         else:
-            raise TypeError("if parameter 'target' is of type str, it must be a directory, zipfile or tarfile")
+            raise TypeError("if parameter 'target' is of type str, it must be a directory or a file")
     
     elif isinstance(target, list):
         groups = [finder(x, matchlist, foldermode, regex, recursive) for x in target]
