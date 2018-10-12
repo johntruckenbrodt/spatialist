@@ -3,8 +3,7 @@
 # John Truckenbrodt 2014-2018
 ##############################################################
 """
-This script gathers central functions and object instances for general applications
-Please refer to the descriptions of the individual functions/instances for details
+This script gathers central functions and classes for general applications
 """
 import sys
 
@@ -33,8 +32,8 @@ except ImportError:
 
 class HiddenPrints:
     """
-    suppress console stdout prints, i.e. redirect them to a temporary string object
-    adapted from https://stackoverflow.com/questions/8391411/suppress-calls-to-print-python
+    Suppress console stdout prints, i.e. redirect them to a temporary string object.
+    Adapted from https://stackoverflow.com/questions/8391411/suppress-calls-to-print-python
 
     Examples
     --------
@@ -63,7 +62,25 @@ def dictmerge(x, y):
 # todo consider using itertools.chain like in function finder
 def dissolve(inlist):
     """
-    list and tuple flattening; e.g. [[1, 2], [3, 4]] -> [1, 2, 3, 4]
+    list and tuple flattening
+    
+    Parameters
+    ----------
+    inlist: list
+        the list with sub-lists or tuples to be flattened
+    
+    Returns
+    -------
+    list
+        the flattened result
+    
+    Examples
+    --------
+    >>> dissolve([[1, 2], [3, 4]])
+    [1, 2, 3, 4]
+    
+    >>> dissolve([(1, 2, (3, 4)), [5, (6, 7)]])
+    [1, 2, 3, 4, 5, 6, 7]
     """
     out = []
     for i in inlist:
@@ -83,9 +100,9 @@ def finder(folder, matchlist, foldermode=0, regex=False, recursive=True):
     matchlist: list
         a list of search patterns
     foldermode: int
-        0: only files;
-        1: files and folders;
-        2: only folders
+        * 0: only files
+        * 1: files and folders
+        * 2: only folders
     regex: bool
         are the search patterns in matchlist regular expressions or unix shell standard (default)?
     recursive: bool
@@ -94,7 +111,7 @@ def finder(folder, matchlist, foldermode=0, regex=False, recursive=True):
     Returns
     -------
     list of str
-        the absolute names of files matching the patterns
+        the absolute names of files/folders matching the patterns
     """
     # match patterns
     if isinstance(folder, str):
@@ -137,25 +154,29 @@ def multicore(function, cores, multiargs, **singleargs):
     Returns
     -------
     None or list
-        the return of or function for all the subprocesses
+        the return of the function for all subprocesses
 
     Notes
     -----
-    - all multiargs value lists must be of same length, i.e. all argument keys must be explicitly defined for each
-    subprocess
-    - all function arguments passed via singleargs must be provided with the full argument name and its value
-    (i.e. argname=argval); default function args are not accepted
+    - all `multiargs` value lists must be of same length, i.e. all argument keys must be explicitly defined for each
+      subprocess
+    - all function arguments passed via `singleargs` must be provided with the full argument name and its value
+      (i.e. argname=argval); default function args are not accepted
     - if the processes return anything else than None, this function will return a list of results
     - if all processes return None, this function will be of type void
 
     Examples
     --------
     >>> def add(x, y, z):
-    >>>     return x+y+z
+    >>>     return x + y + z
     >>> multicore(add, cores=2, multiargs={'x': [1, 2]}, y=5, z=9)
     [15, 16]
     >>> multicore(add, cores=2, multiargs={'x': [1, 2], 'y': [5, 6]}, z=9)
     [15, 17]
+    
+    See Also
+    --------
+    :mod:`pathos.multiprocessing`
     """
 
     # compare the function arguments with the multi and single arguments and raise errors if mismatches occur
@@ -221,6 +242,17 @@ def parse_literal(x):
     -------
     int, float or str
         the parsing result
+    
+    Examples
+    --------
+    >>> isinstance(parse_literal('1.5'), float)
+    True
+    
+    >>> isinstance(parse_literal('1'), int)
+    True
+    
+    >>> isinstance(parse_literal('foobar'), str)
+    True
     """
     if isinstance(x, list):
         return [parse_literal(y) for y in x]
@@ -278,7 +310,29 @@ def rescale(inlist, newrange=(0, 1)):
 
 def run(cmd, outdir=None, logfile=None, inlist=None, void=True, errorpass=False):
     """
-    wrapper for subprocess execution including logfile writing and command prompt piping
+    | wrapper for subprocess execution including logfile writing and command prompt piping
+    | this is a convenience wrapper around the :mod:`subprocess` module and calls
+      its class :class:`~subprocess.Popen` internally.
+    
+    Parameters
+    ----------
+    cmd: list
+        the command arguments
+    outdir: str
+        the directory to execute the command in
+    logfile: str
+        a file to write stdout to
+    inlist: list
+        a list of arguments passed to stdin, i.e. arguments passed to interactive input of the program
+    void: bool
+        return stdout and stderr?
+    errorpass: bool
+        if False, a :class:`subprocess.CalledProcessError` is raised if the command fails
+
+    Returns
+    -------
+    None or Tuple
+        a tuple of (stdout, stderr) if `void` is False otherwise None
     """
     cmd = [str(x) for x in dissolve(cmd)]
     if outdir is None:
@@ -366,9 +420,21 @@ def urlQueryParser(url, querydict):
 
 def which(program, mode=os.F_OK | os.X_OK):
     """
-    mimics UNIX's which
-    taken from this post: http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
-    can be replaced by shutil.which() in Python 3.3
+    | mimics UNIX's which
+    | taken from this post: http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
+    | can be replaced by :func:`shutil.which()` starting from Python 3.3
+    
+    Parameters
+    ----------
+    program: str
+        the program to be found
+    mode: os.F_OK or os.X_OK
+        the mode of the found file, i.e. file exists or file  is executable; see :func:`os.access`
+
+    Returns
+    -------
+    str or None
+        the full path and name of the command
     """
 
     def is_exe(fpath, mode):
