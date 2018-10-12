@@ -20,6 +20,8 @@ def testdir():
 @pytest.fixture
 def testdata(testdir):
     out = {
-        'tif': os.path.join(testdir, 'S1A__IW___A_20150309T173017_VV_grd_mli_geo_norm_db.tif')
+        'tif': os.path.join(testdir, 'S1A__IW___A_20150309T173017_VV_grd_mli_geo_norm_db.tif'),
+        'zip': os.path.join(testdir, 'demo_finder.zip'),
+        'tar': os.path.join(testdir, 'demo_finder.tar.xz')
     }
     return out
