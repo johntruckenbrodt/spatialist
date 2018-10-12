@@ -60,7 +60,7 @@ def test_multicore():
         anc.multicore(add, cores=2, multiargs={'x': [1, 2], 'y': [5, 6, 7]}, z=9)
 
 
-def test_finder(tmpdir):
+def test_finder(tmpdir, testdata):
     dir = str(tmpdir)
     dir_sub1 = os.path.join(dir, 'testdir1')
     dir_sub2 = os.path.join(dir, 'testdir2')
@@ -77,6 +77,13 @@ def test_finder(tmpdir):
     assert len(anc.finder([dir_sub1, dir_sub2], ['test*'])) == 2
     with pytest.raises(TypeError):
         anc.finder(1, [])
+    assert len(anc.finder(testdata['zip'], ['file*'])) == 3
+    assert len(anc.finder(testdata['zip'], ['*'], foldermode=1)) == 5
+    assert len(anc.finder(testdata['zip'], ['[a-z]{1}'], foldermode=2, regex=True)) == 2
+    
+    assert len(anc.finder(testdata['tar'], ['file*'])) == 3
+    assert len(anc.finder(testdata['tar'], ['*'], foldermode=1)) == 5
+    assert len(anc.finder(testdata['tar'], ['[a-z]{1}'], foldermode=2, regex=True)) == 2
 
 
 def test_rescale():
