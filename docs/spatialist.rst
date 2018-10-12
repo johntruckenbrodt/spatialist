@@ -43,6 +43,14 @@ Database Tools
     :undoc-members:
     :show-inheritance:
 
+Ancillary Functions
+-------------------
+
+.. automodule:: spatialist.ancillary
+    :members: dissolve, finder, HiddenPrints, multicore, parse_literal, run, which
+    :undoc-members:
+    :show-inheritance:
+
 ENVI HDR file manipulation
 --------------------------
 
