@@ -1,7 +1,7 @@
-##############################################################
+#################################################################
 # GDAL wrapper for convenient raster data handling and processing
 # John Truckenbrodt 2015-2018
-##############################################################
+#################################################################
 
 
 # todo: function to write data with the same metadata as a given file
@@ -21,9 +21,8 @@ from .vector import Vector, bbox, crsConvert, intersect
 from .ancillary import dissolve, multicore
 from .envi import HDRobject
 
-from osgeo import (gdal, gdal_array, osr)
-from osgeo.gdalconst import (GA_ReadOnly, GA_Update, GDT_Byte, GDT_Int16, GDT_UInt16,
-                             GDT_Int32, GDT_UInt32, GDT_Float32, GDT_Float64)
+from osgeo import gdal, gdal_array, osr
+from osgeo.gdalconst import GA_ReadOnly, GA_Update
 
 os.environ['GDAL_PAM_PROXY_DIR'] = tempfile.gettempdir()
 
@@ -50,7 +49,7 @@ class Raster(object):
         if isinstance(filename, gdal.Dataset):
             self.raster = filename
             self.filename = self.files[0] if self.files is not None else None
-        elif os.path.isfile(filename):
+        elif isinstance(filename, str):
             self.filename = filename if os.path.isabs(filename) else os.path.join(os.getcwd(), filename)
             self.raster = gdal.Open(filename, GA_ReadOnly)
         else:
