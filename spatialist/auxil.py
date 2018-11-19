@@ -133,8 +133,8 @@ def gdalbuildvrt(src, dst, options=None, void=True):
 
     Parameters
     ----------
-    src: str, :osgeo:class:`ogr.DataSource` or :osgeo:class:`gdal.Dataset`
-        the input data set
+    src: str, list, :osgeo:class:`ogr.DataSource` or :osgeo:class:`gdal.Dataset`
+        the input data set(s)
     dst: str
         the output data set
     options: dict
