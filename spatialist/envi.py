@@ -1,6 +1,6 @@
 ##############################################################
 # ENVI header management
-# John Truckenbrodt 2015-2018
+# John Truckenbrodt 2015-2019
 ##############################################################
 """
 This module offers functionality for editing ENVI header files
@@ -47,7 +47,7 @@ class HDRobject(object):
     >>>     print(hdr)
     >>>     hdr.write()
     """
-
+    
     def __init__(self, data=None):
         self.filename = data if isinstance(data, str) else None
         if isinstance(data, str):
@@ -67,19 +67,19 @@ class HDRobject(object):
                     'lines': 0}
         elif isinstance(data, dict):
             args = data
-
+        
         else:
             raise RuntimeError('parameter data must be of type str, dict or None')
-
+        
         for arg in args:
             setattr(self, arg, args[arg])
-
+    
     def __enter__(self):
         return self
-
+    
     def __exit__(self, exc_type, exc_val, exc_tb):
         return
-
+    
     def __str__(self):
         lines = ['ENVI']
         for item in ['description', 'samples', 'lines', 'bands', 'header_offset', 'file_type', 'data_type',
@@ -94,7 +94,7 @@ class HDRobject(object):
                 else:
                     lines.append(item.replace('_', ' ') + ' = ' + str(value) + '')
         return '\n'.join(lines)
-
+    
     def __hdr2dict(self):
         """
         read a HDR file into a dictionary
@@ -121,10 +121,10 @@ class HDRobject(object):
                 val = line[1] if len(line[1]) > 1 else line[1][0]
                 out[key] = parse_literal(val)
             i += 1
-        if 'band_names' in out.keys() and isinstance(out['band_names'], str):
+        if 'band_names' in out.keys() and not isinstance(out['band_names'], list):
             out['band_names'] = [out['band_names']]
         return out
-
+    
     def write(self, filename='same'):
         """
         write object to an ENVI header file
