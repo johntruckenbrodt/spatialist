@@ -175,9 +175,13 @@ def finder(target, matchlist, foldermode=0, regex=False, recursive=True):
                 return sorted(out)
             
             else:
-                raise TypeError("if parameter 'target' is a file, it must be a zip or tar archive")
+                raise TypeError("if parameter 'target' is a file, "
+                                "it must be a zip or tar archive:\n    {}"
+                                .format(target))
         else:
-            raise TypeError("if parameter 'target' is of type str, it must be a directory or a file")
+            raise TypeError("if parameter 'target' is of type str, "
+                            "it must be a directory or a file:\n    {}"
+                            .format(target))
     
     elif isinstance(target, list):
         groups = [finder(x, matchlist, foldermode, regex, recursive) for x in target]
