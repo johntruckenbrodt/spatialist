@@ -287,22 +287,23 @@ def multicore(function, cores, multiargs, **singleargs):
         pool.join()
     
     i = 0
+    out = []
     for item in results:
         if isinstance(item, ExceptionWrapper):
             item.ee = type(item.ee)(str(item.ee) +
                                     "\n(called function '{}' with args {})"
                                     .format(function.__name__, processlist[i]))
             raise (item.re_raise())
+        out.append(item)
         i += 1
     
     # evaluate the return of the processing function;
     # if any value is not None then the whole list of results is returned
-    results = list(results)
-    eval = [x for x in results if x is not None]
+    eval = [x for x in out if x is not None]
     if len(eval) == 0:
         return None
     else:
-        return results
+        return out
 
 
 class ExceptionWrapper(object):
@@ -327,11 +328,11 @@ class ExceptionWrapper(object):
 
 def parse_literal(x):
     """
-    return the smallest possible data type for a string
+    return the smallest possible data type for a string or list of strings
 
     Parameters
     ----------
-    x: str
+    x: str or list
         a string to be parsed
 
     Returns
