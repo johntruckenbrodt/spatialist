@@ -82,8 +82,8 @@ class HDRobject(object):
     
     def __str__(self):
         lines = ['ENVI']
-        for item in ['description', 'samples', 'lines', 'bands', 'header_offset', 'file_type', 'data_type',
-                     'interleave', 'sensor_type', 'byte_order', 'map_info',
+        for item in ['description', 'acquisition_time', 'samples', 'lines', 'bands', 'header_offset', 'file_type',
+                     'data_type', 'data_ignore_value', 'interleave', 'sensor_type', 'byte_order', 'map_info',
                      'coordinate_system_string', 'wavelength_units', 'band_names']:
             if hasattr(self, item):
                 value = getattr(self, item)
