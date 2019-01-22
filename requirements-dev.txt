@@ -6,6 +6,7 @@ matplotlib
 jupyter
 IPython
 ipywidgets
+tblib
 
 #Testing requirements
 pytest

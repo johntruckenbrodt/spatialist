@@ -1,11 +1,12 @@
 ##############################################################
 # core routines for software spatialist
-# John Truckenbrodt 2014-2018
+# John Truckenbrodt 2014-2019
 ##############################################################
 """
 This script gathers central functions and classes for general applications
 """
 import sys
+import tblib.pickling_support
 
 if sys.version_info >= (3, 0):
     from io import StringIO
@@ -230,11 +231,12 @@ def multicore(function, cores, multiargs, **singleargs):
     [15, 16]
     >>> multicore(add, cores=2, multiargs={'x': [1, 2], 'y': [5, 6]}, z=9)
     [15, 17]
-    
+
     See Also
     --------
     :mod:`pathos.multiprocessing`
     """
+    tblib.pickling_support.install()
     
     # compare the function arguments with the multi and single arguments and raise errors if mismatches occur
     if sys.version_info >= (3, 0):
@@ -260,30 +262,67 @@ def multicore(function, cores, multiargs, **singleargs):
     # prevent starting more threads than necessary
     cores = cores if arglengths[0] >= cores else arglengths[0]
     
-    # create a list of dictionaries each containing the arguments for individual function calls to be passed to the multicore processes
+    # create a list of dictionaries each containing the arguments for individual
+    # function calls to be passed to the multicore processes
     processlist = [dictmerge(dict([(arg, multiargs[arg][i]) for arg in multiargs]), singleargs)
                    for i in range(len(multiargs[list(multiargs.keys())[0]]))]
     
     # block printing of the executed function
-    result = None
+    results = None
+    
+    def wrapper(**kwargs):
+        try:
+            return function(**kwargs)
+        except Exception as e:
+            return ExceptionWrapper(e)
+    
     with HiddenPrints():
         # start pool of processes and do the work
         try:
             pool = mp.Pool(processes=cores)
         except NameError:
             raise ImportError("package 'pathos' could not be imported")
-        result = pool.imap(lambda x: function(**x), processlist)
+        results = pool.imap(lambda x: wrapper(**x), processlist)
         pool.close()
         pool.join()
     
+    i = 0
+    for item in results:
+        if isinstance(item, ExceptionWrapper):
+            item.ee = type(item.ee)(str(item.ee) +
+                                    "\n(called function '{}' with args {})"
+                                    .format(function.__name__, processlist[i]))
+            raise (item.re_raise())
+        i += 1
+    
     # evaluate the return of the processing function;
     # if any value is not None then the whole list of results is returned
-    result = list(result)
-    eval = [x for x in result if x is not None]
+    results = list(results)
+    eval = [x for x in results if x is not None]
     if len(eval) == 0:
         return None
     else:
-        return result
+        return results
+
+
+class ExceptionWrapper(object):
+    """
+    | class for enabling traceback pickling in function multiprocess
+    | https://stackoverflow.com/questions/6126007/python-getting-a-traceback-from-a-multiprocessing-process
+    | https://stackoverflow.com/questions/34463087/valid-syntax-in-both-python-2-x-and-3-x-for-raising-exception
+    """
+    
+    def __init__(self, ee):
+        self.ee = ee
+        __, __, self.tb = sys.exc_info()
+    
+    def re_raise(self):
+        if sys.version_info[0] == 3:
+            def reraise(tp, value, tb=None):
+                raise tp.with_traceback(tb)
+        else:
+            exec("def reraise(tp, value, tb=None):\n    raise tp, value, tb\n")
+        reraise(self.ee, None, self.tb)
 
 
 def parse_literal(x):
