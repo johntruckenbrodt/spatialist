@@ -59,7 +59,11 @@ class Raster(object):
         self.__data = [None] * self.bands
         
         if self.format == 'ENVI':
-            self.bandnames = HDRobject(self.filename + '.hdr').band_names
+            with HDRobject(self.filename + '.hdr') as hdr:
+                if hasattr(hdr, 'band_names'):
+                    self.bandnames = hdr.band_names
+                else:
+                    self.bandnames = ['band{}'.format(x) for x in range(1, self.bands + 1)]
         else:
             self.bandnames = ['band{}'.format(x) for x in range(1, self.bands + 1)]
     
