@@ -1078,7 +1078,7 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
                 srcfiles[i] = group[0]
             else:
                 srcfiles[i] = None
-        srcfiles = filter(None, srcfiles)
+        srcfiles = list(filter(None, srcfiles))
     else:
         arg_ext = None
     
