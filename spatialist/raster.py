@@ -1042,8 +1042,8 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     if len(srcfiles) == 1 and not isinstance(srcfiles[0], list):
         raise IOError('only one file specified; nothing to be done')
     
-    if resampling not in ['near', 'bilinear', 'cubic', 'cubicspline', 'lanczos', 'average', 'mode', 'max', 'min', 'med',
-                          'Q1', 'Q3']:
+    if resampling not in ['near', 'bilinear', 'cubic', 'cubicspline', 'lanczos',
+                          'average', 'mode', 'max', 'min', 'med', 'Q1', 'Q3']:
         raise IOError('resampling method not supported')
     
     projections = list()
@@ -1100,10 +1100,10 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     options_buildvrt = {'outputBounds': arg_ext, 'srcNodata': srcnodata}
     
     # create VRT files for mosaicing
-    for i in range(len(srcfiles)):
-        base = srcfiles[i][0] if isinstance(srcfiles[i], list) else srcfiles[i]
+    for i, group in enumerate(srcfiles):
+        base = group[0] if isinstance(group, list) else group
         vrt = '/vsimem/' + os.path.splitext(os.path.basename(base))[0] + '.vrt'
-        gdalbuildvrt(srcfiles[i], vrt, options_buildvrt)
+        gdalbuildvrt(group, vrt, options_buildvrt)
         srcfiles[i] = vrt
     
     # if no specific layernames are defined and sortfun is not set to None,
@@ -1117,14 +1117,13 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
         if not os.path.isdir(dstfile):
             os.makedirs(dstfile)
         dstfiles = [os.path.join(dstfile, x) + '.tif' for x in bandnames]
-        if overwrite:
-            files = [x for x in zip(srcfiles, dstfiles)]
-        else:
-            files = [x for x in zip(srcfiles, dstfiles) if not os.path.isfile(x[1])]
-            if len(files) == 0:
+        jobs = [x for x in zip(srcfiles, dstfiles)]
+        if not overwrite:
+            jobs = [x for x in jobs if not os.path.isfile(x[1])]
+            if len(jobs) == 0:
                 print('all target tiff files already exist, nothing to be done')
                 return
-        srcfiles, dstfiles = map(list, zip(*files))
+        srcfiles, dstfiles = map(list, zip(*jobs))
         
         multicore(gdalwarp, cores=cores, multiargs={'src': srcfiles, 'dst': dstfiles}, options=options_warp)
     else:
