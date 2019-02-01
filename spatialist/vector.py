@@ -808,6 +808,9 @@ def intersect(obj1, obj2):
     if not isinstance(obj1, Vector) or not isinstance(obj2, Vector):
         raise RuntimeError('both objects must be of type Vector')
     
+    obj1 = obj1.clone()
+    obj2 = obj2.clone()
+    
     obj1.reproject(obj2.srs)
     
     #######################################################
