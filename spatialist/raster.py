@@ -1082,12 +1082,8 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     else:
         arg_ext = None
     
-    # create temporary directory for writing intermediate files
     dst_base = os.path.splitext(dstfile)[0]
-    tmpdir = dst_base + '__tmp'
-    if not os.path.isdir(tmpdir):
-        os.makedirs(tmpdir)
-    
+
     options_warp = {'options': ['-q'],
                     'format': 'GTiff' if separate else 'ENVI',
                     'outputBounds': arg_ext, 'multithread': True,
@@ -1106,7 +1102,7 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     # create VRT files for mosaicing
     for i in range(len(srcfiles)):
         base = srcfiles[i][0] if isinstance(srcfiles[i], list) else srcfiles[i]
-        vrt = os.path.join(tmpdir, os.path.splitext(os.path.basename(base))[0] + '.vrt')
+        vrt = '/vsimem/' + os.path.splitext(os.path.basename(base))[0] + '.vrt'
         gdalbuildvrt(srcfiles[i], vrt, options_buildvrt)
         srcfiles[i] = vrt
     
@@ -1127,14 +1123,13 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
             files = [x for x in zip(srcfiles, dstfiles) if not os.path.isfile(x[1])]
             if len(files) == 0:
                 print('all target tiff files already exist, nothing to be done')
-                shutil.rmtree(tmpdir)
                 return
         srcfiles, dstfiles = map(list, zip(*files))
         
         multicore(gdalwarp, cores=cores, multiargs={'src': srcfiles, 'dst': dstfiles}, options=options_warp)
     else:
         # create VRT for stacking
-        vrt = os.path.join(tmpdir, os.path.basename(dst_base) + '.vrt')
+        vrt = '/vsimem/' + os.path.basename(dst_base) + '.vrt'
         options_buildvrt['options'] = ['-separate']
         gdalbuildvrt(srcfiles, vrt, options_buildvrt)
         
@@ -1145,9 +1140,6 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
         with envi.HDRobject(dstfile + '.hdr') as hdr:
             hdr.band_names = bandnames
             hdr.write()
-    
-    # remove temporary directory and files
-    shutil.rmtree(tmpdir)
 
 
 class Dtype(object):
