@@ -204,6 +204,9 @@ class Vector(object):
         else:
             bbox(self.extent, self.srs, outname=outname, format=format, overwrite=overwrite)
     
+    def clone(self):
+        return feature2vector(self.getfeatures(), ref=self)
+    
     def close(self):
         """
         closes the OGR vector file connection
