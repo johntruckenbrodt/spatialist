@@ -1069,8 +1069,8 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
         shp.reproject(srs)
         ext = shp.extent
         arg_ext = (ext['xmin'], ext['ymin'], ext['xmax'], ext['ymax'])
-        for i in range(len(srcfiles)):
-            group = sorted(srcfiles[i], key=sortfun) if isinstance(srcfiles[i], list) else [srcfiles[i]]
+        for i, item in enumerate(srcfiles):
+            group = sorted(item, key=sortfun) if isinstance(item, list) else [item]
             group = [x for x in group if intersect(shp, Raster(x).bbox())]
             if len(group) > 1:
                 srcfiles[i] = group
@@ -1083,7 +1083,7 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
         arg_ext = None
     
     dst_base = os.path.splitext(dstfile)[0]
-
+    
     options_warp = {'options': ['-q'],
                     'format': 'GTiff' if separate else 'ENVI',
                     'outputBounds': arg_ext, 'multithread': True,
