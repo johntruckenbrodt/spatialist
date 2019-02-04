@@ -1,6 +1,6 @@
 #################################################################
 # GDAL wrapper for convenient raster data handling and processing
-# John Truckenbrodt 2015-2018
+# John Truckenbrodt 2015-2019
 #################################################################
 
 
@@ -1065,7 +1065,7 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     
     # read shapefile bounding coordinates and reduce list of rasters to those overlapping with the shapefile
     if shapefile is not None:
-        shp = shapefile if isinstance(shapefile, Vector) else Vector(shapefile)
+        shp = shapefile.clone() if isinstance(shapefile, Vector) else Vector(shapefile)
         shp.reproject(srs)
         ext = shp.extent
         arg_ext = (ext['xmin'], ext['ymin'], ext['xmax'], ext['ymax'])
@@ -1078,6 +1078,7 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
                 srcfiles[i] = group[0]
             else:
                 srcfiles[i] = None
+        shp.close()
         srcfiles = list(filter(None, srcfiles))
     else:
         arg_ext = None
