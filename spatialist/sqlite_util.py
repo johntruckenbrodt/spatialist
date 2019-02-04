@@ -18,12 +18,12 @@ errormessage = 'sqlite3 does not support loading extensions and {}; ' \
                'please refer to the spatialist installation instructions'
 try:
     import sqlite3
-
+    
     check_loading()
 except RuntimeError:
     try:
         from pysqlite2 import dbapi2 as sqlite3
-
+        
         check_loading()
     except ImportError:
         raise RuntimeError(errormessage.format('pysqlite2 does not exist as alternative'))
@@ -96,7 +96,7 @@ class __Handler(object):
         print('using sqlite version {}'.format(self.version['sqlite']))
         if 'spatialite' in self.version.keys():
             print('using spatialite version {}'.format(self.version['spatialite']))
-
+    
     @property
     def version(self):
         out = {'sqlite': sqlite3.sqlite_version}
@@ -108,7 +108,7 @@ class __Handler(object):
         except sqlite3.OperationalError:
             pass
         return out
-
+    
     def get_tablenames(self):
         cursor = self.conn.cursor()
         cursor.execute('SELECT * FROM sqlite_master WHERE type="table"')
@@ -116,7 +116,7 @@ class __Handler(object):
         if bool(type('unicode')):
             names = [str(x) for x in names]
         return names
-
+    
     def load_extension(self, extension):
         if re.search('spatialite', extension):
             spatialite_setup()
@@ -132,11 +132,11 @@ class __Handler(object):
                 except sqlite3.OperationalError as e:
                     print('{0}: {1}'.format(option, str(e)))
                     continue
-
+            
             # if loading mod_spatialite fails try to load libspatialite directly
             if select is None:
                 self.__load_regular('spatialite')
-
+            
             # initialize spatial support
             if 'spatial_ref_sys' not in self.get_tablenames():
                 cursor = self.conn.cursor()
@@ -147,26 +147,26 @@ class __Handler(object):
                     # mod_spatialite extension
                     cursor.execute('SELECT InitSpatialMetaData(1);')
                 self.conn.commit()
-
+        
         else:
             self.__load_regular(extension)
-
+    
     def __load_regular(self, extension):
         options = []
-
+        
         # create an extension library option starting with 'lib' without extension suffices;
         # e.g. 'libgdal' but not 'gdal.so'
         ext_base = self.__split_ext(extension)
         if not ext_base.startswith('lib'):
             ext_base = 'lib' + ext_base
         options.append(ext_base)
-
+        
         # get the full extension library name; e.g. 'libgdal.so.20'
         ext_mod = find_library(extension.replace('lib', ''))
         if ext_mod is None:
             raise RuntimeError('no library found for extension {}'.format(extension))
         options.append(ext_mod)
-
+        
         # loop through extension library name options and try to load them
         success = False
         for option in options:
@@ -178,12 +178,12 @@ class __Handler(object):
                 break
             except sqlite3.OperationalError:
                 continue
-
+        
         if not success:
             raise RuntimeError('failed to load extension {}'.format(extension))
 
     def __split_ext(self, extension):
         base = extension
-        while re.search('\.', base):
+        while re.search(r'\.', base):
             base = os.path.splitext(base)[0]
         return base

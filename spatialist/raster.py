@@ -762,7 +762,7 @@ class Raster(object):
         if os.path.isfile(outname) and not overwrite:
             raise RuntimeError('target file already exists')
         
-        if format == 'GTiff' and not re.search('\.tif[f]*$', outname):
+        if format == 'GTiff' and not re.search(r'\.tif[f]*$', outname):
             outname += '.tif'
         
         dtype = Dtype(self.dtype if dtype == 'default' else dtype).gdalint
