@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 ################################################################
 # OGR wrapper for convenient vector data handling and processing
-# John Truckenbrodt 2015-2018
+# John Truckenbrodt 2015-2019
 ################################################################
 
 
