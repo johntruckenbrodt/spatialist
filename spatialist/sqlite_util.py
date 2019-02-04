@@ -181,8 +181,9 @@ class __Handler(object):
         
         if not success:
             raise RuntimeError('failed to load extension {}'.format(extension))
-
-    def __split_ext(self, extension):
+    
+    @staticmethod
+    def __split_ext(extension):
         base = extension
         while re.search(r'\.', base):
             base = os.path.splitext(base)[0]
