@@ -1120,7 +1120,7 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     # use the file basenames without extension as band names if none are defined
     bandnames = [os.path.splitext(os.path.basename(x))[0] for x in srcfiles] if layernames is None else layernames
     
-    if separate or len(srcfiles) == 1:
+    if separate:
         if not os.path.isdir(dstfile):
             os.makedirs(dstfile)
         dstfiles = [os.path.join(dstfile, x) + '.tif' for x in bandnames]
@@ -1134,18 +1134,24 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
         
         multicore(gdalwarp, cores=cores, multiargs={'src': srcfiles, 'dst': dstfiles}, options=options_warp)
     else:
-        # create VRT for stacking
-        vrt = '/vsimem/' + os.path.basename(dst_base) + '.vrt'
-        options_buildvrt['options'] = ['-separate']
-        gdalbuildvrt(srcfiles, vrt, options_buildvrt)
-        
-        # warp files
-        gdalwarp(vrt, dstfile, options_warp)
-        
-        # edit ENVI HDR files to contain specific layer names
-        with envi.HDRobject(dstfile + '.hdr') as hdr:
-            hdr.band_names = bandnames
-            hdr.write()
+        if len(srcfiles) == 1:
+            options_warp['format'] = 'GTiff'
+            if not dstfile.endswith('.tif'):
+                dstfile = os.path.splitext(dstfile)[0] + '.tif'
+            gdalwarp(srcfiles[0], dstfile, options_warp)
+        else:
+            # create VRT for stacking
+            vrt = '/vsimem/' + os.path.basename(dst_base) + '.vrt'
+            options_buildvrt['options'] = ['-separate']
+            gdalbuildvrt(srcfiles, vrt, options_buildvrt)
+            
+            # warp files
+            gdalwarp(vrt, dstfile, options_warp)
+            
+            # edit ENVI HDR files to contain specific layer names
+            with envi.HDRobject(dstfile + '.hdr') as hdr:
+                hdr.band_names = bandnames
+                hdr.write()
 
 
 class Dtype(object):
