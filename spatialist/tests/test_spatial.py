@@ -3,7 +3,8 @@ import pytest
 import platform
 import numpy as np
 from osgeo import ogr
-from spatialist import crsConvert, haversine, Raster, stack, ogr2ogr, gdal_translate, gdal_rasterize, bbox, rasterize
+from spatialist import crsConvert, haversine, Raster, stack, ogr2ogr, gdal_translate, gdal_rasterize, bbox, rasterize, \
+    gdalwarp
 from spatialist.raster import Dtype
 from spatialist.vector import feature2vector, dissolve, Vector, intersect
 from spatialist.envi import hdr, HDRobject
@@ -74,7 +75,7 @@ def test_dissolve(tmpdir, travis, testdata):
         bbox3_name = os.path.join(str(tmpdir), 'bbox3.shp')
         bbox1.write(bbox3_name)
     bbox1.close()
-
+    
     if not travis and platform.system() != 'Windows':
         # dissolve the geometries in bbox3 and write the result to new bbox4
         # this test is currently disabled for Travis as the current sqlite3 version on Travis seems to not support
@@ -106,7 +107,7 @@ def test_Raster(tmpdir, testdata):
         assert len(ras.layers()) == 1
         assert ras.projcs == 'WGS 84 / UTM zone 31N'
         assert ras.res == (20.0, 20.0)
-
+        
         # test writing a subset with no original data in memory
         outname = os.path.join(str(tmpdir), 'test_sub.tif')
         with ras[0:200, 0:100] as sub:
@@ -114,14 +115,14 @@ def test_Raster(tmpdir, testdata):
         with Raster(outname) as ras2:
             assert ras2.cols == 100
             assert ras2.rows == 200
-
+        
         ras.load()
         mat = ras.matrix()
         assert isinstance(mat, np.ndarray)
         ras.assign(mat, band=0)
         # ras.reduce()
         ras.rescale(lambda x: 10 * x)
-
+        
         # test writing data with original data in memory
         ras.write(os.path.join(str(tmpdir), 'test'), format='GTiff', compress_tif=True)
         with pytest.raises(RuntimeError):
@@ -152,13 +153,13 @@ def test_Raster_extract(testdata):
             ras.extract(1, 4830000)
         with pytest.raises(RuntimeError):
             ras.extract(624000, 1)
-
+        
         # ensure corner extraction capability
         assert ras.extract(px=ras.geo['xmin'], py=ras.geo['ymax']) == -10.147890090942383
         assert ras.extract(px=ras.geo['xmin'], py=ras.geo['ymin']) == -14.640368461608887
         assert ras.extract(px=ras.geo['xmax'], py=ras.geo['ymax']) == -9.599242210388182
         assert ras.extract(px=ras.geo['xmax'], py=ras.geo['ymin']) == -9.406558990478516
-
+        
         # test nodata handling capability and correct indexing
         mat = ras.matrix()
         mat[0:10, 0:10] = ras.nodata
@@ -178,42 +179,83 @@ def test_stack(tmpdir, testdata):
     name = testdata['tif']
     outname = os.path.join(str(tmpdir), 'test')
     tr = (30, 30)
-    with pytest.raises(IOError):
+    # no input files provided
+    with pytest.raises(RuntimeError):
         stack(srcfiles=[], resampling='near', targetres=tr,
               srcnodata=-99, dstnodata=-99, dstfile=outname)
-
-    with pytest.raises(IOError):
+    
+    # two files, but only one layer name
+    with pytest.raises(RuntimeError):
         stack(srcfiles=[name, name], resampling='near', targetres=tr,
               srcnodata=-99, dstnodata=-99, dstfile=outname, layernames=['a'])
-
+    
+    # targetres must be a two-entry tuple/list
     with pytest.raises(RuntimeError):
         stack(srcfiles=[name, name], resampling='near', targetres=30,
               srcnodata=-99, dstnodata=-99, dstfile=outname)
-
-    with pytest.raises(IOError):
+    
+    # only one file specified
+    with pytest.raises(RuntimeError):
         stack(srcfiles=[name], resampling='near', targetres=tr, overwrite=True,
               srcnodata=-99, dstnodata=-99, dstfile=outname)
-
+    
+    # targetres must contain two values
     with pytest.raises(RuntimeError):
         stack(srcfiles=[name, name], resampling='near', targetres=(30, 30, 30),
               srcnodata=-99, dstnodata=-99, dstfile=outname)
-
-    with pytest.raises(IOError):
+    
+    # unknown resampling method
+    with pytest.raises(RuntimeError):
         stack(srcfiles=[name, name], resampling='foobar', targetres=tr,
               srcnodata=-99, dstnodata=-99, dstfile=outname)
-
+    
+    # non-existing files
+    with pytest.raises(RuntimeError):
+        stack(srcfiles=['foo', 'bar'], resampling='near', targetres=tr,
+              srcnodata=-99, dstnodata=-99, dstfile=outname)
+    
+    # create a multi-band stack
     stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=True,
           srcnodata=-99, dstnodata=-99, dstfile=outname)
-
-    outdir = os.path.join(str(tmpdir), 'subdir')
-    stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=True, layernames=['test1', 'test2'],
-          srcnodata=-99, dstnodata=-99, dstfile=outdir, separate=True, compress=True)
-
     with Raster(outname) as ras:
         assert ras.bands == 2
         # Raster.rescale currently only supports one band
         with pytest.raises(ValueError):
             ras.rescale(lambda x: x * 10)
+    
+    # pass shapefile
+    outname2 = os.path.join(str(tmpdir), 'test2')
+    with Raster(name).bbox() as box:
+        stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=True,
+              srcnodata=-99, dstnodata=-99, dstfile=outname2, shapefile=box)
+    with Raster(outname2) as ras:
+        assert ras.bands == 2
+    
+    # projection mismatch
+    name2 = os.path.join(str(tmpdir), os.path.basename(name))
+    outname3 = os.path.join(str(tmpdir), 'test3')
+    gdalwarp(name, name2, options={'dstSRS': crsConvert(4326, 'wkt')})
+    with pytest.raises(RuntimeError):
+        stack(srcfiles=[name, name2], resampling='near', targetres=tr, overwrite=True,
+              srcnodata=-99, dstnodata=-99, dstfile=outname3)
+    
+    # no projection found
+    outname4 = os.path.join(str(tmpdir), 'test4')
+    gdal_translate(name, name2, {'options': ['-co', 'PROFILE=BASELINE']})
+    with Raster(name2) as ras:
+        print(ras.projection)
+    with pytest.raises(RuntimeError):
+        stack(srcfiles=[name2, name2], resampling='near', targetres=tr, overwrite=True,
+              srcnodata=-99, dstnodata=-99, dstfile=outname4)
+    
+    # create separate GeoTiffs
+    outdir = os.path.join(str(tmpdir), 'subdir')
+    stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=True, layernames=['test1', 'test2'],
+          srcnodata=-99, dstnodata=-99, dstfile=outdir, separate=True, compress=True)
+    
+    # repeat with overwrite disabled
+    stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=False, layernames=['test1', 'test2'],
+          srcnodata=-99, dstnodata=-99, dstfile=outdir, separate=True, compress=True)
 
 
 def test_auxil(tmpdir, testdata):
@@ -230,22 +272,22 @@ def test_rasterize(tmpdir, testdata):
     outname = os.path.join(str(tmpdir), 'test.shp')
     with Raster(testdata['tif']) as ras:
         vec = ras.bbox()
-
+        
         # test length mismatch between burn_values and expressions
         with pytest.raises(RuntimeError):
             rasterize(vec, reference=ras, outname=outname, burn_values=[1], expressions=['foo', 'bar'])
-
+        
         # test a faulty expression
         with pytest.raises(RuntimeError):
             rasterize(vec, reference=ras, outname=outname, burn_values=[1], expressions=['foo'])
-
+        
         # test default parametrization
         rasterize(vec, reference=ras, outname=outname)
         assert os.path.isfile(outname)
-
+        
         # test appending to existing file with valid expression
         rasterize(vec, reference=ras, outname=outname, append=True, burn_values=[1], expressions=['area=23262400.0'])
-
+        
         # test wrong input type for reference
         with pytest.raises(RuntimeError):
             rasterize(vec, reference='foobar', outname=outname)
@@ -277,7 +319,7 @@ def test_sqlite(appveyor):
         con.close()
         con = __Handler()
         assert sorted(con.version.keys()) == ['sqlite']
-
+        
         con = __Handler(extensions=['spatialite'])
         assert sorted(con.version.keys()) == ['spatialite', 'sqlite']
         assert 'spatial_ref_sys' in con.get_tablenames()
