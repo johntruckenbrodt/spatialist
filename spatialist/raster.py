@@ -1120,6 +1120,9 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     # use the file basenames without extension as band names if none are defined
     bandnames = [os.path.splitext(os.path.basename(x))[0] for x in srcfiles] if layernames is None else layernames
     
+    if len(list(set(bandnames))) != len(bandnames):
+        raise RuntimeError('output bandnames are not unique')
+    
     if separate:
         if not os.path.isdir(dstfile):
             os.makedirs(dstfile)
