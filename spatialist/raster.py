@@ -993,9 +993,9 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     Parameters
     ----------
     srcfiles: list
-        a list of file names or a list of lists; each sub-list is treated as task to mosaic its containing files
+        a list of file names or a list of lists; each sub-list is treated as a task to mosaic its containing files
     dstfile: str
-        the destination file or a directory (if separate is True)
+        the destination file or a directory (if `separate` is True)
     resampling: {near, bilinear, cubic, cubicspline, lanczos, average, mode, max, min, med, Q1, Q3}
         the resampling method; see `documentation of gdalwarp <https://www.gdal.org/gdalwarp.html>`_.
     targetres: tuple or list
@@ -1005,20 +1005,24 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     dstnodata: int or float
         the nodata value of the destination file(s)
     shapefile: str, Vector or None
-        a shapefile for defining the area of the destination files
+        a shapefile for defining the spatial extent of the destination files
     layernames: list
-        the names of the output layers; if `None`, the basenames of the input files are used
+        the names of the output layers; if `None`, the basenames of the input files are used; overrides sortfun
     sortfun: function
-        a function for sorting the input files; this is needed for defining the mosaicking order
+        a function for sorting the input files; not used if layernames is not None.
+        This is first used for sorting the items in each sub-list of srcfiles;
+        the basename of the first item in a sub-list will then be used as the name for the mosaic of this group.
+        After mosaicing, the function is again used for sorting the names in the final output
+        (only relevant if `separate` is False)
     separate: bool
-        should the files be written to a single raster block or separate files?
-        If True, each tile is written to GeoTiff.
+        should the files be written to a single raster stack (ENVI format) or separate files (GTiff format)?
     overwrite: bool
         overwrite the file if it already exists?
     compress: bool
         compress the geotiff files?
     cores: int
-        the number of CPU threads to use; this is only relevant if separate = True
+        the number of CPU threads to use; this is only relevant if `separate` is True, in which case each
+        mosaicing/resampling job is passed to a different CPU
 
     Returns
     -------
@@ -1070,7 +1074,9 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
         ext = shp.extent
         arg_ext = (ext['xmin'], ext['ymin'], ext['xmax'], ext['ymax'])
         for i, item in enumerate(srcfiles):
-            group = sorted(item, key=sortfun) if isinstance(item, list) else [item]
+            group = item if isinstance(item, list) else [item]
+            if layernames is None and sortfun is not None:
+                group = sorted(group, key=sortfun)
             group = [x for x in group if intersect(shp, Raster(x).bbox())]
             if len(group) > 1:
                 srcfiles[i] = group
@@ -1107,11 +1113,11 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
         gdalbuildvrt(group, vrt, options_buildvrt)
         srcfiles[i] = vrt
     
-    # if no specific layernames are defined,
-    # sort files by custom function or, by default, the basename of the raster/VRT file
-    if layernames is None:
-        srcfiles = sorted(srcfiles, key=sortfun if sortfun is not None else os.path.basename)
+    # if no specific layernames are defined, sort files by custom function
+    if layernames is None and sortfun is not None:
+        srcfiles = sorted(srcfiles, key=sortfun)
     
+    # use the file basenames without extension as band names if none are defined
     bandnames = [os.path.splitext(os.path.basename(x))[0] for x in srcfiles] if layernames is None else layernames
     
     if separate or len(srcfiles) == 1:
