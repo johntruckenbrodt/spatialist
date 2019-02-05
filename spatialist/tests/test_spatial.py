@@ -171,8 +171,14 @@ def test_Raster_extract(testdata):
 
 def test_dtypes():
     assert Dtype('Float32').gdalint == 6
+    assert Dtype(6).gdalstr == 'Float32'
+    assert Dtype('uint32').gdalstr == 'UInt32'
     with pytest.raises(ValueError):
         Dtype('foobar')
+    with pytest.raises(ValueError):
+        Dtype(999)
+    with pytest.raises(TypeError):
+        Dtype(None)
 
 
 def test_stack(tmpdir, testdata):
