@@ -1107,10 +1107,10 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
         gdalbuildvrt(group, vrt, options_buildvrt)
         srcfiles[i] = vrt
     
-    # if no specific layernames are defined and sortfun is not set to None,
+    # if no specific layernames are defined,
     # sort files by custom function or, by default, the basename of the raster/VRT file
-    if layernames is None and sortfun is not None:
-        srcfiles = sorted(srcfiles, key=sortfun if sortfun else os.path.basename)
+    if layernames is None:
+        srcfiles = sorted(srcfiles, key=sortfun if sortfun is not None else os.path.basename)
     
     bandnames = [os.path.splitext(os.path.basename(x))[0] for x in srcfiles] if layernames is None else layernames
     
