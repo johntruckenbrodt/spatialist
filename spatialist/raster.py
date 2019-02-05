@@ -53,7 +53,7 @@ class Raster(object):
             self.filename = filename if os.path.isabs(filename) else os.path.join(os.getcwd(), filename)
             self.raster = gdal.Open(filename, GA_ReadOnly)
         else:
-            raise OSError('file does not exist')
+            raise RuntimeError('raster input must be of type str or gdal.Dataset')
         
         # a list to contain arrays
         self.__data = [None] * self.bands
@@ -998,7 +998,7 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
         the destination file or a directory (if separate is True)
     resampling: {near, bilinear, cubic, cubicspline, lanczos, average, mode, max, min, med, Q1, Q3}
         the resampling method; see `documentation of gdalwarp <https://www.gdal.org/gdalwarp.html>`_.
-    targetres: tuple
+    targetres: tuple or list
         two entries for x and y spatial resolution in units of the source CRS
     srcnodata: int or float
         the nodata value of the source files
@@ -1030,35 +1030,35 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     raster CRS prior to retrieving its extent.
     """
     if len(dissolve(srcfiles)) == 0:
-        raise IOError('no input files provided to function raster.stack')
+        raise RuntimeError('no input files provided to function raster.stack')
     
     if layernames is not None:
         if len(layernames) != len(srcfiles):
-            raise IOError('mismatch between number of source file groups and layernames')
+            raise RuntimeError('mismatch between number of source file groups and layernames')
     
     if not isinstance(targetres, (list, tuple)) or len(targetres) != 2:
         raise RuntimeError('targetres must be a list or tuple with two entries for x and y resolution')
     
     if len(srcfiles) == 1 and not isinstance(srcfiles[0], list):
-        raise IOError('only one file specified; nothing to be done')
+        raise RuntimeError('only one file specified; nothing to be done')
     
     if resampling not in ['near', 'bilinear', 'cubic', 'cubicspline', 'lanczos',
                           'average', 'mode', 'max', 'min', 'med', 'Q1', 'Q3']:
-        raise IOError('resampling method not supported')
+        raise RuntimeError('resampling method not supported')
     
     projections = list()
     for x in dissolve(srcfiles):
         try:
             projection = Raster(x).projection
-        except OSError as e:
+        except RuntimeError as e:
             print('cannot read file: {}'.format(x))
             raise e
         projections.append(projection)
     
     projections = list(set(projections))
     if len(projections) > 1:
-        raise IOError('raster projection mismatch')
-    elif len(projections) == 0:
+        raise RuntimeError('raster projection mismatch')
+    elif projections[0] == '':
         raise RuntimeError('could not retrieve the projection from any of the {} input images'.format(len(srcfiles)))
     else:
         srs = projections[0]
