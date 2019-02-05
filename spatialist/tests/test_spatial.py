@@ -1,4 +1,5 @@
 import os
+import shutil
 import pytest
 import platform
 import numpy as np
@@ -222,7 +223,7 @@ def test_stack(tmpdir, testdata):
     
     # create a multi-band stack
     stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=True,
-          srcnodata=-99, dstnodata=-99, dstfile=outname)
+          srcnodata=-99, dstnodata=-99, dstfile=outname, layernames=['test1', 'test2'])
     with Raster(outname) as ras:
         assert ras.bands == 2
         # Raster.rescale currently only supports one band
@@ -233,7 +234,7 @@ def test_stack(tmpdir, testdata):
     outname = os.path.join(str(tmpdir), 'test2')
     with Raster(name).bbox() as box:
         stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=True,
-              srcnodata=-99, dstnodata=-99, dstfile=outname, shapefile=box)
+              srcnodata=-99, dstnodata=-99, dstfile=outname, shapefile=box, layernames=['test1', 'test2'])
     with Raster(outname) as ras:
         assert ras.bands == 2
     
@@ -273,7 +274,17 @@ def test_stack(tmpdir, testdata):
           srcnodata=-99, dstnodata=-99, dstfile=outdir, separate=True, compress=True)
 
     # repeat without layernames but sortfun
-    stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=True, sortfun=os.path.basename,
+    # bandnames not unique
+    outdir = os.path.join(str(tmpdir), 'subdir2')
+    with pytest.raises(RuntimeError):
+        stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=True, sortfun=os.path.basename,
+              srcnodata=-99, dstnodata=-99, dstfile=outdir, separate=True, compress=True)
+    
+    # repeat without layernames but sortfun
+    name2 = os.path.join(str(tmpdir), os.path.basename(name).replace('VV', 'XX'))
+    shutil.copyfile(name, name2)
+    outdir = os.path.join(str(tmpdir), 'subdir2')
+    stack(srcfiles=[name, name2], resampling='near', targetres=tr, overwrite=True, sortfun=os.path.basename,
           srcnodata=-99, dstnodata=-99, dstfile=outdir, separate=True, compress=True)
 
 
