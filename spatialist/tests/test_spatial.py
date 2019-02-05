@@ -238,11 +238,11 @@ def test_stack(tmpdir, testdata):
         assert ras.bands == 2
     
     # pass shapefile and do mosaicing
-    outname = os.path.join(str(tmpdir), 'test3.tif')
+    outname = os.path.join(str(tmpdir), 'test3')
     with Raster(name).bbox() as box:
         stack(srcfiles=[[name, name]], resampling='near', targetres=tr, overwrite=True,
               srcnodata=-99, dstnodata=-99, dstfile=outname, shapefile=box)
-    with Raster(outname) as ras:
+    with Raster(outname + '.tif') as ras:
         assert ras.bands == 1
         assert ras.format == 'GTiff'
     
@@ -268,8 +268,12 @@ def test_stack(tmpdir, testdata):
     stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=True, layernames=['test1', 'test2'],
           srcnodata=-99, dstnodata=-99, dstfile=outdir, separate=True, compress=True)
     
-    # repeat with overwrite disabled
+    # repeat with overwrite disabled (no error raised, just a print message)
     stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=False, layernames=['test1', 'test2'],
+          srcnodata=-99, dstnodata=-99, dstfile=outdir, separate=True, compress=True)
+
+    # repeat without layernames but sortfun
+    stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=True, sortfun=os.path.basename,
           srcnodata=-99, dstnodata=-99, dstfile=outdir, separate=True, compress=True)
 
 
