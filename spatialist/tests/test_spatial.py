@@ -224,29 +224,38 @@ def test_stack(tmpdir, testdata):
             ras.rescale(lambda x: x * 10)
     
     # pass shapefile
-    outname2 = os.path.join(str(tmpdir), 'test2')
+    outname = os.path.join(str(tmpdir), 'test2')
     with Raster(name).bbox() as box:
         stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=True,
-              srcnodata=-99, dstnodata=-99, dstfile=outname2, shapefile=box)
-    with Raster(outname2) as ras:
+              srcnodata=-99, dstnodata=-99, dstfile=outname, shapefile=box)
+    with Raster(outname) as ras:
         assert ras.bands == 2
+    
+    # pass shapefile and do mosaicing
+    outname = os.path.join(str(tmpdir), 'test3.tif')
+    with Raster(name).bbox() as box:
+        stack(srcfiles=[[name, name]], resampling='near', targetres=tr, overwrite=True,
+              srcnodata=-99, dstnodata=-99, dstfile=outname, shapefile=box)
+    with Raster(outname) as ras:
+        assert ras.bands == 1
+        assert ras.format == 'GTiff'
     
     # projection mismatch
     name2 = os.path.join(str(tmpdir), os.path.basename(name))
-    outname3 = os.path.join(str(tmpdir), 'test3')
+    outname = os.path.join(str(tmpdir), 'test4')
     gdalwarp(name, name2, options={'dstSRS': crsConvert(4326, 'wkt')})
     with pytest.raises(RuntimeError):
         stack(srcfiles=[name, name2], resampling='near', targetres=tr, overwrite=True,
-              srcnodata=-99, dstnodata=-99, dstfile=outname3)
+              srcnodata=-99, dstnodata=-99, dstfile=outname)
     
     # no projection found
-    outname4 = os.path.join(str(tmpdir), 'test4')
+    outname = os.path.join(str(tmpdir), 'test5')
     gdal_translate(name, name2, {'options': ['-co', 'PROFILE=BASELINE']})
     with Raster(name2) as ras:
         print(ras.projection)
     with pytest.raises(RuntimeError):
         stack(srcfiles=[name2, name2], resampling='near', targetres=tr, overwrite=True,
-              srcnodata=-99, dstnodata=-99, dstfile=outname4)
+              srcnodata=-99, dstnodata=-99, dstfile=outname)
     
     # create separate GeoTiffs
     outdir = os.path.join(str(tmpdir), 'subdir')
