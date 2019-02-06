@@ -9,7 +9,7 @@
 from __future__ import division
 import os
 import re
-import shutil
+import platform
 import tempfile
 from math import sqrt, floor, ceil
 from time import gmtime, strftime
@@ -1109,7 +1109,15 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     # create VRT files for mosaicing
     for i, group in enumerate(srcfiles):
         base = group[0] if isinstance(group, list) else group
-        vrt = '/vsimem/' + os.path.splitext(os.path.basename(base))[0] + '.vrt'
+        # in-memory VRT files cannot be shared between multiple processes on Windows
+        # this has to do with different process forking behaviour
+        # see function spatialist.ancillary.multicore and this link:
+        # https://stackoverflow.com/questions/38236211/why-multiprocessing-process-behave-differently-on-windows-and-linux-for-global-o
+        vrt_base = os.path.splitext(os.path.basename(base))[0] + '.vrt'
+        if platform.system() == 'Windows':
+            vrt = os.path.join(tempfile.gettempdir(), vrt_base)
+        else:
+            vrt = '/vsimem/' + vrt_base
         gdalbuildvrt(group, vrt, options_buildvrt)
         srcfiles[i] = vrt
     
