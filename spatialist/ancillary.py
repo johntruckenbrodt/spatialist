@@ -341,6 +341,14 @@ def multicore(function, cores, multiargs, **singleargs):
             return out
 
 
+def add(x, y, z):
+    """
+    only a dummy function for testing the multicore function
+    defining it in the test script is not possible since it cannot be serialized
+    with a reference module that does not exist (i.e. the test script)
+    """
+    return x + y + z
+
 class ExceptionWrapper(object):
     """
     | class for enabling traceback pickling in function multiprocess
