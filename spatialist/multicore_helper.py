@@ -1,5 +1,5 @@
 #################################################################
-# helper script to be able to use function ancilary.multicore on
+# helper script to be able to use function ancillary.multicore on
 # Windows operating systems
 # John Truckenbrodt 2019
 #################################################################
