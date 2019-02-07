@@ -1,3 +1,8 @@
+#################################################################
+# helper script to be able to use function ancilary.multicore on
+# Windows operating systems
+# John Truckenbrodt 2019
+#################################################################
 import os
 import tempfile
 import dill
@@ -11,19 +16,23 @@ from spatialist.ancillary import HiddenPrints
 
 if __name__ == '__main__':
     
+    # de-serialize the arguments written by function ancillary.multicore
     tmpfile = os.path.join(tempfile.gettempdir(), 'spatialist_dump')
     with open(tmpfile, 'rb') as tmp:
         func, cores, processlist = dill.load(tmp)
     
+    # serialize the job arguments to be able to pass them to the processes
     processlist = [dill.dumps([func, x]) for x in processlist]
     
-    
+    # a simple wrapper to execute the jobs in the sub-processes
+    # re-import of modules and passing pickled variables is necessary since on
+    # Windows the environment is not shared between parent and child processes
     def wrapper(job):
         import dill
         function, proc = dill.loads(job)
         return function(**proc)
     
-    
+    # hide print messages in the sub-processes
     with HiddenPrints():
         # start pool of processes and do the work
         try:
@@ -44,5 +53,6 @@ if __name__ == '__main__':
     else:
         out = outlist
     
+    # serialize and write the output list to be able to read it in function ancillary.multicore
     with open(tmpfile, 'wb') as tmp:
         dill.dump(out, tmp, byref=False)
