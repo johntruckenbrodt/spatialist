@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 ################################################################
 # OGR wrapper for convenient vector data handling and processing
-# John Truckenbrodt 2015-2018
+# John Truckenbrodt 2015-2019
 ################################################################
 
 
@@ -203,6 +203,9 @@ class Vector(object):
             return bbox(self.extent, self.srs)
         else:
             bbox(self.extent, self.srs, outname=outname, format=format, overwrite=overwrite)
+    
+    def clone(self):
+        return feature2vector(self.getfeatures(), ref=self)
     
     def close(self):
         """
@@ -804,6 +807,9 @@ def intersect(obj1, obj2):
     """
     if not isinstance(obj1, Vector) or not isinstance(obj2, Vector):
         raise RuntimeError('both objects must be of type Vector')
+    
+    obj1 = obj1.clone()
+    obj2 = obj2.clone()
     
     obj1.reproject(obj2.srs)
     

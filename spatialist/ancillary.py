@@ -6,6 +6,9 @@
 This script gathers central functions and classes for general applications
 """
 import sys
+import dill
+import tempfile
+import platform
 import tblib.pickling_support
 
 if sys.version_info >= (3, 0):
@@ -267,44 +270,84 @@ def multicore(function, cores, multiargs, **singleargs):
     processlist = [dictmerge(dict([(arg, multiargs[arg][i]) for arg in multiargs]), singleargs)
                    for i in range(len(multiargs[list(multiargs.keys())[0]]))]
     
-    # block printing of the executed function
-    results = None
-    
-    def wrapper(**kwargs):
-        try:
-            return function(**kwargs)
-        except Exception as e:
-            return ExceptionWrapper(e)
-    
-    with HiddenPrints():
-        # start pool of processes and do the work
-        try:
-            pool = mp.Pool(processes=cores)
-        except NameError:
-            raise ImportError("package 'pathos' could not be imported")
-        results = pool.imap(lambda x: wrapper(**x), processlist)
-        pool.close()
-        pool.join()
-    
-    i = 0
-    out = []
-    for item in results:
-        if isinstance(item, ExceptionWrapper):
-            item.ee = type(item.ee)(str(item.ee) +
-                                    "\n(called function '{}' with args {})"
-                                    .format(function.__name__, processlist[i]))
-            raise (item.re_raise())
-        out.append(item)
-        i += 1
-    
-    # evaluate the return of the processing function;
-    # if any value is not None then the whole list of results is returned
-    eval = [x for x in out if x is not None]
-    if len(eval) == 0:
-        return None
+    if platform.system() == 'Windows':
+        
+        # in Windows parallel processing needs to strictly be in a "if __name__ == '__main__':" wrapper
+        # it was thus necessary to outsource this to a different script and try to serialize all input for sharing objects
+        # https://stackoverflow.com/questions/38236211/why-multiprocessing-process-behave-differently-on-windows-and-linux-for-global-o
+        
+        # a helper script to perform the parallel processing
+        script = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'multicore_helper.py')
+        
+        # a temporary file to write the serialized function variables
+        tmpfile = os.path.join(tempfile.gettempdir(), 'spatialist_dump')
+        
+        # check if everything can be serialized
+        if not dill.pickles([function, cores, processlist]):
+            raise RuntimeError('cannot fully serialize function arguments;\n'
+                               ' see https://github.com/uqfoundation/dill for supported types')
+        
+        # write the serialized variables
+        with open(tmpfile, 'wb') as tmp:
+            dill.dump([function, cores, processlist], tmp, byref=False)
+        
+        # run the helper script
+        proc = sp.Popen([sys.executable, script], stdin=sp.PIPE, stderr=sp.PIPE)
+        out, err = proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(err.decode())
+        
+        # retrieve the serialized output of the processing which was written to the temporary file by the helper script
+        with open(tmpfile, 'rb') as tmp:
+            result = dill.load(tmp)
+        return result
     else:
-        return out
+        results = None
+        
+        def wrapper(**kwargs):
+            try:
+                return function(**kwargs)
+            except Exception as e:
+                return ExceptionWrapper(e)
+        
+        # block printing of the executed function
+        with HiddenPrints():
+            # start pool of processes and do the work
+            try:
+                pool = mp.Pool(processes=cores)
+            except NameError:
+                raise ImportError("package 'pathos' could not be imported")
+            results = pool.imap(lambda x: wrapper(**x), processlist)
+            pool.close()
+            pool.join()
+        
+        i = 0
+        out = []
+        for item in results:
+            if isinstance(item, ExceptionWrapper):
+                item.ee = type(item.ee)(str(item.ee) +
+                                        "\n(called function '{}' with args {})"
+                                        .format(function.__name__, processlist[i]))
+                raise (item.re_raise())
+            out.append(item)
+            i += 1
+        
+        # evaluate the return of the processing function;
+        # if any value is not None then the whole list of results is returned
+        eval = [x for x in out if x is not None]
+        if len(eval) == 0:
+            return None
+        else:
+            return out
 
+
+def add(x, y, z):
+    """
+    only a dummy function for testing the multicore function
+    defining it in the test script is not possible since it cannot be serialized
+    with a reference module that does not exist (i.e. the test script)
+    """
+    return x + y + z
 
 class ExceptionWrapper(object):
     """

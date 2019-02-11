@@ -115,7 +115,7 @@ class HDRobject(object):
                     while '}' not in line:
                         i += 1
                         line += lines[i].strip('\n').lstrip()
-                line = list(filter(None, re.split('\s+=\s+', line)))
+                line = list(filter(None, re.split(r'\s+=\s+', line)))
                 line[1] = re.split(',[ ]*', line[1].strip('{}'))
                 key = line[0].replace(' ', '_')
                 val = line[1] if len(line[1]) > 1 else line[1][0]

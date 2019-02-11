@@ -1,6 +1,6 @@
 #################################################################
 # GDAL wrapper for convenient raster data handling and processing
-# John Truckenbrodt 2015-2018
+# John Truckenbrodt 2015-2019
 #################################################################
 
 
@@ -9,7 +9,7 @@
 from __future__ import division
 import os
 import re
-import shutil
+import platform
 import tempfile
 from math import sqrt, floor, ceil
 from time import gmtime, strftime
@@ -53,7 +53,7 @@ class Raster(object):
             self.filename = filename if os.path.isabs(filename) else os.path.join(os.getcwd(), filename)
             self.raster = gdal.Open(filename, GA_ReadOnly)
         else:
-            raise OSError('file does not exist')
+            raise RuntimeError('raster input must be of type str or gdal.Dataset')
         
         # a list to contain arrays
         self.__data = [None] * self.bands
@@ -762,7 +762,7 @@ class Raster(object):
         if os.path.isfile(outname) and not overwrite:
             raise RuntimeError('target file already exists')
         
-        if format == 'GTiff' and not re.search('\.tif[f]*$', outname):
+        if format == 'GTiff' and not re.search(r'\.tif[f]*$', outname):
             outname += '.tif'
         
         dtype = Dtype(self.dtype if dtype == 'default' else dtype).gdalint
@@ -993,32 +993,36 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     Parameters
     ----------
     srcfiles: list
-        a list of file names or a list of lists; each sub-list is treated as task to mosaic its containing files
+        a list of file names or a list of lists; each sub-list is treated as a task to mosaic its containing files
     dstfile: str
-        the destination file or a directory (if separate is True)
+        the destination file or a directory (if `separate` is True)
     resampling: {near, bilinear, cubic, cubicspline, lanczos, average, mode, max, min, med, Q1, Q3}
         the resampling method; see `documentation of gdalwarp <https://www.gdal.org/gdalwarp.html>`_.
-    targetres: tuple
+    targetres: tuple or list
         two entries for x and y spatial resolution in units of the source CRS
     srcnodata: int or float
         the nodata value of the source files
     dstnodata: int or float
         the nodata value of the destination file(s)
     shapefile: str, Vector or None
-        a shapefile for defining the area of the destination files
+        a shapefile for defining the spatial extent of the destination files
     layernames: list
-        the names of the output layers; if `None`, the basenames of the input files are used
+        the names of the output layers; if `None`, the basenames of the input files are used; overrides sortfun
     sortfun: function
-        a function for sorting the input files; this is needed for defining the mosaicking order
+        a function for sorting the input files; not used if layernames is not None.
+        This is first used for sorting the items in each sub-list of srcfiles;
+        the basename of the first item in a sub-list will then be used as the name for the mosaic of this group.
+        After mosaicing, the function is again used for sorting the names in the final output
+        (only relevant if `separate` is False)
     separate: bool
-        should the files be written to a single raster block or separate files?
-        If True, each tile is written to GeoTiff.
+        should the files be written to a single raster stack (ENVI format) or separate files (GTiff format)?
     overwrite: bool
         overwrite the file if it already exists?
     compress: bool
         compress the geotiff files?
     cores: int
-        the number of CPU threads to use; this is only relevant if separate = True
+        the number of CPU threads to use; this is only relevant if `separate` is True, in which case each
+        mosaicing/resampling job is passed to a different CPU
 
     Returns
     -------
@@ -1030,47 +1034,49 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     raster CRS prior to retrieving its extent.
     """
     if len(dissolve(srcfiles)) == 0:
-        raise IOError('no input files provided to function raster.stack')
+        raise RuntimeError('no input files provided to function raster.stack')
     
     if layernames is not None:
         if len(layernames) != len(srcfiles):
-            raise IOError('mismatch between number of source file groups and layernames')
+            raise RuntimeError('mismatch between number of source file groups and layernames')
     
     if not isinstance(targetres, (list, tuple)) or len(targetres) != 2:
         raise RuntimeError('targetres must be a list or tuple with two entries for x and y resolution')
     
     if len(srcfiles) == 1 and not isinstance(srcfiles[0], list):
-        raise IOError('only one file specified; nothing to be done')
+        raise RuntimeError('only one file specified; nothing to be done')
     
-    if resampling not in ['near', 'bilinear', 'cubic', 'cubicspline', 'lanczos', 'average', 'mode', 'max', 'min', 'med',
-                          'Q1', 'Q3']:
-        raise IOError('resampling method not supported')
+    if resampling not in ['near', 'bilinear', 'cubic', 'cubicspline', 'lanczos',
+                          'average', 'mode', 'max', 'min', 'med', 'Q1', 'Q3']:
+        raise RuntimeError('resampling method not supported')
     
     projections = list()
     for x in dissolve(srcfiles):
         try:
             projection = Raster(x).projection
-        except OSError as e:
+        except RuntimeError as e:
             print('cannot read file: {}'.format(x))
             raise e
         projections.append(projection)
     
     projections = list(set(projections))
     if len(projections) > 1:
-        raise IOError('raster projection mismatch')
-    elif len(projections) == 0:
+        raise RuntimeError('raster projection mismatch')
+    elif projections[0] == '':
         raise RuntimeError('could not retrieve the projection from any of the {} input images'.format(len(srcfiles)))
     else:
         srs = projections[0]
     
     # read shapefile bounding coordinates and reduce list of rasters to those overlapping with the shapefile
     if shapefile is not None:
-        shp = shapefile if isinstance(shapefile, Vector) else Vector(shapefile)
+        shp = shapefile.clone() if isinstance(shapefile, Vector) else Vector(shapefile)
         shp.reproject(srs)
         ext = shp.extent
         arg_ext = (ext['xmin'], ext['ymin'], ext['xmax'], ext['ymax'])
-        for i in range(len(srcfiles)):
-            group = sorted(srcfiles[i], key=sortfun) if isinstance(srcfiles[i], list) else [srcfiles[i]]
+        for i, item in enumerate(srcfiles):
+            group = item if isinstance(item, list) else [item]
+            if layernames is None and sortfun is not None:
+                group = sorted(group, key=sortfun)
             group = [x for x in group if intersect(shp, Raster(x).bbox())]
             if len(group) > 1:
                 srcfiles[i] = group
@@ -1078,15 +1084,12 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
                 srcfiles[i] = group[0]
             else:
                 srcfiles[i] = None
+        shp.close()
         srcfiles = list(filter(None, srcfiles))
     else:
         arg_ext = None
     
-    # create temporary directory for writing intermediate files
     dst_base = os.path.splitext(dstfile)[0]
-    tmpdir = dst_base + '__tmp'
-    if not os.path.isdir(tmpdir):
-        os.makedirs(tmpdir)
     
     options_warp = {'options': ['-q'],
                     'format': 'GTiff' if separate else 'ENVI',
@@ -1104,50 +1107,62 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     options_buildvrt = {'outputBounds': arg_ext, 'srcNodata': srcnodata}
     
     # create VRT files for mosaicing
-    for i in range(len(srcfiles)):
-        base = srcfiles[i][0] if isinstance(srcfiles[i], list) else srcfiles[i]
-        vrt = os.path.join(tmpdir, os.path.splitext(os.path.basename(base))[0] + '.vrt')
-        gdalbuildvrt(srcfiles[i], vrt, options_buildvrt)
+    for i, group in enumerate(srcfiles):
+        base = group[0] if isinstance(group, list) else group
+        # in-memory VRT files cannot be shared between multiple processes on Windows
+        # this has to do with different process forking behaviour
+        # see function spatialist.ancillary.multicore and this link:
+        # https://stackoverflow.com/questions/38236211/why-multiprocessing-process-behave-differently-on-windows-and-linux-for-global-o
+        vrt_base = os.path.splitext(os.path.basename(base))[0] + '.vrt'
+        if platform.system() == 'Windows':
+            vrt = os.path.join(tempfile.gettempdir(), vrt_base)
+        else:
+            vrt = '/vsimem/' + vrt_base
+        gdalbuildvrt(group, vrt, options_buildvrt)
         srcfiles[i] = vrt
     
-    # if no specific layernames are defined and sortfun is not set to None,
-    # sort files by custom function or, by default, the basename of the raster/VRT file
+    # if no specific layernames are defined, sort files by custom function
     if layernames is None and sortfun is not None:
-        srcfiles = sorted(srcfiles, key=sortfun if sortfun else os.path.basename)
+        srcfiles = sorted(srcfiles, key=sortfun)
     
+    # use the file basenames without extension as band names if none are defined
     bandnames = [os.path.splitext(os.path.basename(x))[0] for x in srcfiles] if layernames is None else layernames
     
-    if separate or len(srcfiles) == 1:
+    if len(list(set(bandnames))) != len(bandnames):
+        raise RuntimeError('output bandnames are not unique')
+    
+    if separate:
         if not os.path.isdir(dstfile):
             os.makedirs(dstfile)
         dstfiles = [os.path.join(dstfile, x) + '.tif' for x in bandnames]
-        if overwrite:
-            files = [x for x in zip(srcfiles, dstfiles)]
-        else:
-            files = [x for x in zip(srcfiles, dstfiles) if not os.path.isfile(x[1])]
-            if len(files) == 0:
+        jobs = [x for x in zip(srcfiles, dstfiles)]
+        if not overwrite:
+            jobs = [x for x in jobs if not os.path.isfile(x[1])]
+            if len(jobs) == 0:
                 print('all target tiff files already exist, nothing to be done')
-                shutil.rmtree(tmpdir)
                 return
-        srcfiles, dstfiles = map(list, zip(*files))
+        srcfiles, dstfiles = map(list, zip(*jobs))
         
         multicore(gdalwarp, cores=cores, multiargs={'src': srcfiles, 'dst': dstfiles}, options=options_warp)
     else:
-        # create VRT for stacking
-        vrt = os.path.join(tmpdir, os.path.basename(dst_base) + '.vrt')
-        options_buildvrt['options'] = ['-separate']
-        gdalbuildvrt(srcfiles, vrt, options_buildvrt)
-        
-        # warp files
-        gdalwarp(vrt, dstfile, options_warp)
-        
-        # edit ENVI HDR files to contain specific layer names
-        with envi.HDRobject(dstfile + '.hdr') as hdr:
-            hdr.band_names = bandnames
-            hdr.write()
-    
-    # remove temporary directory and files
-    shutil.rmtree(tmpdir)
+        if len(srcfiles) == 1:
+            options_warp['format'] = 'GTiff'
+            if not dstfile.endswith('.tif'):
+                dstfile = os.path.splitext(dstfile)[0] + '.tif'
+            gdalwarp(srcfiles[0], dstfile, options_warp)
+        else:
+            # create VRT for stacking
+            vrt = '/vsimem/' + os.path.basename(dst_base) + '.vrt'
+            options_buildvrt['options'] = ['-separate']
+            gdalbuildvrt(srcfiles, vrt, options_buildvrt)
+            
+            # warp files
+            gdalwarp(vrt, dstfile, options_warp)
+            
+            # edit ENVI HDR files to contain specific layer names
+            with envi.HDRobject(dstfile + '.hdr') as hdr:
+                hdr.band_names = bandnames
+                hdr.write()
 
 
 class Dtype(object):
