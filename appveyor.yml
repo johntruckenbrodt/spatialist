@@ -43,5 +43,5 @@ build: off
 test_script:
     - coverage run --source spatialist/ -m pytest
 
-after_test:
-  - coveralls
+#after_test:
+#  - coveralls
