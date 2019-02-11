@@ -3,8 +3,8 @@ environment:
   matrix:
     - TARGET_ARCH: x64
       CONDA_PY: 36
-      CONDA_INSTALL_LOCN: C:\Miniconda3-x64
-      GDAL_DATA: C:\Miniconda3-x64\Library\share\gdal
+      CONDA_INSTALL_LOCN: C:\Miniconda36-x64
+      GDAL_DATA: C:\Miniconda36-x64\Library\share\gdal
       PROJECT_DIR: C:\projects\spatialist
 
 platform:
@@ -42,3 +42,6 @@ build: off
 
 test_script:
     - coverage run --source spatialist/ -m pytest
+
+#after_test:
+#  - coveralls

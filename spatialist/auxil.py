@@ -123,7 +123,10 @@ def gdalwarp(src, dst, options):
     -------
 
     """
-    out = gdal.Warp(dst, src, options=gdal.WarpOptions(**options))
+    try:
+        out = gdal.Warp(dst, src, options=gdal.WarpOptions(**options))
+    except RuntimeError as e:
+        raise RuntimeError('{}:\n  src: {}\n  dst: {}\n  options: {}'.format(str(e), src, dst, options))
     out = None
 
 
