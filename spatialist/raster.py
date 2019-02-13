@@ -1,6 +1,6 @@
 #################################################################
 # GDAL wrapper for convenient raster data handling and processing
-# John Truckenbrodt 2015-2018
+# John Truckenbrodt 2015-2019
 #################################################################
 
 
@@ -792,7 +792,8 @@ class Raster(object):
             outDataset.SetMetadataItem('TIFFTAG_DATETIME', strftime('%Y:%m:%d %H:%M:%S', gmtime()))
         outDataset = None
         if format == 'ENVI':
-            with HDRobject(outname + '.hdr') as hdr:
+            hdrfile = os.path.splitext(outname)[0] + '.hdr'
+            with HDRobject(hdrfile) as hdr:
                 hdr.band_names = self.bandnames
                 hdr.write()
         
