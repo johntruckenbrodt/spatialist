@@ -10,6 +10,7 @@ from __future__ import division
 import os
 import re
 import shutil
+import warnings
 import tempfile
 from math import sqrt, floor, ceil
 from time import gmtime, strftime
@@ -784,6 +785,10 @@ class Raster(object):
             if nodata is not None:
                 outband.SetNoDataValue(nodata)
             mat = self.matrix(band=i)
+            dtype_mat = str(mat.dtype)
+            dtype_ras = Dtype(dtype).numpystr
+            if not np.can_cast(dtype_mat, dtype_ras):
+                warnings.warn("writing band {}: unsafe casting from type {} to {}".format(i, dtype_mat, dtype_ras))
             outband.WriteArray(mat)
             del mat
             outband.FlushCache()
