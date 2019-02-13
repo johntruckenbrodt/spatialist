@@ -10,6 +10,7 @@ from __future__ import division
 import os
 import re
 import platform
+import warnings
 import tempfile
 from math import sqrt, floor, ceil
 from time import gmtime, strftime
@@ -784,6 +785,10 @@ class Raster(object):
             if nodata is not None:
                 outband.SetNoDataValue(nodata)
             mat = self.matrix(band=i)
+            dtype_mat = str(mat.dtype)
+            dtype_ras = Dtype(dtype).numpystr
+            if not np.can_cast(dtype_mat, dtype_ras):
+                warnings.warn("writing band {}: unsafe casting from type {} to {}".format(i, dtype_mat, dtype_ras))
             outband.WriteArray(mat)
             del mat
             outband.FlushCache()
@@ -792,7 +797,8 @@ class Raster(object):
             outDataset.SetMetadataItem('TIFFTAG_DATETIME', strftime('%Y:%m:%d %H:%M:%S', gmtime()))
         outDataset = None
         if format == 'ENVI':
-            with HDRobject(outname + '.hdr') as hdr:
+            hdrfile = os.path.splitext(outname)[0] + '.hdr'
+            with HDRobject(hdrfile) as hdr:
                 hdr.band_names = self.bandnames
                 hdr.write()
         
