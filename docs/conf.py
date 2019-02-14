@@ -36,7 +36,7 @@ version = '0.2.8'
 release = '0.2.8'
 
 # -- General configuration ------------------------------------------------
-autodoc_mock_imports = ['osgeo', 'matplotlib', 'mpl_toolkits', 'IPython', 'ipywidgets']
+autodoc_mock_imports = ['osgeo', 'matplotlib', 'mpl_toolkits', 'IPython', 'ipywidgets', 'sqlite3']
 
 # If your documentation needs a minimal Sphinx version, state it here.
 needs_sphinx = '1.6'
