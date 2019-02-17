@@ -1038,6 +1038,26 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     This function does not reproject any raster files. Thus, the CRS must be the same for all input raster files.
     This is checked prior to executing gdalwarp. In case a shapefile is defined, it is internally reprojected to the
     raster CRS prior to retrieving its extent.
+    
+    Examples
+    --------
+    
+    .. code-block:: python
+    
+        from pyroSAR.ancillary import groupbyTime, find_datasets, seconds
+        from spatialist.raster import stack
+        
+        # find pyroSAR files by metadata attributes
+        archive_s1 = '/.../sentinel1/GRD/processed'
+        scenes_s1 = find_datasets(archive_s1, sensor=('S1A', 'S1B'), acquisition_mode='IW')
+        
+        # group images by acquisition time
+        groups = groupbyTime(images=scenes_s1, function=seconds, time=30)
+        
+        # mosaic individual groups and stack the mosaics to a single ENVI file
+        # only files overlapping with the shapefile are selected and resampled to its extent
+        stack(srcfiles=groups, dstfile='stack', resampling='bilinear', targetres=(20, 20),
+              srcnodata=-99, dstnodata=-99, shapefile='site.shp', separate=False)
     """
     if len(dissolve(srcfiles)) == 0:
         raise RuntimeError('no input files provided to function raster.stack')
