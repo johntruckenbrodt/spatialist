@@ -620,11 +620,15 @@ class Raster(object):
         if mat is None:
             mat = self.raster.GetRasterBand(band).ReadAsArray()
             if mask_nan:
+                if isinstance(self.nodata, list):
+                    nodata = self.nodata[band - 1]
+                else:
+                    nodata = self.nodata
                 try:
-                    mat[mat == self.nodata] = np.nan
+                    mat[mat == nodata] = np.nan
                 except ValueError:
                     mat = mat.astype('float32')
-                    mat[mat == self.nodata] = np.nan
+                    mat[mat == nodata] = np.nan
         return mat
     
     @property
