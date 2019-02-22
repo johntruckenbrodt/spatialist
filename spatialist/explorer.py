@@ -56,6 +56,8 @@ class RasterViewer(object):
     datalabel: str
         a label for the units of the displayed data. This also supports LaTeX mathematical notation.
         See `Text rendering With LaTeX <https://matplotlib.org/users/usetex.html>`_.
+    spectrumlabel: str
+        a label for the x-axis of the vertical spectra
 
     See Also
     --------
@@ -63,7 +65,7 @@ class RasterViewer(object):
     """
     
     def __init__(self, filename, cmap='jet', band_indices=None, band_names=None, pmin=2, pmax=98, zmin=None, zmax=None,
-                 ts_convert=None, title=None, datalabel='data'):
+                 ts_convert=None, title=None, datalabel='data', spectrumlabel='time'):
         
         self.ts_convert = ts_convert
         
@@ -86,6 +88,7 @@ class RasterViewer(object):
         self.timestamps = range(0, self.bands) if ts_convert is None else [ts_convert(x) for x in self.bandnames]
         
         self.datalabel = datalabel
+        self.spectrumlabel = spectrumlabel
         
         xlab = self.crs.GetAxisName(None, 0)
         ylab = self.crs.GetAxisName(None, 1)
@@ -255,7 +258,7 @@ class RasterViewer(object):
             self.ax2.cla()
         # set up the vertical profile plot
         self.ax2.set_ylabel(self.datalabel, fontsize=12)
-        self.ax2.set_xlabel('time', fontsize=12)
+        self.ax2.set_xlabel(self.spectrumlabel, fontsize=12)
         self.ax2.set_title('vertical point profiles', fontsize=12)
     
     def __onclick(self, event):
