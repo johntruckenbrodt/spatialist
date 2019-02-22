@@ -194,8 +194,10 @@ class RasterViewer(object):
         vmax = self.zmax if self.zmax is not None else pmax
         cmap = plt.get_cmap(self.colormap)
         cmap.set_bad('white')
+        title = self.bandnames[self.slider.value - 1]
+        self.ax1.set_title(title, fontsize=12)
         self.ax1.imshow(masked, vmin=vmin, vmax=vmax, extent=self.extent, cmap=cmap)
-        self.sliderlabel.value = self.bandnames[self.slider.value]
+        self.sliderlabel.value = title
         self._set_colorbar(self.ax1, self.datalabel)
     
     def __read_band(self, band):
