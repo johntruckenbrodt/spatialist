@@ -40,6 +40,8 @@ class RasterViewer(object):
         a list of indices for renaming the individual band indices in `filename`;
         e.g. -70:70, instead of the raw band indices, e.g. 1:140.
         The number of unique elements must of same length as the number of bands in `filename`.
+    band_names: list or None
+        alternative names to assign to the individual bands
     pmin: int
         the minimum percentile for linear histogram stretching
     pmax: int
@@ -61,7 +63,7 @@ class RasterViewer(object):
     :func:`matplotlib.pyplot.imshow`
     """
     
-    def __init__(self, filename, cmap='jet', band_indices=None, pmin=2, pmax=98, zmin=None, zmax=None,
+    def __init__(self, filename, cmap='jet', band_indices=None, band_names=None, pmin=2, pmax=98, zmin=None, zmax=None,
                  ts_convert=None, title=None, datalabel='data'):
         
         self.ts_convert = ts_convert
@@ -76,7 +78,10 @@ class RasterViewer(object):
             geo = ras.raster.GetGeoTransform()
             self.nodata = ras.nodata
             self.format = ras.format
-            self.bandnames = ras.bandnames
+            if band_names is None:
+                self.bandnames = ras.bandnames
+            else:
+                self.bandnames = band_names
             self.slider_readout = False
         
         self.timestamps = range(0, self.bands) if ts_convert is None else [ts_convert(x) for x in self.bandnames]
