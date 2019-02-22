@@ -208,7 +208,12 @@ class RasterViewer(object):
     def __read_timeseries(self, x, y):
         with Raster(self.filename) as ras:
             vals = ras.raster.ReadAsArray(xoff=x, yoff=y, xsize=1, ysize=1)
-            vals[vals == self.nodata] = np.nan
+            if isinstance(self.nodata, list):
+                for i,x in enumerate(vals):
+                    if x == self.nodata[i]:
+                        vals[i] = np.nan
+            else:
+                vals[vals == self.nodata] = np.nan
         return vals.reshape(vals.shape[0])
     
     def __img2map(self, x, y):
