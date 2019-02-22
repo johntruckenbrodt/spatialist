@@ -41,18 +41,26 @@ class Raster(object):
 
     Parameters
     ----------
-    filename: str or :osgeo:class:`gdal.Dataset`
-        the raster file/object to read
+    filename: str, list or :osgeo:class:`gdal.Dataset`
+        the raster file(s)/object to read
+    list_separate: bool
+        treat a list of files as separate layers or otherwise as a single layer? The former is intended for single
+        layers of a stack, the latter for tiles of a mosaic.
     """
     
     # todo: init a Raster object from array data not only from a filename
-    def __init__(self, filename):
+    def __init__(self, filename, list_separate=True):
         if isinstance(filename, gdal.Dataset):
             self.raster = filename
             self.filename = self.files[0] if self.files is not None else None
         elif isinstance(filename, str):
             self.filename = filename if os.path.isabs(filename) else os.path.join(os.getcwd(), filename)
             self.raster = gdal.Open(filename, GA_ReadOnly)
+        elif isinstance(filename, list):
+            self.raster = gdalbuildvrt(src=filename,
+                                       dst=tempfile.NamedTemporaryFile(suffix='.vrt').name,
+                                       options={'separate': list_separate},
+                                       void=False)
         else:
             raise RuntimeError('raster input must be of type str or gdal.Dataset')
         
