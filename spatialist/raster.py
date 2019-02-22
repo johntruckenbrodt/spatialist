@@ -633,10 +633,15 @@ class Raster(object):
 
         Returns
         -------
-        float
-            the raster nodata value
+        float or list
+            the raster nodata value(s)
         """
-        return self.raster.GetRasterBand(1).GetNoDataValue()
+        nodatas = [self.raster.GetRasterBand(i).GetNoDataValue()
+                   for i in range(1, self.bands + 1)]
+        if len(list(set(nodatas))) == 1:
+            return nodatas[0]
+        else:
+            return nodatas
     
     @property
     def projcs(self):
