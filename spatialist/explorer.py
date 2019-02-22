@@ -6,6 +6,7 @@ from .envi import HDRobject
 import matplotlib.pyplot as plt
 
 import sys
+
 if sys.version_info >= (3, 0):
     from tkinter import filedialog, Tk
 else:
@@ -59,12 +60,12 @@ class RasterViewer(object):
     --------
     :func:`matplotlib.pyplot.imshow`
     """
-
+    
     def __init__(self, filename, cmap='jet', band_indices=None, pmin=2, pmax=98, zmin=None, zmax=None,
                  ts_convert=None, title=None, datalabel='data'):
-
+        
         self.ts_convert = ts_convert
-
+        
         self.filename = filename
         with Raster(filename) as ras:
             self.rows = ras.rows
@@ -75,32 +76,31 @@ class RasterViewer(object):
             geo = ras.raster.GetGeoTransform()
             self.nodata = ras.nodata
             self.format = ras.format
-            if self.format == 'ENVI':
-                self.bandnames = HDRobject(filename+'.hdr').band_names
-                self.slider_readout = False
-
+            self.bandnames = ras.bandnames
+            self.slider_readout = False
+        
         self.timestamps = range(0, self.bands) if ts_convert is None else [ts_convert(x) for x in self.bandnames]
-
+        
         self.datalabel = datalabel
-
+        
         xlab = self.crs.GetAxisName(None, 0)
         ylab = self.crs.GetAxisName(None, 1)
         self.xlab = xlab.lower() if xlab is not None else 'longitude'
         self.ylab = ylab.lower() if ylab is not None else 'latitude'
-
+        
         self.xmin = geo[0]
         self.ymax = geo[3]
         self.xres = geo[1]
         self.yres = abs(geo[5])
-
+        
         self.xmax = self.xmin + self.xres * self.cols
         self.ymin = self.ymax - self.yres * self.rows
-
+        
         self.extent = (self.xmin, self.xmax, self.ymin, self.ymax)
-
+        
         self.pmin, self.pmax = pmin, pmax
         self.zmin, self.zmax = zmin, zmax
-
+        
         # define some options for display of the widget box
         self.layout = Layout(
             display='flex',
@@ -109,9 +109,9 @@ class RasterViewer(object):
             align_items='stretch',
             width='100%'
         )
-
+        
         self.colormap = cmap
-
+        
         if band_indices is not None:
             if len(list(set(band_indices))) != self.bands:
                 raise RuntimeError('length mismatch of unique provided band indices ({0}) '
@@ -120,67 +120,67 @@ class RasterViewer(object):
                 self.indices = sorted(band_indices)
         else:
             self.indices = range(1, self.bands + 1)
-
+        
         # define a slider for changing a plotted image
         self.slider = IntSlider(min=min(self.indices), max=max(self.indices), step=1, continuous_update=False,
-                                value=self.indices[len(self.indices)//2],
+                                value=self.indices[len(self.indices) // 2],
                                 description='band',
                                 style={'description_width': 'initial'},
                                 readout=self.slider_readout)
-
+        
         # a simple checkbox to enable/disable stacking of vertical profiles into one plot
         self.checkbox = Checkbox(value=True, description='stack vertical profiles', indent=False)
-
+        
         # a button to clear the vertical profile plot
         self.clearbutton = Button(description='clear vertical plot')
         self.clearbutton.on_click(lambda x: self.__init_vertical_plot())
-
+        
         self.write_csv = Button(description='export csv')
         self.write_csv.on_click(lambda x: self.__csv())
-
+        
         if self.format == 'ENVI':
             self.sliderlabel = Label(value=self.bandnames[self.slider.value], layout={'width': '500px'})
             children = [HBox([self.slider, self.sliderlabel]), HBox([self.checkbox, self.clearbutton, self.write_csv])]
         else:
             children = [self.slider, HBox([self.checkbox, self.clearbutton, self.write_csv])]
-
+        
         form = VBox(children=children, layout=self.layout)
-
+        
         display(form)
-
+        
         self.fig = plt.figure(num=title)
-
+        
         # display of SLC amplitude
         self.ax1 = self.fig.add_subplot(121)
         # display of topographical phase
         self.ax2 = self.fig.add_subplot(122)
-
+        
         # self.ax1 = plt.gca()
         self.ax1.get_xaxis().get_major_formatter().set_useOffset(False)
         self.ax1.get_yaxis().get_major_formatter().set_useOffset(False)
-
+        
         self.ax1.set_xlabel(self.xlab, fontsize=12)
         self.ax1.set_ylabel(self.ylab, fontsize=12)
-
+        
         text_pointer = self.ylab + '={0:.2f}, ' + self.xlab + '={1:.2f}, value='
         self.ax1.format_coord = lambda x, y: text_pointer.format(y, x)
-
+        
         # add a cross-hair to the horizontal slice plot
         self.x_coord, self.y_coord = self.__img2map(0, 0)
         self.lhor = self.ax1.axhline(self.y_coord, linewidth=1, color='r')
         self.lver = self.ax1.axvline(self.x_coord, linewidth=1, color='r')
-
+        
         # set up the vertical profile plot
         self.__init_vertical_plot()
-
+        
         # make the figure respond to mouse clicks by executing method __onclick
         self.cid1 = self.fig.canvas.mpl_connect('button_press_event', self.__onclick)
-
+        
         # enable interaction with the slider
         out = interactive_output(self.__onslide, {'h': self.slider})
-
+        
         plt.tight_layout()
-
+    
     def __onslide(self, h):
         mat = self.__read_band(self.indices.index(h) + 1)
         masked = np.ma.array(mat, mask=np.isnan(mat))
@@ -192,28 +192,28 @@ class RasterViewer(object):
         self.ax1.imshow(masked, vmin=vmin, vmax=vmax, extent=self.extent, cmap=cmap)
         self.sliderlabel.value = self.bandnames[self.slider.value]
         self._set_colorbar(self.ax1, self.datalabel)
-
+    
     def __read_band(self, band):
         with Raster(self.filename) as ras:
             mat = ras.matrix(band)
         return mat
-
+    
     def __read_timeseries(self, x, y):
         with Raster(self.filename) as ras:
             vals = ras.raster.ReadAsArray(xoff=x, yoff=y, xsize=1, ysize=1)
             vals[vals == self.nodata] = np.nan
         return vals.reshape(vals.shape[0])
-
+    
     def __img2map(self, x, y):
         x_map = self.xmin + self.xres * x
         y_map = self.ymax - self.yres * y
         return x_map, y_map
-
+    
     def __map2img(self, x, y):
         x_img = int((x - self.xmin) / self.xres)
         y_img = int((self.ymax - y) / self.yres)
         return x_img, y_img
-
+    
     def __reset_crosshair(self, x, y):
         """
         redraw the cross-hair on the horizontal slice plot
@@ -231,7 +231,7 @@ class RasterViewer(object):
         self.lhor.set_ydata(y)
         self.lver.set_xdata(x)
         plt.draw()
-
+    
     def __init_vertical_plot(self):
         """
         set up the vertical profile plot
@@ -246,7 +246,7 @@ class RasterViewer(object):
         self.ax2.set_ylabel(self.datalabel, fontsize=12)
         self.ax2.set_xlabel('time', fontsize=12)
         self.ax2.set_title('vertical point profiles', fontsize=12)
-
+    
     def __onclick(self, event):
         """
         respond to mouse clicks in the plot.
@@ -261,26 +261,26 @@ class RasterViewer(object):
         """
         # only do something if the first plot has been clicked on
         if event.inaxes == self.ax1:
-
+            
             # retrieve the click coordinates
             self.x_coord = event.xdata
             self.y_coord = event.ydata
-
+            
             # redraw the cross-hair
             self.__reset_crosshair(self.x_coord, self.y_coord)
-
+            
             x, y = self.__map2img(self.x_coord, self.y_coord)
             subset_vertical = self.__read_timeseries(x, y)
-
+            
             # redraw/clear the vertical profile plot in case stacking is disabled
             if not self.checkbox.value:
                 self.__init_vertical_plot()
-
+            
             # plot the vertical profile
             label = 'x: {0:03}; y: {1:03}'.format(x, y)
             self.ax2.plot(self.timestamps, subset_vertical, label=label)
             self.ax2_legend = self.ax2.legend(loc=0, prop={'size': 7}, markerscale=1)
-
+    
     def __csv(self):
         profiles = self.ax2.get_lines()
         if len(profiles) == 0:
@@ -297,21 +297,21 @@ class RasterViewer(object):
             line = profiles[i]
             xdata = line.get_xdata()
             ydata = line.get_ydata()
-
+            
             col, row = [int(x) for x in re.sub('[xy: ]', '', self.ax2.get_legend().texts[i].get_text()).split(';')]
-
+            
             for j in range(0, self.bands):
-                entry = '{};{};{};{};{};{}\n'.format(i+1, self.bandnames[j], row, col, xdata[j], ydata[j])
+                entry = '{};{};{};{};{};{}\n'.format(i + 1, self.bandnames[j], row, col, xdata[j], ydata[j])
                 f.write(entry)
         f.close()
-
+    
     def _set_colorbar(self, axis, label):
         if len(axis.images) > 1:
             axis.images[0].colorbar.remove()
             del axis.images[0]
-
+        
         divider = make_axes_locatable(axis)
         cax = divider.append_axes('right', size='5%', pad=0.05)
-
+        
         cbar = self.fig.colorbar(axis.images[0], cax=cax)
         cbar.ax.set_ylabel(label, fontsize=12)
