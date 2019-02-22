@@ -2,7 +2,6 @@ import os
 import re
 import numpy as np
 from .raster import Raster
-from .envi import HDRobject
 import matplotlib.pyplot as plt
 
 import sys
@@ -209,7 +208,7 @@ class RasterViewer(object):
         with Raster(self.filename) as ras:
             vals = ras.raster.ReadAsArray(xoff=x, yoff=y, xsize=1, ysize=1)
             if isinstance(self.nodata, list):
-                for i,x in enumerate(vals):
+                for i, x in enumerate(vals):
                     if x == self.nodata[i]:
                         vals[i] = np.nan
             else:
