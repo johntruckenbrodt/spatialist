@@ -62,7 +62,7 @@ class Raster(object):
                                        options={'separate': list_separate},
                                        void=False)
         else:
-            raise RuntimeError('raster input must be of type str or gdal.Dataset')
+            raise RuntimeError('raster input must be of type str, list or gdal.Dataset')
         
         # a list to contain arrays
         self.__data = [None] * self.bands
