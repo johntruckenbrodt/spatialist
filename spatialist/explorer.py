@@ -205,6 +205,7 @@ class RasterViewer(object):
         if hasattr(self, 'sliderlabel'):
             self.sliderlabel.value = title
         self._set_colorbar(self.ax1, self.datalabel)
+        self.vline.set_xdata(self.slider.value)
     
     def __read_band(self, band):
         with Raster(self.filename) as ras:
@@ -263,6 +264,9 @@ class RasterViewer(object):
         self.ax2.set_ylabel(self.datalabel, fontsize=self.fontsize)
         self.ax2.set_xlabel(self.spectrumlabel, fontsize=self.fontsize)
         self.ax2.set_title('vertical point profiles', fontsize=self.fontsize)
+        self.ax2.set_xlim([1, self.bands])
+        # plot vertical line at the slider position
+        self.vline = self.ax2.axvline(self.slider.value, color='black')
     
     def __onclick(self, event):
         """
