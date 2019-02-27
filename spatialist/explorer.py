@@ -231,7 +231,7 @@ class RasterViewer(object):
         y_img = int((self.ymax - y) / self.yres)
         return x_img, y_img
     
-    def __reset_crosshair(self, x, y):
+    def __reset_crosshair(self):
         """
         redraw the cross-hair on the horizontal slice plot
 
@@ -245,9 +245,8 @@ class RasterViewer(object):
         Returns
         -------
         """
-        self.lhor.set_ydata(y)
-        self.lver.set_xdata(x)
-        plt.draw()
+        self.lhor.set_ydata(self.y_coord)
+        self.lver.set_xdata(self.x_coord)
     
     def __init_vertical_plot(self):
         """
@@ -284,7 +283,7 @@ class RasterViewer(object):
             self.y_coord = event.ydata
             
             # redraw the cross-hair
-            self.__reset_crosshair(self.x_coord, self.y_coord)
+            self.__reset_crosshair()
             
             x, y = self.__map2img(self.x_coord, self.y_coord)
             subset_vertical = self.__read_timeseries(x, y)
