@@ -110,7 +110,14 @@ class Vector(object):
             for fieldname, value in fields.items():
                 if fieldname not in self.fieldnames:
                     raise IOError('field "{}" is missing'.format(fieldname))
-                feature.SetField(fieldname, value)
+                try:
+                    feature.SetField(fieldname, value)
+                except NotImplementedError as e:
+                    fieldindex = self.fieldnames.index(fieldname)
+                    fieldtype = feature.GetFieldDefnRef(fieldindex).GetTypeName()
+                    message = str(e) + '\ntrying to set field {} (type {}) to value {} (type {})'
+                    message = message.format(fieldname, fieldtype, value, type(value))
+                    raise(NotImplementedError(message))
         
         self.layer.CreateFeature(feature)
         feature = None
