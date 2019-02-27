@@ -322,7 +322,7 @@ class RasterViewer(object):
                 f.write(entry)
         f.close()
     
-    def _set_colorbar(self, axis, label):
+    def _set_colorbar(self, axis, label=None):
         if len(axis.images) > 1:
             axis.images[0].colorbar.remove()
             del axis.images[0]
@@ -330,5 +330,6 @@ class RasterViewer(object):
         divider = make_axes_locatable(axis)
         cax = divider.append_axes('right', size='5%', pad=0.05)
         
-        cbar = self.fig.colorbar(axis.images[0], cax=cax)
-        cbar.ax.set_ylabel(label, fontsize=self.fontsize)
+        self.cbar = self.fig.colorbar(axis.images[0], cax=cax)
+        if label is not None:
+            self.cbar.ax.set_ylabel(label, fontsize=self.fontsize)
