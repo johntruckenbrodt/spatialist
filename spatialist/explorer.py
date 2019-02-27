@@ -202,7 +202,8 @@ class RasterViewer(object):
         title = self.bandnames[self.slider.value - 1]
         self.ax1.set_title(title, fontsize=self.fontsize)
         self.ax1.imshow(masked, vmin=vmin, vmax=vmax, extent=self.extent, cmap=cmap)
-        self.sliderlabel.value = title
+        if hasattr(self, 'sliderlabel'):
+            self.sliderlabel.value = title
         self._set_colorbar(self.ax1, self.datalabel)
     
     def __read_band(self, band):
