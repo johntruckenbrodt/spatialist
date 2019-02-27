@@ -73,6 +73,8 @@ class Raster(object):
                     self.bandnames = hdr.band_names
                 else:
                     self.bandnames = ['band{}'.format(x) for x in range(1, self.bands + 1)]
+        elif self.format == 'VRT':
+            self.bandnames = [os.path.splitext(os.path.basename(x))[0] for x in self.files]
         else:
             self.bandnames = ['band{}'.format(x) for x in range(1, self.bands + 1)]
     
