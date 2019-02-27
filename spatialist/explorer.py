@@ -204,7 +204,7 @@ class RasterViewer(object):
         self.ax1.imshow(masked, vmin=vmin, vmax=vmax, extent=self.extent, cmap=cmap)
         if hasattr(self, 'sliderlabel'):
             self.sliderlabel.value = title
-        self._set_colorbar(self.ax1, self.datalabel)
+        self._set_colorbar(self.ax1)
         self.vline.set_xdata(self.slider.value)
     
     def __read_band(self, band):
@@ -335,5 +335,6 @@ class RasterViewer(object):
         cax = divider.append_axes('right', size='5%', pad=0.05)
         
         self.cbar = self.fig.colorbar(axis.images[0], cax=cax)
+        self.cbar.ax.tick_params(axis='both', which='major', labelsize=self.fontsize)
         if label is not None:
             self.cbar.ax.set_ylabel(label, fontsize=self.fontsize)
