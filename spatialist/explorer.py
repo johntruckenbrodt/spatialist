@@ -148,11 +148,15 @@ class RasterViewer(object):
         self.write_csv = Button(description='export csv')
         self.write_csv.on_click(lambda x: self.csv())
         
+        self.write_shp = Button(description='export shp')
+        self.write_shp.on_click(lambda x: self.shp())
+        
         if self.format == 'ENVI':
             self.sliderlabel = Label(value=self.bandnames[self.slider.value], layout={'width': '500px'})
-            children = [HBox([self.slider, self.sliderlabel]), HBox([self.checkbox, self.clearbutton, self.write_csv])]
+            children = [HBox([self.slider, self.sliderlabel]),
+                        HBox([self.checkbox, self.clearbutton, self.write_csv, self.write_shp])]
         else:
-            children = [self.slider, HBox([self.checkbox, self.clearbutton, self.write_csv])]
+            children = [self.slider, HBox([self.checkbox, self.clearbutton, self.write_csv, self.write_shp])]
         
         form = VBox(children=children, layout=self.layout)
         
