@@ -65,7 +65,7 @@ class RasterViewer(object):
     """
     
     def __init__(self, filename, cmap='jet', band_indices=None, band_names=None, pmin=2, pmax=98, zmin=None, zmax=None,
-                 ts_convert=None, title=None, datalabel='data', spectrumlabel='time'):
+                 ts_convert=None, title=None, datalabel='data', spectrumlabel='time', fontsize=8):
         
         self.ts_convert = ts_convert
         
@@ -116,7 +116,7 @@ class RasterViewer(object):
             align_items='stretch',
             width='100%'
         )
-        
+        self.fontsize = fontsize
         self.colormap = cmap
         
         if band_indices is not None:
@@ -166,8 +166,11 @@ class RasterViewer(object):
         self.ax1.get_xaxis().get_major_formatter().set_useOffset(False)
         self.ax1.get_yaxis().get_major_formatter().set_useOffset(False)
         
-        self.ax1.set_xlabel(self.xlab, fontsize=12)
-        self.ax1.set_ylabel(self.ylab, fontsize=12)
+        self.ax1.set_xlabel(self.xlab, fontsize=self.fontsize)
+        self.ax1.set_ylabel(self.ylab, fontsize=self.fontsize)
+        
+        self.ax1.tick_params(axis='both', which='major', labelsize=self.fontsize)
+        self.ax2.tick_params(axis='both', which='major', labelsize=self.fontsize)
         
         text_pointer = self.ylab + '={0:.2f}, ' + self.xlab + '={1:.2f}, value='
         self.ax1.format_coord = lambda x, y: text_pointer.format(y, x)
@@ -197,7 +200,7 @@ class RasterViewer(object):
         cmap = plt.get_cmap(self.colormap)
         cmap.set_bad('white')
         title = self.bandnames[self.slider.value - 1]
-        self.ax1.set_title(title, fontsize=12)
+        self.ax1.set_title(title, fontsize=self.fontsize)
         self.ax1.imshow(masked, vmin=vmin, vmax=vmax, extent=self.extent, cmap=cmap)
         self.sliderlabel.value = title
         self._set_colorbar(self.ax1, self.datalabel)
@@ -257,9 +260,9 @@ class RasterViewer(object):
         if len(self.ax2.lines) > 0:
             self.ax2.cla()
         # set up the vertical profile plot
-        self.ax2.set_ylabel(self.datalabel, fontsize=12)
-        self.ax2.set_xlabel(self.spectrumlabel, fontsize=12)
-        self.ax2.set_title('vertical point profiles', fontsize=12)
+        self.ax2.set_ylabel(self.datalabel, fontsize=self.fontsize)
+        self.ax2.set_xlabel(self.spectrumlabel, fontsize=self.fontsize)
+        self.ax2.set_title('vertical point profiles', fontsize=self.fontsize)
     
     def __onclick(self, event):
         """
@@ -328,4 +331,4 @@ class RasterViewer(object):
         cax = divider.append_axes('right', size='5%', pad=0.05)
         
         cbar = self.fig.colorbar(axis.images[0], cax=cax)
-        cbar.ax.set_ylabel(label, fontsize=12)
+        cbar.ax.set_ylabel(label, fontsize=self.fontsize)
