@@ -2,9 +2,12 @@ import os
 import re
 import numpy as np
 from .raster import Raster
+from .vector import Vector
 import matplotlib.pyplot as plt
 
 import sys
+
+from osgeo import ogr
 
 if sys.version_info >= (3, 0):
     from tkinter import filedialog, Tk
@@ -335,6 +338,63 @@ class RasterViewer(object):
                     entry = '{};{};{};{};{};{}\n'.format(i + 1, self.bandnames[j], row, col, xdata[j], ydata[j])
                     csv.write(entry)
             csv.close()
+    
+    def shp(self, outname=None):
+        # the first line is the vertical band line and is thus excluded
+        profiles = self.ax2.get_lines()[1:]
+        if len(profiles) == 0:
+            return
+        
+        if outname is None:
+            root = Tk()
+            # Hide the main window
+            root.withdraw()
+            outname = filedialog.asksaveasfilename(initialdir=os.path.expanduser('~'),
+                                                   defaultextension='.shp',
+                                                   filetypes=(('shp', '*.shp'),
+                                                              ('all files', '*.*')))
+            if outname is None:
+                return
+        
+        layername = os.path.splitext(os.path.basename(outname))[0]
+        
+        with Vector(driver='Memory') as points:
+            points.addlayer(layername, self.crs, 1)
+            fieldnames = ['b{}'.format(i) for i in range(0, self.bands)]
+            for field in fieldnames:
+                points.addfield(field, ogr.OFTReal)
+            
+            for i, line in enumerate(profiles):
+                # get the data values from the profile
+                ydata = line.get_ydata().tolist()
+                
+                # get the row and column indices of the profile
+                legend_text = self.ax2.get_legend().texts[i].get_text()
+                legend_items = re.sub('[xy: ]', '', legend_text).split(';')
+                col, row = [int(x) for x in legend_items]
+                
+                # convert the pixel indices to map coordinates
+                x, y = self.__img2map(col, row)
+                
+                # create a new point geometry
+                point = ogr.Geometry(ogr.wkbPoint)
+                point.AddPoint(x, y)
+                fields = {}
+                # create a field lookup dictionary
+                for j, value in enumerate(ydata):
+                    if np.isnan(value):
+                        value = -9999
+                    fields[fieldnames[j]] = value
+                
+                # add the new feature to the layer
+                points.addfeature(point, fields=fields)
+                point = None
+            points.write(outname, 'ESRI Shapefile')
+        lookup = os.path.splitext(outname)[0] + '_lookup.csv'
+        with open(lookup, 'w') as csv:
+            content = [';'.join(x) for x in zip(fieldnames, self.bandnames)]
+            csv.write('id;bandname\n')
+            csv.write('\n'.join(content))
     
     def _set_colorbar(self, axis, label=None):
         if len(axis.images) > 1:
