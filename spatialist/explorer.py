@@ -143,7 +143,7 @@ class RasterViewer(object):
         self.clearbutton.on_click(lambda x: self.__init_vertical_plot())
         
         self.write_csv = Button(description='export csv')
-        self.write_csv.on_click(lambda x: self.__csv())
+        self.write_csv.on_click(lambda x: self.csv())
         
         if self.format == 'ENVI':
             self.sliderlabel = Label(value=self.bandnames[self.slider.value], layout={'width': '500px'})
@@ -302,29 +302,39 @@ class RasterViewer(object):
             self.ax2.plot(self.timestamps, subset_vertical, label=label)
             self.ax2_legend = self.ax2.legend(loc=0, prop={'size': 7}, markerscale=1)
     
-    def __csv(self):
-        profiles = self.ax2.get_lines()
+    def csv(self, outname=None):
+        # the first line is the vertical band line and is thus excluded
+        profiles = self.ax2.get_lines()[1:]
         if len(profiles) == 0:
             return
-        root = Tk()
-        # Hide the main window
-        root.withdraw()
-        f = filedialog.asksaveasfile(initialdir=os.path.expanduser('~'), mode='w', defaultextension='.csv',
-                                     filetypes=(('csv', '*.csv'), ('all files', '*.*')))
-        if f is None:
-            return
-        f.write('id;bandname;row;column;xdata;ydata\n')
-        for i in range(0, len(profiles)):
-            line = profiles[i]
-            xdata = line.get_xdata()
-            ydata = line.get_ydata()
-            
-            col, row = [int(x) for x in re.sub('[xy: ]', '', self.ax2.get_legend().texts[i].get_text()).split(';')]
-            
-            for j in range(0, self.bands):
-                entry = '{};{};{};{};{};{}\n'.format(i + 1, self.bandnames[j], row, col, xdata[j], ydata[j])
-                f.write(entry)
-        f.close()
+        
+        if outname is None:
+            root = Tk()
+            # Hide the main window
+            root.withdraw()
+            outname = filedialog.asksaveasfilename(initialdir=os.path.expanduser('~'),
+                                             defaultextension='.csv',
+                                             filetypes=(('csv', '*.csv'),
+                                                        ('all files', '*.*')))
+            if outname is None:
+                return
+        
+        with open(outname, 'w') as csv:
+            csv.write('id;bandname;row;column;xdata;ydata\n')
+            for i in range(0, len(profiles)):
+                line = profiles[i]
+                xdata = line.get_xdata()
+                ydata = line.get_ydata()
+
+                # get the row and column indices of the profile
+                legend_text = self.ax2.get_legend().texts[i].get_text()
+                legend_items = re.sub('[xy: ]', '', legend_text).split(';')
+                col, row = [int(x) for x in legend_items]
+                
+                for j in range(0, self.bands):
+                    entry = '{};{};{};{};{};{}\n'.format(i + 1, self.bandnames[j], row, col, xdata[j], ydata[j])
+                    csv.write(entry)
+            csv.close()
     
     def _set_colorbar(self, axis, label=None):
         if len(axis.images) > 1:
