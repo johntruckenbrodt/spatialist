@@ -74,7 +74,11 @@ class Raster(object):
                 else:
                     self.bandnames = ['band{}'.format(x) for x in range(1, self.bands + 1)]
         elif self.format == 'VRT':
-            self.bandnames = [os.path.splitext(os.path.basename(x))[0] for x in self.files]
+            vrt_tilenames = [os.path.splitext(os.path.basename(x))[0] for x in self.files]
+            if len(vrt_tilenames) == self.bands:
+                self.bandnames = vrt_tilenames
+            elif self.bands == 1:
+                self.bandnames = ['mosaic']
         else:
             self.bandnames = ['band{}'.format(x) for x in range(1, self.bands + 1)]
     
