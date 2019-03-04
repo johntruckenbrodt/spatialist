@@ -48,18 +48,17 @@ def crsConvert(crsIn, crsOut):
         srs = crsIn.Clone()
     else:
         srs = osr.SpatialReference()
-        try:
-            if 'opengis.net/def/crs/EPSG/0/' in str(crsIn):
-                crsIn = int(os.path.basename(crsIn.strip('/')))
-            srs.ImportFromEPSG(crsIn)
-        except (TypeError, RuntimeError):
+        
+        if isinstance(crsIn, int):
+            crsIn = 'EPSG:{}'.format(crsIn)
+        
+        if isinstance(crsIn, str):
             try:
-                srs.ImportFromWkt(crsIn)
-            except (TypeError, RuntimeError):
-                try:
-                    srs.ImportFromProj4(crsIn)
-                except (TypeError, RuntimeError):
-                    raise TypeError('crsIn not recognized; must be of type WKT, PROJ4 or EPSG')
+                srs.SetFromUserInput(crsIn)
+            except RuntimeError:
+                raise TypeError('crsIn not recognized; must be of type WKT, PROJ4 or EPSG')
+        else:
+            raise TypeError('crsIn must be of type int, str or osr.SpatialReference')
     if crsOut == 'wkt':
         return srs.ExportToWkt()
     elif crsOut == 'prettyWkt':
