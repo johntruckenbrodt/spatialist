@@ -247,6 +247,5 @@ def coordinate_reproject(x, y, s_crs, t_crs):
     source = crsConvert(s_crs, 'osr')
     target = crsConvert(t_crs, 'osr')
     transform = osr.CoordinateTransformation(source, target)
-    point = ogr.CreateGeometryFromWkt('POINT ({0} {1})'.format(x, y))
-    point.Transform(transform)
-    return point.GetX(), point.GetY()
+    point = transform.TransformPoint(x, y)[:2]
+    return point
