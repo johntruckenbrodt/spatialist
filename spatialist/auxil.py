@@ -1,13 +1,13 @@
 ##############################################################
 # Convenience functions for general spatial applications
-# John Truckenbrodt, 2016-2018
+# John Truckenbrodt, 2016-2019
 ##############################################################
 import math
-import os
 from osgeo import osr, gdal, ogr
 
 osr.UseExceptions()
 ogr.UseExceptions()
+gdal.UseExceptions()
 
 
 def crsConvert(crsIn, crsOut):
