@@ -42,7 +42,11 @@ def crsConvert(crsIn, crsOut):
 
     >>> crsConvert('http://www.opengis.net/def/crs/EPSG/0/4326', 'epsg')
     4326
-
+    
+    convert an EPSG compound CRS (WGS84 horizontal + EGM96 vertical)
+    
+    >>> crsConvert('EPSG:4326+5773', 'proj4')
+    '+proj=longlat +datum=WGS84 +geoidgrids=egm96_15.gtx +vunits=m +no_defs '
     """
     if isinstance(crsIn, osr.SpatialReference):
         srs = crsIn.Clone()
