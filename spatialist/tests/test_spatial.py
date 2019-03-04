@@ -18,6 +18,8 @@ def test_crsConvert():
     assert crsConvert('+proj=longlat +datum=WGS84 +no_defs ', 'epsg') == 4326
     assert crsConvert('http://www.opengis.net/def/crs/EPSG/0/4326', 'epsg') == 4326
     assert crsConvert(crsConvert('http://www.opengis.net/def/crs/EPSG/0/4326', 'osr'), 'epsg') == 4326
+    assert crsConvert('EPSG:4326+5773',
+                      'proj4') == '+proj=longlat +datum=WGS84 +geoidgrids=egm96_15.gtx +vunits=m +no_defs '
     with pytest.raises(TypeError):
         crsConvert('xyz', 'epsg')
     with pytest.raises(ValueError):
@@ -272,7 +274,7 @@ def test_stack(tmpdir, testdata):
     # repeat with overwrite disabled (no error raised, just a print message)
     stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=False, layernames=['test1', 'test2'],
           srcnodata=-99, dstnodata=-99, dstfile=outdir, separate=True, compress=True)
-
+    
     # repeat without layernames but sortfun
     # bandnames not unique
     outdir = os.path.join(str(tmpdir), 'subdir2')
