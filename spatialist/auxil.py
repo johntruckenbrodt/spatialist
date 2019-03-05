@@ -3,6 +3,7 @@
 # John Truckenbrodt, 2016-2019
 ##############################################################
 import math
+import warnings
 from osgeo import osr, gdal, ogr
 
 osr.UseExceptions()
@@ -153,6 +154,16 @@ def gdalbuildvrt(src, dst, options=None, void=True):
 
     """
     options = {} if options is None else options
+    
+    if 'outputBounds' in options.keys() and gdal.__version__ < '2.4.0':
+        warnings.warn('\ncreating VRT files with subsetted extent is very likely to cause problems. '
+                      'Please use GDAL version >= 2.4.0, which fixed the problem.\n'
+                      'see here for a description of the problem:\n'
+                      '  https://gis.stackexchange.com/questions/314333/'
+                      'sampling-error-using-gdalwarp-on-a-subsetted-vrt\n'
+                      'and here for the release note of GDAL 2.4.0:\n'
+                      '  https://trac.osgeo.org/gdal/wiki/Release/2.4.0-News')
+    
     out = gdal.BuildVRT(dst, src, options=gdal.BuildVRTOptions(**options))
     if void:
         out = None
