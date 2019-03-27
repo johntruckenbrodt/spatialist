@@ -38,8 +38,12 @@ class Vector(object):
         
         if filename is None:
             driver = 'Memory'
-        else:
+        elif isinstance(filename, str):
+            if not os.path.isfile(filename):
+                raise OSError('file does not exist')
             self.filename = filename
+        else:
+            raise TypeError('filename must either be str or None')
         
         self.driver = ogr.GetDriverByName(driver)
         
