@@ -65,6 +65,16 @@ class Vector(object):
         -------
         Vector
             a vector object matching the specified criteria
+        
+        Examples
+        --------
+        Assuming we have a shapefile called `testsites.shp`, which has an attribute `sitename`,
+        we can subset individual sites and write them to new files like so:
+        
+        >>> from spatialist import Vector
+        >>> filename = 'testsites.shp'
+        >>> with Vector(filename)["sitename='site1'"] as site1:
+        >>>     site1.write('site1.shp')
         """
         if not isinstance(expression, (int, str)):
             raise RuntimeError('expression must be of type int or str')
