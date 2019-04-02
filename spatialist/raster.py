@@ -278,6 +278,26 @@ class Raster(object):
             statcollect.append(stats)
         return statcollect
     
+    def array(self):
+        """
+        read all raster bands into a numpy ndarray
+
+        Returns
+        -------
+        numpy.ndarray
+            the array containing all raster data
+        """
+        if self.bands == 1:
+            return self.matrix()
+        else:
+            arr = self.raster.ReadAsArray().transpose(1, 2, 0)
+            if isinstance(self.nodata, list):
+                for i in range(0, self.bands):
+                    arr[:, :, i][arr[:, :, i] == self.nodata[i]] = np.nan
+            else:
+                arr[arr == self.nodata] = np.nan
+            return arr
+    
     def assign(self, array, band):
         """
         assign an array to an existing Raster object
