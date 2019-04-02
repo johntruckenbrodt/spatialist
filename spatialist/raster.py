@@ -1015,8 +1015,7 @@ def reproject(rasterobject, reference, outname, targetres=None, resampling='bili
 
 # todo improve speed until aborting when all target files already exist
 def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, shapefile=None, layernames=None,
-          sortfun=None,
-          separate=False, overwrite=False, compress=True, cores=4):
+          sortfun=None, separate=False, overwrite=False, compress=True, cores=4):
     """
     function for mosaicking, resampling and stacking of multiple raster files into a 3D data cube
 
@@ -1083,6 +1082,8 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
         stack(srcfiles=groups, dstfile='stack', resampling='bilinear', targetres=(20, 20),
               srcnodata=-99, dstnodata=-99, shapefile='site.shp', separate=False)
     """
+    # perform some checks on the input data
+    
     if len(dissolve(srcfiles)) == 0:
         raise RuntimeError('no input files provided to function raster.stack')
     
@@ -1118,6 +1119,7 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
         srs = projections[0]
     ##########################################################################################
     # read shapefile bounding coordinates and reduce list of rasters to those overlapping with the shapefile
+    
     if shapefile is not None:
         shp = shapefile.clone() if isinstance(shapefile, Vector) else Vector(shapefile)
         shp.reproject(srs)
@@ -1163,6 +1165,7 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
         options_buildvrt['srcNodata'] = srcnodata
     ##########################################################################################
     # create VRT files for mosaicing
+    
     for i, group in enumerate(srcfiles):
         if isinstance(group, list):
             if len(group) > 1:
@@ -1183,6 +1186,8 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
         else:
             srcfiles[i] = group
     ##########################################################################################
+    # define the output band names
+    
     # if no specific layernames are defined, sort files by custom function
     if layernames is None and sortfun is not None:
         srcfiles = sorted(srcfiles, key=sortfun)
@@ -1193,6 +1198,8 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
     if len(list(set(bandnames))) != len(bandnames):
         raise RuntimeError('output bandnames are not unique')
     ##########################################################################################
+    # create the actual image files
+    
     if separate:
         if not os.path.isdir(dstfile):
             os.makedirs(dstfile)
