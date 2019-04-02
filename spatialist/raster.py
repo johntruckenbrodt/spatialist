@@ -1014,7 +1014,8 @@ def reproject(rasterobject, reference, outname, targetres=None, resampling='bili
 
 
 # todo improve speed until aborting when all target files already exist
-def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, shapefile=None, layernames=None, sortfun=None,
+def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, shapefile=None, layernames=None,
+          sortfun=None,
           separate=False, overwrite=False, compress=True, cores=4):
     """
     function for mosaicking, resampling and stacking of multiple raster files into a 3D data cube
@@ -1163,19 +1164,25 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
     ##########################################################################################
     # create VRT files for mosaicing
     for i, group in enumerate(srcfiles):
-        base = group[0] if isinstance(group, list) else group
-        # in-memory VRT files cannot be shared between multiple processes on Windows
-        # this has to do with different process forking behaviour
-        # see function spatialist.ancillary.multicore and this link:
-        # https://stackoverflow.com/questions/38236211/why-multiprocessing-process-behave-differently-on-windows-and-linux-for-global-o
-        vrt_base = os.path.splitext(os.path.basename(base))[0] + '.vrt'
-        if platform.system() == 'Windows':
-            vrt = os.path.join(tempfile.gettempdir(), vrt_base)
+        if isinstance(group, list):
+            if len(group) > 1:
+                base = group[0]
+                # in-memory VRT files cannot be shared between multiple processes on Windows
+                # this has to do with different process forking behaviour
+                # see function spatialist.ancillary.multicore and this link:
+                # https://stackoverflow.com/questions/38236211/why-multiprocessing-process-behave-differently-on-windows-and-linux-for-global-o
+                vrt_base = os.path.splitext(os.path.basename(base))[0] + '.vrt'
+                if platform.system() == 'Windows':
+                    vrt = os.path.join(tempfile.gettempdir(), vrt_base)
+                else:
+                    vrt = '/vsimem/' + vrt_base
+                gdalbuildvrt(group, vrt, options_buildvrt)
+                srcfiles[i] = vrt
+            else:
+                srcfiles[i] = group[0]
         else:
-            vrt = '/vsimem/' + vrt_base
-        gdalbuildvrt(group, vrt, options_buildvrt)
-        srcfiles[i] = vrt
-    
+            srcfiles[i] = group
+    ##########################################################################################
     # if no specific layernames are defined, sort files by custom function
     if layernames is None and sortfun is not None:
         srcfiles = sorted(srcfiles, key=sortfun)
