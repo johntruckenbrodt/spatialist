@@ -1014,7 +1014,7 @@ def reproject(rasterobject, reference, outname, targetres=None, resampling='bili
 
 
 # todo improve speed until aborting when all target files already exist
-def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapefile=None, layernames=None, sortfun=None,
+def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, shapefile=None, layernames=None, sortfun=None,
           separate=False, overwrite=False, compress=True, cores=4):
     """
     function for mosaicking, resampling and stacking of multiple raster files into a 3D data cube
@@ -1029,8 +1029,8 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
         the resampling method; see `documentation of gdalwarp <https://www.gdal.org/gdalwarp.html>`_.
     targetres: tuple or list
         two entries for x and y spatial resolution in units of the source CRS
-    srcnodata: int or float
-        the nodata value of the source files
+    srcnodata: int, float or None
+        the nodata value of the source files; if left at the default (None), the nodata values are read from the files
     dstnodata: int or float
         the nodata value of the destination file(s)
     shapefile: str, Vector or None
@@ -1115,7 +1115,7 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
         raise RuntimeError('could not retrieve the projection from any of the {} input images'.format(len(srcfiles)))
     else:
         srs = projections[0]
-    
+    ##########################################################################################
     # read shapefile bounding coordinates and reduce list of rasters to those overlapping with the shapefile
     if shapefile is not None:
         shp = shapefile.clone() if isinstance(shapefile, Vector) else Vector(shapefile)
@@ -1137,13 +1137,15 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
         srcfiles = list(filter(None, srcfiles))
     else:
         arg_ext = None
+    ##########################################################################################
+    # set general options and parametrization
     
     dst_base = os.path.splitext(dstfile)[0]
     
     options_warp = {'options': ['-q'],
                     'format': 'GTiff' if separate else 'ENVI',
                     'outputBounds': arg_ext, 'multithread': True,
-                    'srcNodata': srcnodata, 'dstNodata': dstnodata,
+                    'dstNodata': dstnodata,
                     'xRes': targetres[0], 'yRes': targetres[1],
                     'resampleAlg': resampling}
     
@@ -1153,8 +1155,12 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     if separate and compress:
         options_warp['options'] += ['-co', 'COMPRESS=DEFLATE', '-co', 'PREDICTOR=2']
     
-    options_buildvrt = {'outputBounds': arg_ext, 'srcNodata': srcnodata}
+    options_buildvrt = {'outputBounds': arg_ext}
     
+    if srcnodata is not None:
+        options_warp['srcNodata'] = srcnodata
+        options_buildvrt['srcNodata'] = srcnodata
+    ##########################################################################################
     # create VRT files for mosaicing
     for i, group in enumerate(srcfiles):
         base = group[0] if isinstance(group, list) else group
@@ -1179,7 +1185,7 @@ def stack(srcfiles, dstfile, resampling, targetres, srcnodata, dstnodata, shapef
     
     if len(list(set(bandnames))) != len(bandnames):
         raise RuntimeError('output bandnames are not unique')
-    
+    ##########################################################################################
     if separate:
         if not os.path.isdir(dstfile):
             os.makedirs(dstfile)
