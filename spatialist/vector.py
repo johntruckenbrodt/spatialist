@@ -817,7 +817,7 @@ def intersect(obj1, obj2):
     Parameters
     ----------
     obj1: Vector
-        the first vector object
+        the first vector object; this object is reprojected to the CRS of obj2 if necessary
     obj2: Vector
         the second vector object
 
