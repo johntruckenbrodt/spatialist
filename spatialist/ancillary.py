@@ -349,6 +349,7 @@ def add(x, y, z):
     """
     return x + y + z
 
+
 class ExceptionWrapper(object):
     """
     | class for enabling traceback pickling in function multiprocess
@@ -448,7 +449,7 @@ def rescale(inlist, newrange=(0, 1)):
     return result
 
 
-def run(cmd, outdir=None, logfile=None, inlist=None, void=True, errorpass=False):
+def run(cmd, outdir=None, logfile=None, inlist=None, void=True, errorpass=False, env=None):
     """
     | wrapper for subprocess execution including logfile writing and command prompt piping
     | this is a convenience wrapper around the :mod:`subprocess` module and calls
@@ -468,6 +469,8 @@ def run(cmd, outdir=None, logfile=None, inlist=None, void=True, errorpass=False)
         return stdout and stderr?
     errorpass: bool
         if False, a :class:`subprocess.CalledProcessError` is raised if the command fails
+    env: dict or None
+        the environment to be passed to the subprocess
 
     Returns
     -------
@@ -478,7 +481,7 @@ def run(cmd, outdir=None, logfile=None, inlist=None, void=True, errorpass=False)
     if outdir is None:
         outdir = os.getcwd()
     log = sp.PIPE if logfile is None else open(logfile, 'a')
-    proc = sp.Popen(cmd, stdin=sp.PIPE, stdout=log, stderr=sp.PIPE, cwd=outdir, universal_newlines=True)
+    proc = sp.Popen(cmd, stdin=sp.PIPE, stdout=log, stderr=sp.PIPE, cwd=outdir, universal_newlines=True, env=env)
     instream = None if inlist is None else ''.join([str(x) + '\n' for x in inlist])
     out, err = proc.communicate(instream)
     if not errorpass and proc.returncode != 0:
