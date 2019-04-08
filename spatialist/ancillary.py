@@ -73,10 +73,13 @@ def decode_filter(text, encoding='utf-8'):
     str
         the decoded and filtered string
     """
-    text = text.decode(encoding, errors='ignore')
-    printable = set(string.printable)
-    text = filter(lambda x: x in printable, text)
-    return ''.join(list(text))
+    if text is not None:
+        text = text.decode(encoding, errors='ignore')
+        printable = set(string.printable)
+        text = filter(lambda x: x in printable, text)
+        return ''.join(list(text))
+    else:
+        return None
 
 
 def dictmerge(x, y):
