@@ -504,9 +504,12 @@ def run(cmd, outdir=None, logfile=None, inlist=None, void=True, errorpass=False,
     if outdir is None:
         outdir = os.getcwd()
     log = sp.PIPE if logfile is None else open(logfile, 'a')
-    proc = sp.Popen(cmd, stdin=sp.PIPE, stdout=log, stderr=sp.PIPE, cwd=outdir, universal_newlines=True, env=env)
-    instream = None if inlist is None else ''.join([str(x) + '\n' for x in inlist])
+    proc = sp.Popen(cmd, stdin=sp.PIPE, stdout=log, stderr=sp.PIPE, cwd=outdir, env=env)
+    instream = None if inlist is None \
+        else ''.join([str(x) + '\n' for x in inlist]).encode('utf-8')
     out, err = proc.communicate(instream)
+    out = decode_filter(out)
+    err = decode_filter(err)
     if not errorpass and proc.returncode != 0:
         raise sp.CalledProcessError(proc.returncode, cmd, err)
     # add line for separating log entries of repeated function calls
