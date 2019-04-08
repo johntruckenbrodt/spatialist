@@ -7,6 +7,7 @@ This script gathers central functions and classes for general applications
 """
 import sys
 import dill
+import string
 import tempfile
 import platform
 import tblib.pickling_support
@@ -54,6 +55,28 @@ class HiddenPrints:
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         sys.stdout = self._original_stdout
+
+
+def decode_filter(text, encoding='utf-8'):
+    """
+    decode a binary object to str and filter out non-printable characters
+    
+    Parameters
+    ----------
+    text: bytes
+        the binary object to be decoded
+    encoding: str
+        the encoding to be used
+
+    Returns
+    -------
+    str
+        the decoded and filtered string
+    """
+    text = text.decode(encoding, errors='ignore')
+    printable = set(string.printable)
+    text = filter(lambda x: x in printable, text)
+    return ''.join(list(text))
 
 
 def dictmerge(x, y):
