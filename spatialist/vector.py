@@ -131,11 +131,23 @@ class Vector(object):
                     fieldtype = feature.GetFieldDefnRef(fieldindex).GetTypeName()
                     message = str(e) + '\ntrying to set field {} (type {}) to value {} (type {})'
                     message = message.format(fieldname, fieldtype, value, type(value))
-                    raise(NotImplementedError(message))
+                    raise (NotImplementedError(message))
         
         self.layer.CreateFeature(feature)
         feature = None
         self.init_features()
+    
+    def __str__(self):
+        vals = dict()
+        vals['proj4'] = self.proj4
+        vals.update(self.extent)
+        vals['filename'] = self.filename if self.filename is not None else 'memory'
+        
+        info = 'class      : spatialist Raster object\n' \
+               'extent     : {xmin}, {xmax}, {ymin}, {ymax} (xmin, xmax, ymin, ymax)\n' \
+               'coord. ref.: {proj4}\n' \
+               'data source: {filename}'.format(**vals)
+        return info
     
     def addfield(self, name, type, width=10):
         """
