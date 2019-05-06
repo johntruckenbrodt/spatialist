@@ -929,12 +929,15 @@ def rasterize(vectorobject, reference, outname=None, burn_values=1, expressions=
     Example
     -------
     >>> from spatialist import Vector, Raster, rasterize
-    >>> vec = Vector('source.shp')
-    >>> ref = Raster('reference.tif')
-    >>> outname = 'target.tif'
-    >>> expressions = ['ATTRIBUTE=1', 'ATTRIBUTE=2']
-    >>> burn_values = [1, 2]
-    >>> rasterize(vec, reference, outname, burn_values, expressions)
+    >>> outname1 = 'target1.tif'
+    >>> outname2 = 'target2.tif'
+    >>> with Vector('source.shp') as vec:
+    >>>     with Raster('reference.tif') as ref:
+    >>>         burn_values = [1, 2]
+    >>>         expressions = ['ATTRIBUTE=1', 'ATTRIBUTE=2']
+    >>>         rasterize(vec, reference, outname1, burn_values, expressions)
+    >>>         expressions = ["ATTRIBUTE2='a'", "ATTRIBUTE2='b'"]
+    >>>         rasterize(vec, reference, outname2, burn_values, expressions)
     """
     if expressions is None:
         expressions = ['']
