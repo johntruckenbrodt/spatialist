@@ -832,6 +832,10 @@ class Raster(object):
             dtype_ras = Dtype(dtype).numpystr
             if not np.can_cast(dtype_mat, dtype_ras):
                 warnings.warn("writing band {}: unsafe casting from type {} to {}".format(i, dtype_mat, dtype_ras))
+                if nodata is not None:
+                    print('converting nan to nodata value {}'.format(nodata))
+                    mat[np.isnan(mat)] = nodata
+                    mat = mat.astype(dtype_ras)
             outband.WriteArray(mat)
             del mat
             outband.FlushCache()
