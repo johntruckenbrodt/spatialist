@@ -143,7 +143,7 @@ class Vector(object):
         vals.update(self.extent)
         vals['filename'] = self.filename if self.filename is not None else 'memory'
         
-        info = 'class      : spatialist Raster object\n' \
+        info = 'class      : spatialist Vector object\n' \
                'extent     : {xmin}, {xmax}, {ymin}, {ymax} (xmin, xmax, ymin, ymax)\n' \
                'coord. ref.: {proj4}\n' \
                'data source: {filename}'.format(**vals)
