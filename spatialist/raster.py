@@ -441,7 +441,7 @@ class Raster(object):
         int
             the CRS EPSG code
         """
-        return crsConvert(self.srs, 'epsg')
+        return crsConvert(self.projection, 'epsg')
     
     def extract(self, px, py, radius=1, nodata=None):
         """
