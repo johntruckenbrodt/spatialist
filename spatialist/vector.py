@@ -24,7 +24,7 @@ class Vector(object):
 
     Parameters
     ----------
-    filename: str
+    filename: str or None
         the vector file to read; if filename is None, a new in-memory Vector object is created.
         In this case `driver` is overridden and set to `Memory`.
     driver: str
@@ -41,9 +41,10 @@ class Vector(object):
         elif isinstance(filename, str):
             if not os.path.isfile(filename):
                 raise OSError('file does not exist')
-            self.filename = filename
         else:
             raise TypeError('filename must either be str or None')
+        
+        self.filename = filename
         
         self.driver = ogr.GetDriverByName(driver)
         
