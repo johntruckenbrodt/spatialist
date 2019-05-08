@@ -703,7 +703,10 @@ class Raster(object):
         str
             the CRS PROJ4 description
         """
-        return self.srs.ExportToProj4()
+        try:
+            return crsConvert(self.projection, 'proj4')
+        except TypeError:
+            return None
     
     @property
     def proj4args(self):
