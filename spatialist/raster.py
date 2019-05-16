@@ -29,6 +29,17 @@ os.environ['GDAL_PAM_PROXY_DIR'] = tempfile.gettempdir()
 
 gdal.UseExceptions()
 
+# this parameter can be set to increase the pixel tolerance when subsetting
+# Raster objects with extent of other spatial objects
+# coordinates are in EPSG:32632, pixel resolution of the image to be subsetted is 90 m:
+# (subsetting extent)
+# {'xmin': 534093.341, 'xmax': 830103.341, 'ymin': 5030609.645, 'ymax': 5250929.645}
+# subset_tolerance = 0
+# {'xmin': 534003.341448206, 'xmax': 830103.341448206, 'ymin': 5030519.645119506, 'ymax': 5250929.645119506}
+# subset_tolerance = 0.02
+# {'xmin': 534093.341448206, 'xmax': 830103.341448206, 'ymin': 5030609.645119506, 'ymax': 5250929.645119506}
+subset_tolerance = 0  # percent
+
 
 class Raster(object):
     """
@@ -200,11 +211,12 @@ class Raster(object):
             ext_inter = inter.extent
             ext_ras = self.geo
             xres, yres = self.res
-            
-            colmin = int(floor((ext_inter['xmin'] - ext_ras['xmin']) / xres))
-            colmax = int(ceil((ext_inter['xmax'] - ext_ras['xmin']) / xres))
-            rowmin = int(floor((ext_ras['ymax'] - ext_inter['ymax']) / yres))
-            rowmax = int(ceil((ext_ras['ymax'] - ext_inter['ymin']) / yres))
+            tolerance_x = xres * subset_tolerance / 100
+            tolerance_y = yres * subset_tolerance / 100
+            colmin = int(floor((ext_inter['xmin'] - ext_ras['xmin'] + tolerance_x) / xres))
+            colmax = int(ceil((ext_inter['xmax'] - ext_ras['xmin'] - tolerance_x) / xres))
+            rowmin = int(floor((ext_ras['ymax'] - ext_inter['ymax'] + tolerance_y) / yres))
+            rowmax = int(ceil((ext_ras['ymax'] - ext_inter['ymin'] - tolerance_y) / yres))
             inter.close()
             if self.bands == 1:
                 return slice(rowmin, rowmax), slice(colmin, colmax)
