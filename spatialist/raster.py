@@ -455,6 +455,17 @@ class Raster(object):
         """
         return crsConvert(self.projection, 'epsg')
     
+    @property
+    def extent(self):
+        """
+        
+        Returns
+        -------
+        dict
+            the extent of the image
+        """
+        return {key: self.geo[key] for key in ['xmin', 'xmax', 'ymin', 'ymax']}
+    
     def extract(self, px, py, radius=1, nodata=None):
         """
         extract weighted average of pixels intersecting with a defined radius to a point.
