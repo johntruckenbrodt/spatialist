@@ -13,7 +13,7 @@ else:
 setup(name='spatialist',
       packages=find_packages(),
       include_package_data=True,
-      version='0.2.8',
+      version='0.2.9',
       description='A Python module for spatial data handling',
       classifiers=[
           'Programming Language :: Python',
