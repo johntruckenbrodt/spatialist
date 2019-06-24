@@ -29,16 +29,21 @@ os.environ['GDAL_PAM_PROXY_DIR'] = tempfile.gettempdir()
 
 gdal.UseExceptions()
 
-# this parameter can be set to increase the pixel tolerance when subsetting
-# Raster objects with extent of other spatial objects
-# coordinates are in EPSG:32632, pixel resolution of the image to be subsetted is 90 m:
-# (subsetting extent)
-# {'xmin': 534093.341, 'xmax': 830103.341, 'ymin': 5030609.645, 'ymax': 5250929.645}
-# subset_tolerance = 0
-# {'xmin': 534003.341448206, 'xmax': 830103.341448206, 'ymin': 5030519.645119506, 'ymax': 5250929.645119506}
-# subset_tolerance = 0.02
-# {'xmin': 534093.341448206, 'xmax': 830103.341448206, 'ymin': 5030609.645119506, 'ymax': 5250929.645119506}
 subset_tolerance = 0  # percent
+"""
+this parameter can be set to increase the pixel tolerance in percent when subsetting
+:class:`Raster` objects with the extent of other spatial objects.
+
+Examples
+--------
+| Coordinates are in EPSG:32632, pixel resolution of the image to be subsetted is 90 m:
+| (subsetting extent)
+| {'xmin': 534093.341, 'xmax': 830103.341, 'ymin': 5030609.645, 'ymax': 5250929.645}
+| subset_tolerance = 0
+| {'xmin': 534003.341, 'xmax': 830103.341, 'ymin': 5030519.645, 'ymax': 5250929.645}
+| subset_tolerance = 0.02
+| {'xmin': 534093.341, 'xmax': 830103.341, 'ymin': 5030609.645, 'ymax': 5250929.645}
+"""
 
 
 class Raster(object):
