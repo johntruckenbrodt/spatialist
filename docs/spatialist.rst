@@ -4,8 +4,8 @@ API Documentation
 Raster Class
 ------------
 
-.. autoclass:: spatialist.raster.Raster
-    :members:
+.. automodule:: spatialist.raster
+    :members: subset_tolerance, Raster
 
 Raster Tools
 ------------
