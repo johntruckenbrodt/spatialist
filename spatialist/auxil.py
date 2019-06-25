@@ -17,14 +17,14 @@ def crsConvert(crsIn, crsOut):
 
     Parameters
     ----------
-    crsIn: int, str or :osgeo:class:`osr.SpatialReference`
+    crsIn: int, str, :osgeo:class:`osr.SpatialReference`
         the input CRS
     crsOut: {'wkt', 'proj4', 'epsg', 'osr', 'opengis' or 'prettyWkt'}
         the output CRS type
 
     Returns
     -------
-    int, str or :osgeo:class:`osr.SpatialReference`
+    int, str, :osgeo:class:`osr.SpatialReference`
         the output CRS
 
     Examples
