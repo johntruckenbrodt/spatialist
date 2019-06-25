@@ -18,8 +18,8 @@ def test_crsConvert():
     assert crsConvert('+proj=longlat +datum=WGS84 +no_defs ', 'epsg') == 4326
     assert crsConvert('http://www.opengis.net/def/crs/EPSG/0/4326', 'epsg') == 4326
     assert crsConvert(crsConvert('http://www.opengis.net/def/crs/EPSG/0/4326', 'osr'), 'epsg') == 4326
-    assert crsConvert('EPSG:4326+5773',
-                      'proj4') == '+proj=longlat +datum=WGS84 +geoidgrids=egm96_15.gtx +vunits=m +no_defs '
+    assert crsConvert('EPSG:4326+5773', 'proj4').strip() \
+           == '+proj=longlat +datum=WGS84 +geoidgrids=egm96_15.gtx +vunits=m +no_defs'
     with pytest.raises(TypeError):
         crsConvert('xyz', 'epsg')
     with pytest.raises(ValueError):
