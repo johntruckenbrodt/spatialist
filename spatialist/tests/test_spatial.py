@@ -13,7 +13,7 @@ from spatialist.sqlite_util import sqlite_setup, __Handler
 
 
 def test_crsConvert():
-    assert crsConvert(crsConvert(4326, 'wkt'), 'proj4') == '+proj=longlat +datum=WGS84 +no_defs '
+    assert crsConvert(crsConvert(4326, 'wkt'), 'proj4').strip() == '+proj=longlat +datum=WGS84 +no_defs'
     assert crsConvert(crsConvert(4326, 'prettyWkt'), 'opengis') == 'http://www.opengis.net/def/crs/EPSG/0/4326'
     assert crsConvert('+proj=longlat +datum=WGS84 +no_defs ', 'epsg') == 4326
     assert crsConvert('http://www.opengis.net/def/crs/EPSG/0/4326', 'epsg') == 4326
