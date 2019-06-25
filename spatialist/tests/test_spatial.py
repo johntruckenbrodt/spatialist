@@ -92,7 +92,7 @@ def test_Raster(tmpdir, testdata):
     with Raster(testdata['tif']) as ras:
         print(ras)
         assert ras.bands == 1
-        assert ras.proj4 == '+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs '
+        assert ras.proj4.strip() == '+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs'
         assert ras.cols == 268
         assert ras.rows == 217
         assert ras.dim == (217, 268, 1)
