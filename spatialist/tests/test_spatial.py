@@ -37,12 +37,12 @@ def test_Vector(testdata):
     assert bbox1.extent == {'ymax': 4830114.70107, 'ymin': 4825774.70107, 'xmin': 620048.241204, 'xmax': 625408.241204}
     assert bbox1.nlayers == 1
     assert bbox1.getProjection('epsg') == 32631
-    assert bbox1.proj4 == '+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs'
+    assert bbox1.proj4.strip() == '+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs'
     assert isinstance(bbox1.getFeatureByIndex(0), ogr.Feature)
     with pytest.raises(IndexError):
         bbox1.getFeatureByIndex(1)
     bbox1.reproject(4326)
-    assert bbox1.proj4 == '+proj=longlat +datum=WGS84 +no_defs'
+    assert bbox1.proj4.strip() == '+proj=longlat +datum=WGS84 +no_defs'
     assert isinstance(bbox1['fid=0'], Vector)
     with pytest.raises(RuntimeError):
         test = bbox1[0.1]
