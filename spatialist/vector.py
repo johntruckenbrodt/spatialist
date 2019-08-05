@@ -898,3 +898,42 @@ def intersect(obj1, obj2):
                         intersection.addfeature(intersect, fields)
         intersect_base = None
         return intersection
+
+
+def wkt2vector(wkt, srs, layername='wkt'):
+    """
+    convert a well-known text string geometry to a Vector object
+
+    Parameters
+    ----------
+    wkt: str
+        the well-known text description
+    srs: int, str
+        the spatial reference system; see :func:`spatialist.auxil.crsConvert` for options.
+    layername: str
+        the name of the internal :osgeo:class:`ogr.Layer` object
+
+    Returns
+    -------
+    Vector
+        the vector representation
+    
+    Examples
+    --------
+    >>> from spatialist.vector import wkt2vector
+    >>> wkt = 'POLYGON ((0. 0., 0. 1., 1. 1., 1. 0., 0. 0.))'
+    >>> with wkt2vector(wkt, srs=4326) as vec:
+    >>>     print(vec.getArea())
+    1.0
+    """
+    geom = ogr.CreateGeometryFromWkt(wkt)
+    geom.FlattenTo2D()
+
+    srs = crsConvert(srs, 'osr')
+    
+    vec = Vector(driver='Memory')
+    vec.addlayer(layername, srs, geom.GetGeometryType())
+    vec.addfield('area', ogr.OFTReal)
+    vec.addfeature(geom, fields={'area': geom.Area()})
+    geom = None
+    return vec
