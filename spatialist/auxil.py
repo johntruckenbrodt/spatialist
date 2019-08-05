@@ -260,3 +260,35 @@ def coordinate_reproject(x, y, s_crs, t_crs):
     transform = osr.CoordinateTransformation(source, target)
     point = transform.TransformPoint(x, y)[:2]
     return point
+
+
+def utm_autodetect(spatial, crsOut):
+    """
+    get the UTM CRS for a spatial object
+    
+    The bounding box of the object is extracted, reprojected to :epsg:`4326` and its
+    center coordinate used for computing the best UTM zone fit.
+    
+    Parameters
+    ----------
+    spatial: Raster or Vector
+        a spatial object in an arbitrary CRS
+    crsOut: str
+        the output CRS type; see function :func:`crsConvert` for options
+    
+    Returns
+    -------
+    int or str or :osgeo:class:`osr.SpatialReference`
+        the output CRS
+    """
+    with spatial.bbox() as box:
+        box.reproject(4326)
+        ext = box.extent
+    lon = (ext['xmax'] + ext['xmin']) / 2
+    lat = (ext['ymax'] + ext['ymin']) / 2
+    zone = int(1 + (lon + 180.0) / 6.0)
+    north = lat > 0
+    utm_cs = osr.SpatialReference()
+    utm_cs.SetWellKnownGeogCS('WGS84')
+    utm_cs.SetUTM(zone, north)
+    return crsConvert(utm_cs, crsOut)
