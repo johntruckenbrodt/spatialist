@@ -50,7 +50,8 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
-    'osgeo_links'
+    'osgeo_links',
+    'epsg_links'
 ]
 
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
