@@ -119,10 +119,10 @@ class Vector(object):
         drivers = yaml.safe_load(open(os.path.join(path, 'drivers_vector.yml')))
         extension = os.path.splitext(filename)[1][1:]
         if extension not in drivers.keys():
-            message = "the file extension '{}' is not known. " \
-                      "Please provide the OGR descriptor via " \
-                      "parameter 'driver'.\nKnown options:\n- {}"
-            message = message.format(extension, '\n- '.join(drivers.keys()))
+            message = "the file extension '{}' is not supported. " \
+                      "Please provide the OGR format descriptor via " \
+                      "parameter 'driver' or use one of the supported extensions:\n- .{}"
+            message = message.format(extension, '\n- .'.join(drivers.keys()))
             raise RuntimeError(message)
         else:
             return drivers[extension]
