@@ -1,1 +1,2 @@
 recursive-include spatialist/pkgs *
+include spatialist/drivers_vector.yml
