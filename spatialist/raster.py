@@ -375,7 +375,7 @@ class Raster(object):
                 'length mismatch of names to be set ({}) and number of bands ({})'.format(len(names), self.bands))
         self.__bandnames = names
     
-    def bbox(self, outname=None, format='ESRI Shapefile', overwrite=True):
+    def bbox(self, outname=None, driver=None, overwrite=True):
         """
         Parameters
         ----------
@@ -394,7 +394,7 @@ class Raster(object):
         if outname is None:
             return bbox(self.geo, self.proj4)
         else:
-            bbox(self.geo, self.proj4, outname=outname, format=format, overwrite=overwrite)
+            bbox(self.geo, self.proj4, outname=outname, driver=driver, overwrite=overwrite)
     
     def close(self):
         """
