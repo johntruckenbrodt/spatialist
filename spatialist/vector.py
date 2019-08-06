@@ -28,7 +28,7 @@ class Vector(object):
         the vector file to read; if filename is None, a new in-memory Vector object is created.
         In this case `driver` is overridden and set to `Memory`.
     driver: str
-        the vector file format; needs to be defined if the format cannot be auto-detected
+        the vector file format; needs to be defined if the format cannot be auto-detected from the filename extension
     """
     
     def __init__(self, filename=None, driver=None):
@@ -637,7 +637,7 @@ class Vector(object):
         """
         return self.layer.GetSpatialRef()
     
-    def write(self, outfile, format='ESRI Shapefile', overwrite=True):
+    def write(self, outfile, driver=None, overwrite=True):
         """
         write the Vector object to a file
 
@@ -645,8 +645,9 @@ class Vector(object):
         ----------
         outfile:
             the name of the file to write
-        format: str
-            the output file format
+        driver: str
+            the output file format; needs to be defined if the format cannot
+            be auto-detected from the filename extension
         overwrite: bool
             overwrite an already existing file?
 
@@ -654,10 +655,11 @@ class Vector(object):
         -------
 
         """
-        (outfilepath, outfilename) = os.path.split(outfile)
-        basename = os.path.splitext(outfilename)[0]
         
-        driver = ogr.GetDriverByName(format)
+        if driver is None:
+            driver = self.__driver_autodetect(outfile)
+        
+        driver = ogr.GetDriverByName(driver)
         
         if os.path.exists(outfile):
             if overwrite:
@@ -666,7 +668,9 @@ class Vector(object):
                 raise RuntimeError('target file already exists')
         
         outdataset = driver.CreateDataSource(outfile)
-        outlayer = outdataset.CreateLayer(self.layername, geom_type=self.geomType)
+        outlayer = outdataset.CreateLayer(name=self.layername,
+                                          srs=self.srs,
+                                          geom_type=self.geomType)
         outlayerdef = outlayer.GetLayerDefn()
         
         for fieldDef in self.fieldDefs:
@@ -682,13 +686,6 @@ class Vector(object):
             outlayer.CreateFeature(outFeature)
             outFeature = None
         self.layer.ResetReading()
-        
-        if format == 'ESRI Shapefile':
-            srs_out = self.srs.Clone()
-            srs_out.MorphToESRI()
-            with open(os.path.join(outfilepath, basename + '.prj'), 'w') as prj:
-                prj.write(srs_out.ExportToWkt())
-        
         outdataset = None
 
 
