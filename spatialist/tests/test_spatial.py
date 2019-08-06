@@ -55,8 +55,8 @@ def test_Vector(testdata):
     feat.Destroy()
     with pytest.raises(KeyError):
         select = bbox1.getFeatureByAttribute('foo', 'bar')
-    with pytest.raises(RuntimeError):
-        vec = Vector(driver='foobar')
+    with pytest.raises(OSError):
+        vec = Vector(filename='foobar')
     bbox1.close()
 
 

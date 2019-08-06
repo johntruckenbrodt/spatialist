@@ -6,7 +6,7 @@
 
 
 import os
-
+import yaml
 from osgeo import ogr, osr
 
 from .auxil import crsConvert
@@ -28,19 +28,18 @@ class Vector(object):
         the vector file to read; if filename is None, a new in-memory Vector object is created.
         In this case `driver` is overridden and set to `Memory`.
     driver: str
-        the vector file format
+        the vector file format; needs to be defined if the format cannot be auto-detected from the filename extension
     """
     
-    def __init__(self, filename=None, driver='ESRI Shapefile'):
-        
-        if driver not in ['ESRI Shapefile', 'Memory']:
-            raise RuntimeError('driver not supported')
+    def __init__(self, filename=None, driver=None):
         
         if filename is None:
             driver = 'Memory'
         elif isinstance(filename, str):
             if not os.path.isfile(filename):
                 raise OSError('file does not exist')
+            if driver is None:
+                driver = self.__driver_autodetect(filename)
         else:
             raise TypeError('filename must either be str or None')
         
@@ -102,10 +101,36 @@ class Vector(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
     
+    def __str__(self):
+        vals = dict()
+        vals['proj4'] = self.proj4
+        vals.update(self.extent)
+        vals['filename'] = self.filename if self.filename is not None else 'memory'
+        
+        info = 'class      : spatialist Vector object\n' \
+               'extent     : {xmin}, {xmax}, {ymin}, {ymax} (xmin, xmax, ymin, ymax)\n' \
+               'coord. ref.: {proj4}\n' \
+               'data source: {filename}'.format(**vals)
+        return info
+    
+    @staticmethod
+    def __driver_autodetect(filename):
+        path = os.path.dirname(os.path.realpath(__file__))
+        drivers = yaml.safe_load(open(os.path.join(path, 'drivers_vector.yml')))
+        extension = os.path.splitext(filename)[1][1:]
+        if extension not in drivers.keys():
+            message = "the file extension '{}' is not known. " \
+                      "Please provide the OGR descriptor via " \
+                      "parameter 'driver'.\nKnown options:\n- {}"
+            message = message.format(extension, '\n- '.join(drivers.keys()))
+            raise RuntimeError(message)
+        else:
+            return drivers[extension]
+    
     def addfeature(self, geometry, fields=None):
         """
         add a feature to the vector object from a geometry
-        
+
         Parameters
         ----------
         geometry: :osgeo:class:`ogr.Geometry`
@@ -115,7 +140,7 @@ class Vector(object):
 
         Returns
         -------
-        
+
         """
         
         feature = ogr.Feature(self.layerdef)
@@ -137,18 +162,6 @@ class Vector(object):
         self.layer.CreateFeature(feature)
         feature = None
         self.init_features()
-    
-    def __str__(self):
-        vals = dict()
-        vals['proj4'] = self.proj4
-        vals.update(self.extent)
-        vals['filename'] = self.filename if self.filename is not None else 'memory'
-        
-        info = 'class      : spatialist Vector object\n' \
-               'extent     : {xmin}, {xmax}, {ymin}, {ymax} (xmin, xmax, ymin, ymax)\n' \
-               'coord. ref.: {proj4}\n' \
-               'data source: {filename}'.format(**vals)
-        return info
     
     def addfield(self, name, type, width=10):
         """
@@ -624,7 +637,7 @@ class Vector(object):
         """
         return self.layer.GetSpatialRef()
     
-    def write(self, outfile, format='ESRI Shapefile', overwrite=True):
+    def write(self, outfile, driver=None, overwrite=True):
         """
         write the Vector object to a file
 
@@ -632,8 +645,9 @@ class Vector(object):
         ----------
         outfile:
             the name of the file to write
-        format: str
-            the output file format
+        driver: str
+            the output file format; needs to be defined if the format cannot
+            be auto-detected from the filename extension
         overwrite: bool
             overwrite an already existing file?
 
@@ -641,10 +655,11 @@ class Vector(object):
         -------
 
         """
-        (outfilepath, outfilename) = os.path.split(outfile)
-        basename = os.path.splitext(outfilename)[0]
         
-        driver = ogr.GetDriverByName(format)
+        if driver is None:
+            driver = self.__driver_autodetect(outfile)
+        
+        driver = ogr.GetDriverByName(driver)
         
         if os.path.exists(outfile):
             if overwrite:
@@ -653,7 +668,9 @@ class Vector(object):
                 raise RuntimeError('target file already exists')
         
         outdataset = driver.CreateDataSource(outfile)
-        outlayer = outdataset.CreateLayer(self.layername, geom_type=self.geomType)
+        outlayer = outdataset.CreateLayer(name=self.layername,
+                                          srs=self.srs,
+                                          geom_type=self.geomType)
         outlayerdef = outlayer.GetLayerDefn()
         
         for fieldDef in self.fieldDefs:
@@ -669,13 +686,6 @@ class Vector(object):
             outlayer.CreateFeature(outFeature)
             outFeature = None
         self.layer.ResetReading()
-        
-        if format == 'ESRI Shapefile':
-            srs_out = self.srs.Clone()
-            srs_out.MorphToESRI()
-            with open(os.path.join(outfilepath, basename + '.prj'), 'w') as prj:
-                prj.write(srs_out.ExportToWkt())
-        
         outdataset = None
 
 
@@ -928,7 +938,7 @@ def wkt2vector(wkt, srs, layername='wkt'):
     """
     geom = ogr.CreateGeometryFromWkt(wkt)
     geom.FlattenTo2D()
-
+    
     srs = crsConvert(srs, 'osr')
     
     vec = Vector(driver='Memory')
