@@ -231,7 +231,7 @@ class Vector(object):
         self.init_features()
         vec.layer.ResetReading()
     
-    def bbox(self, outname=None, format='ESRI Shapefile', overwrite=True):
+    def bbox(self, outname=None, driver=None, overwrite=True):
         """
         create a bounding box from the extent of the Vector object
 
@@ -239,7 +239,7 @@ class Vector(object):
         ----------
         outname: str or None
             the name of the vector file to be written; if None, a Vector object is returned
-        format: str
+        driver: str
             the name of the file format to write
         overwrite: bool
             overwrite an already existing file?
@@ -252,7 +252,7 @@ class Vector(object):
         if outname is None:
             return bbox(self.extent, self.srs)
         else:
-            bbox(self.extent, self.srs, outname=outname, format=format, overwrite=overwrite)
+            bbox(self.extent, self.srs, outname=outname, driver=driver, overwrite=overwrite)
     
     def clone(self):
         return feature2vector(self.getfeatures(), ref=self)
