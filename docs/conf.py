@@ -51,7 +51,8 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
     'osgeo_links',
-    'epsg_links'
+    'epsg_links',
+    'list_drivers'
 ]
 
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
