@@ -1,0 +1,4 @@
+# file extensions that can be automatically detected by class Vector and the respective OGR driver names
+geojson: GeoJSON
+gpkg: GPKG
+shp: ESRI Shapefile
