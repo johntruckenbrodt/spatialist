@@ -689,7 +689,7 @@ class Vector(object):
         outdataset = None
 
 
-def bbox(coordinates, crs, outname=None, format='ESRI Shapefile', overwrite=True):
+def bbox(coordinates, crs, outname=None, driver=None, overwrite=True):
     """
     create a bounding box vector object or shapefile from coordinates and coordinate reference system.
     The CRS can be in either WKT, EPSG or PROJ4 format
@@ -702,8 +702,9 @@ def bbox(coordinates, crs, outname=None, format='ESRI Shapefile', overwrite=True
         the CRS of the `coordinates`. See :func:`~spatialist.auxil.crsConvert` for options.
     outname: str
         the file to write to. If `None`, the bounding box is returned as :class:`~spatialist.vector.Vector` object
-    format: str
-        the output file format
+    driver: str
+        the output file format; needs to be defined if the format cannot
+            be auto-detected from the filename extension
     overwrite: bool
         overwrite an existing file?
     
@@ -735,7 +736,7 @@ def bbox(coordinates, crs, outname=None, format='ESRI Shapefile', overwrite=True
     if outname is None:
         return bbox
     else:
-        bbox.write(outname, format, overwrite)
+        bbox.write(outfile=outname, driver=driver, overwrite=overwrite)
 
 
 def centerdist(obj1, obj2):
