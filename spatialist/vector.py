@@ -28,19 +28,18 @@ class Vector(object):
         the vector file to read; if filename is None, a new in-memory Vector object is created.
         In this case `driver` is overridden and set to `Memory`.
     driver: str
-        the vector file format
+        the vector file format; needs to be defined if the format cannot be auto-detected
     """
     
-    def __init__(self, filename=None, driver='ESRI Shapefile'):
-        
-        if driver not in ['ESRI Shapefile', 'Memory']:
-            raise RuntimeError('driver not supported')
+    def __init__(self, filename=None, driver=None):
         
         if filename is None:
             driver = 'Memory'
         elif isinstance(filename, str):
             if not os.path.isfile(filename):
                 raise OSError('file does not exist')
+            if driver is None:
+                driver = self.__driver_autodetect(filename)
         else:
             raise TypeError('filename must either be str or None')
         
