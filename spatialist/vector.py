@@ -25,8 +25,11 @@ class Vector(object):
     Parameters
     ----------
     filename: str or None
-        the vector file to read; if filename is None, a new in-memory Vector object is created.
-        In this case `driver` is overridden and set to `Memory`.
+        the vector file to read; if filename is `None`, a new in-memory Vector object is created.
+        In this case `driver` is overridden and set to 'Memory'. The following file extensions are auto-detected:
+        
+        .. list_drivers:: vector
+        
     driver: str
         the vector file format; needs to be defined if the format cannot be auto-detected from the filename extension
     """
@@ -644,7 +647,11 @@ class Vector(object):
         Parameters
         ----------
         outfile:
-            the name of the file to write
+            the name of the file to write; the following extensions are automatically detected
+            for determining the format driver:
+            
+            .. list_drivers:: vector
+            
         driver: str
             the output file format; needs to be defined if the format cannot
             be auto-detected from the filename extension
