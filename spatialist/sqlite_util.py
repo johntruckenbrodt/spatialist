@@ -31,7 +31,7 @@ except RuntimeError:
         raise RuntimeError(errormessage.format('neither does pysqlite2'))
 
 
-def sqlite_setup(driver=':memory:', extensions=None):
+def sqlite_setup(driver=':memory:', extensions=None, verbose=False):
     """
     Setup a sqlite3 connection and load extensions to it.
     This function intends to simplify the process of loading extensions to `sqlite3`, which can be quite difficult
@@ -48,6 +48,8 @@ def sqlite_setup(driver=':memory:', extensions=None):
         the database file or (by default) an in-memory database
     extensions: list
         a list of extensions to load
+    verbose: bool
+        print loading information?
 
     Returns
     -------
@@ -59,7 +61,7 @@ def sqlite_setup(driver=':memory:', extensions=None):
     >>> from spatialist.sqlite_util import sqlite_setup
     >>> conn = sqlite_setup(extensions=['spatialite'])
     """
-    conn = __Handler(driver, extensions)
+    conn = __Handler(driver, extensions, verbose=verbose)
     return conn.conn
 
 
@@ -84,17 +86,19 @@ def spatialite_setup():
 
 
 class __Handler(object):
-    def __init__(self, driver=':memory:', extensions=None):
+    def __init__(self, driver=':memory:', extensions=None, verbose=False):
         self.conn = sqlite3.connect(driver)
         self.conn.enable_load_extension(True)
         self.extensions = []
+        self.verbose = verbose
         if isinstance(extensions, list):
             for ext in extensions:
                 self.load_extension(ext)
         elif extensions is not None:
             raise RuntimeError('extensions must either be a list or None')
-        print('using sqlite version {}'.format(self.version['sqlite']))
-        if 'spatialite' in self.version.keys():
+        if verbose:
+            print('using sqlite version {}'.format(self.version['sqlite']))
+        if 'spatialite' in self.version.keys() and verbose:
             print('using spatialite version {}'.format(self.version['spatialite']))
     
     @property
@@ -127,10 +131,12 @@ class __Handler(object):
                     self.conn.load_extension(option)
                     select = option
                     self.extensions.append(option)
-                    print('loading extension {0} as {1}'.format(extension, option))
+                    if self.verbose:
+                        print('loading extension {0} as {1}'.format(extension, option))
                     break
                 except sqlite3.OperationalError as e:
-                    print('{0}: {1}'.format(option, str(e)))
+                    if self.verbose:
+                        print('{0}: {1}'.format(option, str(e)))
                     continue
             
             # if loading mod_spatialite fails try to load libspatialite directly
@@ -173,7 +179,8 @@ class __Handler(object):
             try:
                 self.conn.load_extension(option)
                 self.extensions.append(option)
-                print('loading extension {0} as {1}'.format(extension, option))
+                if self.verbose:
+                    print('loading extension {0} as {1}'.format(extension, option))
                 success = True
                 break
             except sqlite3.OperationalError:
