@@ -139,7 +139,12 @@ class __Handler(object):
             
             # if loading mod_spatialite fails try to load libspatialite directly
             if select is None:
-                self.__load_regular('spatialite')
+                try:
+                    self.__load_regular('spatialite')
+                except RuntimeError as e:
+                    raise type(e)(str(e) +
+                                  '\nit can be installed via apt:'
+                                  '\nsudo apt-get install libsqlite3-mod-spatialite')
             
             # initialize spatial support
             if 'spatial_ref_sys' not in self.get_tablenames():
