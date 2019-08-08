@@ -107,7 +107,7 @@ class __Handler(object):
         cursor = self.conn.cursor()
         try:
             cursor.execute('SELECT spatialite_version()')
-            spatialite_version = cursor.fetchall()[0][0].encode('ascii')
+            spatialite_version = self.__encode(cursor.fetchall()[0][0])
             out['spatialite'] = spatialite_version
         except sqlite3.OperationalError:
             pass
@@ -116,9 +116,7 @@ class __Handler(object):
     def get_tablenames(self):
         cursor = self.conn.cursor()
         cursor.execute('SELECT * FROM sqlite_master WHERE type="table"')
-        names = [x[1] for x in cursor.fetchall()]
-        if bool(type('unicode')):
-            names = [str(x) for x in names]
+        names = [self.__encode(x[1]) for x in cursor.fetchall()]
         return names
     
     def load_extension(self, extension):
@@ -195,3 +193,10 @@ class __Handler(object):
         while re.search(r'\.', base):
             base = os.path.splitext(base)[0]
         return base
+    
+    @staticmethod
+    def __encode(string, encoding='utf-8'):
+        if not isinstance(string, str):
+            return string.encode(encoding)
+        else:
+            return string
