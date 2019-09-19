@@ -635,8 +635,8 @@ class Vector(object):
 
         Returns
         -------
-        str
-            the CRS in WKT format
+        :osgeo:class:`osr.SpatialReference`
+            the geometry's spatial reference system
         """
         return self.layer.GetSpatialRef()
     
