@@ -564,7 +564,9 @@ class Vector(object):
         """
         srs_out = crsConvert(projection, 'osr')
         
-        if self.srs.IsSame(srs_out) == 0:
+        # the following check was found to not work in GDAL 3.0.1; likely a bug
+        # if self.srs.IsSame(srs_out) == 0:
+        if self.getProjection('epsg') != crsConvert(projection, 'epsg'):
             
             # create the CoordinateTransformation
             coordTrans = osr.CoordinateTransformation(self.srs, srs_out)
