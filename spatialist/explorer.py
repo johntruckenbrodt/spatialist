@@ -164,9 +164,9 @@ class RasterViewer(object):
         
         self.fig = plt.figure(num=title)
         
-        # display of SLC amplitude
+        # left display (image)
         self.ax1 = self.fig.add_subplot(121)
-        # display of topographical phase
+        # right display (time series)
         self.ax2 = self.fig.add_subplot(122)
         
         # self.ax1 = plt.gca()
@@ -179,6 +179,7 @@ class RasterViewer(object):
         self.ax1.tick_params(axis='both', which='major', labelsize=self.fontsize)
         self.ax2.tick_params(axis='both', which='major', labelsize=self.fontsize)
         
+        # format the values displayed for the mouse pointer
         text_pointer = self.ylab + '={0:.2f}, ' + self.xlab + '={1:.2f}, value='
         self.ax1.format_coord = lambda x, y: text_pointer.format(y, x)
         
@@ -190,7 +191,7 @@ class RasterViewer(object):
         # set up the vertical profile plot
         self.__init_vertical_plot()
         
-        # make the figure respond to mouse clicks by executing method __onclick
+        # make the figure responds to mouse clicks by executing method __onclick
         self.cid1 = self.fig.canvas.mpl_connect('button_press_event', self.__onclick)
         
         # enable interaction with the slider
@@ -297,7 +298,9 @@ class RasterViewer(object):
             # redraw the cross-hair
             self.__reset_crosshair()
             
+            # convert the map coordinates collected at the click to image pixel coordinates
             x, y = self.__map2img(self.x_coord, self.y_coord)
+            # read the time series at the image coordinates
             subset_vertical = self.__read_timeseries(x, y)
             
             # redraw/clear the vertical profile plot in case stacking is disabled
