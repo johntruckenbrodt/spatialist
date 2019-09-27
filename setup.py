@@ -13,7 +13,8 @@ else:
 setup(name='spatialist',
       packages=find_packages(),
       include_package_data=True,
-      version='0.2.9',
+      setup_requires=['setuptools_scm'],
+      use_scm_version=True,
       description='A Python module for spatial data handling',
       classifiers=[
           'Programming Language :: Python',
