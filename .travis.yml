@@ -1,4 +1,4 @@
-dist: xenial
+dist: bionic
 language: python
 sudo: required
 cache:
@@ -27,13 +27,15 @@ addons:
       - gdal-bin
 
 python:
-  - '3.5'
+  - '3.7'
 
 virtualenv:
   system_site_packages: true
 
 install:
   - pip install --ignore-installed six # install six inside the venv since the system version is too old
+  - pip install numpy
+  - pip install GDAL==$(gdal-config --version) --global-option=build_ext --global-option="$(gdal-config --cflags)"
   - pip install -r requirements.txt
   - pip install coveralls coverage
   - python setup.py install
