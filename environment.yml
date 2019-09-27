@@ -2,5 +2,16 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - gdal
+  - progressbar2
+  - pathos>=0.2
+  - numpy
   - matplotlib
+  - jupyter
+  - IPython
+  - ipywidgets
+  - tblib
+  - pyyaml
+  - gdal
+  - pip
+  - pip:
+      - scoop
