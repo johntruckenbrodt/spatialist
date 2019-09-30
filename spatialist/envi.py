@@ -87,10 +87,10 @@ class HDRobject(object):
                      'coordinate_system_string', 'wavelength_units', 'band_names']:
             if hasattr(self, item):
                 value = getattr(self, item)
-                if isinstance(value, list):
+                if isinstance(value, (list, map)):
                     lines.append(item.replace('_', ' ') + ' = {' + ', '.join([str(x) for x in value]) + '}')
                 elif item in ['description', 'band_names', 'coordinate_system_string']:
-                    lines.append(item.replace('_', ' ') + ' = {' + value + '}')
+                    lines.append(item.replace('_', ' ') + ' = {' + str(value) + '}')
                 else:
                     lines.append(item.replace('_', ' ') + ' = ' + str(value) + '')
         return '\n'.join(lines)
