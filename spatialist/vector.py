@@ -555,7 +555,7 @@ class Vector(object):
 
         Parameters
         ----------
-        projection: int, str or :osgeo:class:`osr.SpatialReference`
+        projection: int, str, :osgeo:class:`osr.SpatialReference`
             the target CRS. See :func:`spatialist.auxil.crsConvert`.
 
         Returns
@@ -597,7 +597,7 @@ class Vector(object):
 
         Parameters
         ----------
-        crs: int, str or :osgeo:class:`osr.SpatialReference`
+        crs: int, str, :osgeo:class:`osr.SpatialReference`
             the input CRS
 
         Returns
@@ -707,7 +707,7 @@ def bbox(coordinates, crs, outname=None, driver=None, overwrite=True):
     ----------
     coordinates: dict
         a dictionary containing numerical variables with keys `xmin`, `xmax`, `ymin` and `ymax`
-    crs: int, str or :osgeo:class:`osr.SpatialReference`
+    crs: int, str, :osgeo:class:`osr.SpatialReference`
         the CRS of the `coordinates`. See :func:`~spatialist.auxil.crsConvert` for options.
     outname: str
         the file to write to. If `None`, the bounding box is returned as :class:`~spatialist.vector.Vector` object
@@ -723,7 +723,6 @@ def bbox(coordinates, crs, outname=None, driver=None, overwrite=True):
         the bounding box Vector object
     """
     srs = crsConvert(crs, 'osr')
-    
     ring = ogr.Geometry(ogr.wkbLinearRing)
     
     ring.AddPoint(coordinates['xmin'], coordinates['ymin'])

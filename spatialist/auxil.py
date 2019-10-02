@@ -61,7 +61,8 @@ def crsConvert(crsIn, crsOut):
             try:
                 srs.SetFromUserInput(crsIn)
             except RuntimeError:
-                raise TypeError('crsIn not recognized; must be of type WKT, PROJ4 or EPSG')
+                raise TypeError('crsIn not recognized; must be of type WKT, PROJ4 or EPSG\n'
+                                '  was: "{}" of type {}'.format(crsIn, type(crsIn).__name__))
         else:
             raise TypeError('crsIn must be of type int, str or osr.SpatialReference')
     if crsOut == 'wkt':
