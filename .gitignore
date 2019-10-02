@@ -116,3 +116,6 @@ dmypy.json
 
 .idea/
 dev_*
+
+# GeoTiff auxdata file
+*.tif.aux.xml
