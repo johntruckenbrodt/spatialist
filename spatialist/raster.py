@@ -71,8 +71,10 @@ class Raster(object):
             self.filename = self.files[0] if self.files is not None else None
         elif isinstance(filename, str):
             self.filename = filename if os.path.isabs(filename) else os.path.join(os.getcwd(), filename)
+            filename = self.__prependVSIdirective(filename)
             self.raster = gdal.Open(filename, GA_ReadOnly)
         elif isinstance(filename, list):
+            filename = self.__prependVSIdirective(filename)
             self.raster = gdalbuildvrt(src=filename,
                                        dst=tempfile.NamedTemporaryFile(suffix='.vrt').name,
                                        options={'separate': list_separate},
@@ -269,6 +271,16 @@ class Raster(object):
             out = Raster(outDataset)
             out.bandnames = self.bandnames
             return out
+    
+    def __prependVSIdirective(self, filename):
+        if isinstance(filename, str):
+            if re.search(r'\.zip', filename):
+                filename = '/vsizip/' + filename
+            if re.search(r'\.tar\.gz', filename):
+                filename = '/vsitar/' + filename
+        elif isinstance(filename, list):
+            filename = [self.__prependVSIdirective(x) for x in filename]
+        return filename
     
     def allstats(self, approximate=False):
         """
