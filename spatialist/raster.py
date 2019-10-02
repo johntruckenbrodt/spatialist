@@ -375,13 +375,13 @@ class Raster(object):
                 'length mismatch of names to be set ({}) and number of bands ({})'.format(len(names), self.bands))
         self.__bandnames = names
     
-    def bbox(self, outname=None, driver=None, overwrite=True):
+    def bbox(self, outname=None, driver='ESRI Shapefile', overwrite=True):
         """
         Parameters
         ----------
         outname: str or None
             the name of the file to write; If `None`, the bounding box is returned as vector object
-        format: str
+        driver: str
             The file format to write
         overwrite: bool
             overwrite an already existing file?
@@ -392,9 +392,10 @@ class Raster(object):
             the bounding box vector object
         """
         if outname is None:
-            return bbox(self.geo, self.proj4)
+            return bbox(coordinates=self.geo, crs=self.proj4)
         else:
-            bbox(self.geo, self.proj4, outname=outname, driver=driver, overwrite=overwrite)
+            bbox(coordinates=self.geo, crs=self.proj4, outname=outname,
+                 driver=driver, overwrite=overwrite)
     
     def close(self):
         """
@@ -463,7 +464,7 @@ class Raster(object):
     @property
     def extent(self):
         """
-        
+
         Returns
         -------
         dict
@@ -1119,22 +1120,22 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
     This function does not reproject any raster files. Thus, the CRS must be the same for all input raster files.
     This is checked prior to executing gdalwarp. In case a shapefile is defined, it is internally reprojected to the
     raster CRS prior to retrieving its extent.
-    
+
     Examples
     --------
-    
+
     .. code-block:: python
-    
+
         from pyroSAR.ancillary import groupbyTime, find_datasets, seconds
         from spatialist.raster import stack
-        
+
         # find pyroSAR files by metadata attributes
         archive_s1 = '/.../sentinel1/GRD/processed'
         scenes_s1 = find_datasets(archive_s1, sensor=('S1A', 'S1B'), acquisition_mode='IW')
-        
+
         # group images by acquisition time
         groups = groupbyTime(images=scenes_s1, function=seconds, time=30)
-        
+
         # mosaic individual groups and stack the mosaics to a single ENVI file
         # only files overlapping with the shapefile are selected and resampled to its extent
         stack(srcfiles=groups, dstfile='stack', resampling='bilinear', targetres=(20, 20),
