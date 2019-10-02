@@ -375,26 +375,45 @@ class Raster(object):
                 'length mismatch of names to be set ({}) and number of bands ({})'.format(len(names), self.bands))
         self.__bandnames = names
     
-    def bbox(self, outname=None, driver='ESRI Shapefile', overwrite=True):
+    def bbox(self, outname=None, driver='ESRI Shapefile', overwrite=True, source='image'):
         """
         Parameters
         ----------
         outname: str or None
-            the name of the file to write; If `None`, the bounding box is returned as vector object
+            the name of the file to write; If `None`, the bounding box is returned
+            as :class:`~spatialist.vector.Vector` object
         driver: str
             The file format to write
         overwrite: bool
             overwrite an already existing file?
+        source: {'image', 'gcp'}
+            get the bounding box of either the image or the ground control points
 
         Returns
         -------
         Vector or None
             the bounding box vector object
         """
-        if outname is None:
-            return bbox(coordinates=self.geo, crs=self.proj4)
+        if source == 'image':
+            extent = self.extent
+            crs = self.projection
+        elif source == 'gcp':
+            gcps = self.raster.GetGCPs()
+            gcpx = [x.GCPX for x in gcps]
+            gcpy = [x.GCPY for x in gcps]
+            extent = dict()
+            extent['xmin'] = min(gcpx)
+            extent['xmax'] = max(gcpx)
+            extent['ymin'] = min(gcpy)
+            extent['ymax'] = max(gcpy)
+            crs = self.raster.GetGCPProjection()
         else:
-            bbox(coordinates=self.geo, crs=self.proj4, outname=outname,
+            raise RuntimeError("parameter 'source' must be either 'image' or 'gcp'")
+        
+        if outname is None:
+            return bbox(coordinates=extent, crs=crs)
+        else:
+            bbox(coordinates=extent, crs=crs, outname=outname,
                  driver=driver, overwrite=overwrite)
     
     def close(self):
