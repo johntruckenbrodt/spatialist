@@ -1088,7 +1088,7 @@ def reproject(rasterobject, reference, outname, targetres=None, resampling='bili
                'srcNodata': rasterobject.nodata,
                'dstNodata': rasterobject.nodata,
                'dstSRS': projection}
-    gdalwarp(rasterobject, outname, options)
+    gdalwarp(rasterobject.raster, outname, options)
 
 
 # todo improve speed until aborting when all target files already exist
