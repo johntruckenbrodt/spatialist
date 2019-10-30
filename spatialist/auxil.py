@@ -5,6 +5,7 @@
 import math
 import warnings
 from osgeo import osr, gdal, ogr
+import progressbar as pb
 
 osr.UseExceptions()
 ogr.UseExceptions()
@@ -111,7 +112,7 @@ def haversine(lat1, lon1, lat2, lon2):
     return radius * c
 
 
-def gdalwarp(src, dst, options):
+def gdalwarp(src, dst, options, pbar=False):
     """
     a simple wrapper for :osgeo:func:`gdal.Warp`
 
@@ -123,13 +124,23 @@ def gdalwarp(src, dst, options):
         the output data set
     options: dict
         additional parameters passed to gdal.Warp; see :osgeo:func:`gdal.WarpOptions`
+    pbar: bool
+        add a progressbar?
 
     Returns
     -------
 
     """
     try:
+        if pbar:
+            options = options.copy()
+            widgets = [pb.Percentage(), pb.Bar(), pb.Timer(), ' ', pb.ETA()]
+            progress = pb.ProgressBar(max_value=100, widgets=widgets).start()
+            options['callback'] = __callback
+            options['callback_data'] = progress
         out = gdal.Warp(dst, src, options=gdal.WarpOptions(**options))
+        if pbar:
+            progress.finish()
     except RuntimeError as e:
         raise RuntimeError('{}:\n  src: {}\n  dst: {}\n  options: {}'.format(str(e), src, dst, options))
     out = None
@@ -293,3 +304,25 @@ def utm_autodetect(spatial, crsOut):
     utm_cs.SetWellKnownGeogCS('WGS84')
     utm_cs.SetUTM(zone, north)
     return crsConvert(utm_cs, crsOut)
+
+
+def __callback(pct, msg, data):
+    """
+    helper function to create a progress bar in function gdalwarp
+    
+    Parameters
+    ----------
+    pct: float
+        the percentage progress
+    msg: str
+        the message to be printed on each progress step
+    data
+        the data to be modified during each progress step
+
+    Returns
+    -------
+
+    """
+    percent = int(pct * 100)
+    data.update(percent)
+    return 1
