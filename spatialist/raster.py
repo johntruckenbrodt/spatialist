@@ -1140,8 +1140,7 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
     compress: bool
         compress the geotiff files?
     cores: int
-        the number of CPU threads to use; this is only relevant if `separate` is True, in which case each
-        mosaicing/resampling job is passed to a different CPU
+        the number of CPU threads to use
 
     Returns
     -------
@@ -1325,8 +1324,10 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
             vrt = '/vsimem/' + os.path.basename(dst_base) + '.vrt'
             options_buildvrt['options'] = ['-separate']
             gdalbuildvrt(srcfiles, vrt, options_buildvrt)
+
+            # increase the number of threads for gdalwarp computations
+            options_warp['options'].extend(['-wo', 'NUM_THREADS={}'.format(cores)])
             
-            # warp files
             gdalwarp(vrt, dstfile, options_warp)
             
             # edit ENVI HDR files to contain specific layer names
