@@ -1105,7 +1105,7 @@ def reproject(rasterobject, reference, outname, targetres=None, resampling='bili
 
 # todo improve speed until aborting when all target files already exist
 def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, shapefile=None, layernames=None,
-          sortfun=None, separate=False, overwrite=False, compress=True, cores=4):
+          sortfun=None, separate=False, overwrite=False, compress=True, cores=4, pbar=False):
     """
     function for mosaicking, resampling and stacking of multiple raster files into a 3D data cube
 
@@ -1141,6 +1141,8 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
         compress the geotiff files?
     cores: int
         the number of CPU threads to use
+    pbar: bool
+        add a progressbar? This is currently only used if `separate==False`
 
     Returns
     -------
@@ -1327,8 +1329,8 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
 
             # increase the number of threads for gdalwarp computations
             options_warp['options'].extend(['-wo', 'NUM_THREADS={}'.format(cores)])
-            
-            gdalwarp(vrt, dstfile, options_warp)
+
+            gdalwarp(vrt, dstfile, options_warp, pbar=pbar)
             
             # edit ENVI HDR files to contain specific layer names
             with envi.HDRobject(dstfile + '.hdr') as hdr:
