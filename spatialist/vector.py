@@ -855,8 +855,8 @@ def intersect(obj1, obj2):
 
     Returns
     -------
-    Vector
-        the intersect of obj1 and obj2
+    Vector or None
+        the intersect of obj1 and obj2 if both intersect and None otherwise
     """
     if not isinstance(obj1, Vector) or not isinstance(obj2, Vector):
         raise RuntimeError('both objects must be of type Vector')
