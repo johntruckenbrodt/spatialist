@@ -1145,6 +1145,10 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
 
     Returns
     -------
+    
+    Raises
+    ------
+    RuntimeError
 
     Notes
     -----
@@ -1190,7 +1194,11 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
     if resampling not in ['near', 'bilinear', 'cubic', 'cubicspline', 'lanczos',
                           'average', 'mode', 'max', 'min', 'med', 'Q1', 'Q3']:
         raise RuntimeError('resampling method not supported')
-    
+
+    if os.path.isfile(dstfile) and not separate and not overwrite:
+        raise RuntimeError('the output file already exists')
+    ##########################################################################################
+    # check if the projection can be read from all images and whether all share the same projection
     projections = list()
     for x in dissolve(srcfiles):
         try:
@@ -1208,7 +1216,7 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
     else:
         srs = projections[0]
     ##########################################################################################
-    # read shapefile bounding coordinates and reduce list of rasters to those overlapping with the shapefile
+    # read shapefile bounding coordinates and reduce list of images to those overlapping with the shapefile
     
     if shapefile is not None:
         shp = shapefile.clone() if isinstance(shapefile, Vector) else Vector(shapefile)
@@ -1255,6 +1263,8 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
         options_buildvrt['srcNodata'] = srcnodata
     ##########################################################################################
     # create VRT files for mosaicing
+    # the resulting list srcfiles will contain either a single image or a newly created VRT file
+    # and thus each list item is one time step in the final stack
     
     for i, group in enumerate(srcfiles):
         if isinstance(group, list):
@@ -1301,8 +1311,9 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
                 print('all target tiff files already exist, nothing to be done')
                 return
         srcfiles, dstfiles = map(list, zip(*jobs))
-        
-        multicore(gdalwarp, cores=cores, multiargs={'src': srcfiles, 'dst': dstfiles}, options=options_warp)
+
+        multicore(gdalwarp, cores=cores, options=options_warp,
+                  multiargs={'src': srcfiles, 'dst': dstfiles})
     else:
         if len(srcfiles) == 1:
             options_warp['format'] = 'GTiff'
@@ -1322,6 +1333,7 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
             with envi.HDRobject(dstfile + '.hdr') as hdr:
                 hdr.band_names = bandnames
                 hdr.write()
+    ##########################################################################################
 
 
 class Dtype(object):
