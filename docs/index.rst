@@ -10,6 +10,7 @@ Welcome to spatialist's documentation!
 
    installation
    spatialist
+   changelog
 
 
 
