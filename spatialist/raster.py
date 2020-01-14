@@ -57,7 +57,7 @@ class Raster(object):
 
     Parameters
     ----------
-    filename: str, list or :osgeo:class:`gdal.Dataset`
+    filename: str or list or :osgeo:class:`gdal.Dataset`
         the raster file(s)/object to read
     list_separate: bool
         treat a list of files as separate layers or otherwise as a single layer? The former is intended for single
@@ -75,8 +75,9 @@ class Raster(object):
             self.raster = gdal.Open(filename, GA_ReadOnly)
         elif isinstance(filename, list):
             filename = self.__prependVSIdirective(filename)
+            self.filename = tempfile.NamedTemporaryFile(suffix='.vrt').name
             self.raster = gdalbuildvrt(src=filename,
-                                       dst=tempfile.NamedTemporaryFile(suffix='.vrt').name,
+                                       dst=self.filename,
                                        options={'separate': list_separate},
                                        void=False)
         else:
@@ -125,8 +126,8 @@ class Raster(object):
         """
         subset the object by slices or vector geometry. If slices are provided, one slice for each raster dimension
         needs to be defined. I.e., if the raster object contains several image bands, three slices are necessary. If a
-        :class:`~spatialist.vector.Vector` geometry is defined, it is internally projected to the raster CRS if necessary, its extent
-        derived and the extent converted to raster pixel slices, which are then used for subsetting.
+        :class:`~spatialist.vector.Vector` geometry is defined, it is internally projected to the raster CRS if necessary,
+        its extent derived, and the extent converted to raster pixel slices, which are then used for subsetting.
 
         Parameters
         ----------
