@@ -842,7 +842,7 @@ class Raster(object):
         """
         return osr.SpatialReference(wkt=self.projection)
     
-    def write(self, outname, dtype='default', format='ENVI', nodata='default', compress_tif=False, overwrite=False):
+    def write(self, outname, dtype='default', format='ENVI', nodata='default', compress_tif=False, overwrite=False, cmap=None):
         """
         write the raster object to a file.
 
@@ -861,6 +861,8 @@ class Raster(object):
             if the format is GeoTiff, compress the written file?
         overwrite: bool
             overwrite an already existing file?
+        cmap: :osgeo:class:`gdal.ColorTable`
+            a color map to apply to each band
 
         Returns
         -------
@@ -889,6 +891,10 @@ class Raster(object):
             outDataset.SetProjection(self.projection)
         for i in range(1, self.bands + 1):
             outband = outDataset.GetRasterBand(i)
+            
+            if cmap is not None:
+                outband.SetRasterColorTable(cmap)
+            
             if nodata is not None:
                 outband.SetNoDataValue(nodata)
             mat = self.matrix(band=i)
