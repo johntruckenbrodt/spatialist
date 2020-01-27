@@ -1,6 +1,6 @@
 #################################################################
 # GDAL wrapper for convenient raster data handling and processing
-# John Truckenbrodt 2015-2019
+# John Truckenbrodt 2015-2020
 #################################################################
 
 
@@ -74,6 +74,8 @@ class Raster(object):
             filename = self.__prependVSIdirective(filename)
             self.raster = gdal.Open(filename, GA_ReadOnly)
         elif isinstance(filename, list):
+            if len(filename) < 2:
+                raise RuntimeError("'filename' is a list with less than two elements")
             filename = self.__prependVSIdirective(filename)
             self.filename = tempfile.NamedTemporaryFile(suffix='.vrt').name
             self.raster = gdalbuildvrt(src=filename,
@@ -81,7 +83,8 @@ class Raster(object):
                                        options={'separate': list_separate},
                                        void=False)
         else:
-            raise RuntimeError('raster input must be of type str, list or gdal.Dataset')
+            raise RuntimeError('raster input must be of type str, list or gdal.Dataset; is: {}'
+                               .format(type(filename).__name__))
         
         # a list to contain arrays
         self.__data = [None] * self.bands
@@ -93,7 +96,7 @@ class Raster(object):
                 else:
                     self.bandnames = ['band{}'.format(x) for x in range(1, self.bands + 1)]
         elif self.format == 'VRT':
-            vrt_tilenames = [os.path.splitext(os.path.basename(x))[0] for x in self.files]
+            vrt_tilenames = [os.path.splitext(os.path.basename(x))[0] for x in self.files[1:]]
             if len(vrt_tilenames) == self.bands:
                 self.bandnames = vrt_tilenames
             elif self.bands == 1:
@@ -163,13 +166,16 @@ class Raster(object):
                 raise IndexError(
                     'mismatch of index length ({0}) and raster dimensions ({1})'.format(len(index), ras_dim))
             for i in [0, 1]:
-                if index[i].step is not None:
+                if hasattr(index[i], 'step') and index[i].step is not None:
                     raise IndexError('step slicing of {} is not allowed'.format(['rows', 'bands'][i]))
         
         # create index lists from subset slices
         subset = dict()
         subset['rows'] = list(range(0, self.rows))[index[0]]
         subset['cols'] = list(range(0, self.cols))[index[1]]
+        for key in ['rows', 'cols']:
+            if not isinstance(subset[key], list):
+                subset[key] = [subset[key]]
         if len(index) > 2:
             subset['bands'] = list(range(0, self.bands))[index[2]]
             if not isinstance(subset['bands'], list):

@@ -177,6 +177,7 @@ def gdalbuildvrt(src, dst, options=None, void=True):
                       '  https://trac.osgeo.org/gdal/wiki/Release/2.4.0-News')
     
     out = gdal.BuildVRT(dst, src, options=gdal.BuildVRTOptions(**options))
+    out.FlushCache()
     if void:
         out = None
     else:
