@@ -332,7 +332,7 @@ class Raster(object):
                     arr[:, :, i][arr[:, :, i] == self.nodata[i]] = np.nan
             else:
                 arr[arr == self.nodata] = np.nan
-            return arr
+            return np.squeeze(arr)
     
     def assign(self, array, band):
         """
