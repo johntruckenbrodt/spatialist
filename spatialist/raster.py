@@ -280,10 +280,22 @@ class Raster(object):
             return out
     
     def __prependVSIdirective(self, filename):
+        """
+        prepend one of /vsizip/ or /vsitar/ to the file name if a zip of tar archive.
+        
+        Parameters
+        ----------
+        filename: str
+            the file name, e.g. archive.tar.gz/filename
+
+        Returns
+        -------
+
+        """
         if isinstance(filename, str):
             if re.search(r'\.zip', filename):
                 filename = '/vsizip/' + filename
-            if re.search(r'\.tar\.gz', filename):
+            if re.search(r'\.tar', filename):
                 filename = '/vsitar/' + filename
         elif isinstance(filename, list):
             filename = [self.__prependVSIdirective(x) for x in filename]
