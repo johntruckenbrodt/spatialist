@@ -205,7 +205,8 @@ class Raster(object):
         opts['outputBounds'] = (geo['xmin'], geo['ymin'], geo['xmax'], geo['ymax'])
         
         # create an in-memory VRT file and return the output raster dataset as new Raster object
-        outname = os.path.join('/vsimem/', os.path.basename(tempfile.mktemp()))
+        # outname = os.path.join('/vsimem/', os.path.basename(tempfile.mktemp()))
+        outname = tempfile.NamedTemporaryFile(suffix='.vrt').name
         out_ds = gdalbuildvrt(src=self.filename, dst=outname, options=opts, void=False)
         out = Raster(out_ds)
         if len(index) > 2:
