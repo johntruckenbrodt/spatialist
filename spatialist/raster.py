@@ -336,10 +336,16 @@ class Raster(object):
         numpy.ndarray
             the array containing all raster data
         """
+        # determine whether the current data type can hold np.nan
+        if not np.can_cast('float32', Dtype(self.dtype).numpystr):
+            buf_type = gdal.GDT_Float32
+        else:
+            buf_type = Dtype(self.dtype).gdalint
+        
         if self.bands == 1:
             return self.matrix()
         else:
-            arr = self.raster.ReadAsArray().transpose(1, 2, 0)
+            arr = self.raster.ReadAsArray(buf_type=buf_type).transpose(1, 2, 0)
             if isinstance(self.nodata, list):
                 for i in range(0, self.bands):
                     arr[:, :, i][arr[:, :, i] == self.nodata[i]] = np.nan
@@ -721,20 +727,20 @@ class Raster(object):
         numpy.ndarray
             the matrix (subset) of the selected band
         """
+        # determine whether the current data type can hold np.nan
+        buf_type = Dtype(self.dtype).gdalint
+        if mask_nan and not np.can_cast('float32', Dtype(self.dtype).numpystr):
+                buf_type = gdal.GDT_Float32
         
         mat = self.__data[band - 1]
         if mat is None:
-            mat = self.raster.GetRasterBand(band).ReadAsArray()
+            mat = self.raster.GetRasterBand(band).ReadAsArray(buf_type=buf_type)
             if mask_nan:
                 if isinstance(self.nodata, list):
                     nodata = self.nodata[band - 1]
                 else:
                     nodata = self.nodata
-                try:
-                    mat[mat == nodata] = np.nan
-                except ValueError:
-                    mat = mat.astype('float32')
-                    mat[mat == nodata] = np.nan
+                mat[mat == nodata] = np.nan
         return mat
     
     @property
