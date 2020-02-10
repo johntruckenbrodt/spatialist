@@ -862,7 +862,8 @@ class Raster(object):
         overwrite: bool
             overwrite an already existing file?
         cmap: :osgeo:class:`gdal.ColorTable`
-            a color map to apply to each band
+            a color map to apply to each band.
+            Can for example be created with function :func:`~spatialist.auxil.cmap_mpl2gdal`.
 
         Returns
         -------

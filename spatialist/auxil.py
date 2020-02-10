@@ -1,11 +1,12 @@
 ##############################################################
 # Convenience functions for general spatial applications
-# John Truckenbrodt, 2016-2019
+# John Truckenbrodt, 2016-2020
 ##############################################################
 import math
 import warnings
 from osgeo import osr, gdal, ogr
 import progressbar as pb
+from matplotlib import pyplot as plt
 
 osr.UseExceptions()
 ogr.UseExceptions()
@@ -326,3 +327,43 @@ def __callback(pct, msg, data):
     percent = int(pct * 100)
     data.update(percent)
     return 1
+
+
+def cmap_mpl2gdal(mplcolor, values):
+    """
+    convert a matplotlib color table to a GDAL representation.
+    
+    Parameters
+    ----------
+    mplcolor: str
+        a color table code
+    values: list
+        the integer data values for which to retrieve colors
+
+    Returns
+    -------
+    :osgeo:class:`gdal.ColorTable`
+        the color table in GDAL format
+    
+    Notes
+    -----
+    This function is currently only developed for handling discrete integer data values in an 8 Bit file.
+    Colors are thus scaled between 0 and 255.
+    
+    Examples
+    --------
+    >>> from spatialist.auxil import cmap_mpl2gdal
+    >>> values = list(range(0, 100))
+    >>> cmap = cmap_mpl2gdal(mplcolor='YlGnBu', values=values)
+    >>> print(isinstance(cmap, gdal.ColorTable))
+    True
+    """
+    
+    cmap_plt = plt.get_cmap(mplcolor, len(values))
+    
+    cmap = gdal.ColorTable()
+    
+    for i in values:
+        color = tuple(int(round(x * 255)) for x in cmap_plt(i))
+        cmap.SetColorEntry(i, color)
+    return cmap
