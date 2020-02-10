@@ -62,6 +62,8 @@ def crsConvert(crsIn, crsOut):
         if isinstance(crsIn, str):
             try:
                 srs.SetFromUserInput(crsIn)
+                if gdal.__version__ >= '3.0':
+                    srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
             except RuntimeError:
                 raise TypeError('crsIn not recognized; must be of type WKT, PROJ4 or EPSG\n'
                                 '  was: "{}" of type {}'.format(crsIn, type(crsIn).__name__))
@@ -304,6 +306,8 @@ def utm_autodetect(spatial, crsOut):
     north = lat > 0
     utm_cs = osr.SpatialReference()
     utm_cs.SetWellKnownGeogCS('WGS84')
+    if gdal.__version__ >= '3.0':
+        utm_cs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
     utm_cs.SetUTM(zone, north)
     return crsConvert(utm_cs, crsOut)
 
