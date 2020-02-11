@@ -5,7 +5,7 @@ import platform
 import numpy as np
 from osgeo import ogr
 from spatialist import crsConvert, haversine, Raster, stack, ogr2ogr, gdal_translate, gdal_rasterize, bbox, rasterize, \
-    gdalwarp
+    gdalwarp, utm_autodetect
 from spatialist.raster import Dtype
 from spatialist.vector import feature2vector, dissolve, Vector, intersect
 from spatialist.envi import hdr, HDRobject
@@ -44,6 +44,9 @@ def test_Vector(testdata):
         bbox1.getFeatureByIndex(1)
     bbox1.reproject(4326)
     assert bbox1.proj4.strip() == '+proj=longlat +datum=WGS84 +no_defs'
+    ext = {key: round(val, 3) for key, val in bbox1.extent.items()}
+    assert ext == {'xmax': 4.554, 'xmin': 4.487, 'ymax': 43.614, 'ymin': 43.574}
+    assert utm_autodetect(bbox1, 'epsg') == 32631
     assert isinstance(bbox1['fid=0'], Vector)
     with pytest.raises(RuntimeError):
         test = bbox1[0.1]
