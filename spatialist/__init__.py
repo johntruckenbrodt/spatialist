@@ -4,7 +4,7 @@ from . import ancillary
 from . import raster
 from . import sqlite_util
 from .auxil import crsConvert, haversine, gdalbuildvrt, gdalwarp, gdal_translate, ogr2ogr, gdal_rasterize, \
-    utm_autodetect
+    utm_autodetect, coordinate_reproject, cmap_mpl2gdal
 
 from .vector import Vector, bbox, centerdist, intersect
 from .raster import Raster, stack, rasterize

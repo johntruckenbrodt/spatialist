@@ -269,7 +269,8 @@ def coordinate_reproject(x, y, s_crs, t_crs):
 
     Returns
     -------
-
+    tuple
+    
     """
     source = crsConvert(s_crs, 'osr')
     target = crsConvert(t_crs, 'osr')

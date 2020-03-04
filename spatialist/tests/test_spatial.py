@@ -3,13 +3,14 @@ import shutil
 import pytest
 import platform
 import numpy as np
-from osgeo import ogr
+from osgeo import ogr, gdal
 from spatialist import crsConvert, haversine, Raster, stack, ogr2ogr, gdal_translate, gdal_rasterize, bbox, rasterize, \
-    gdalwarp, utm_autodetect
+    gdalwarp, utm_autodetect, coordinate_reproject, cmap_mpl2gdal
 from spatialist.raster import Dtype
 from spatialist.vector import feature2vector, dissolve, Vector, intersect
 from spatialist.envi import hdr, HDRobject
 from spatialist.sqlite_util import sqlite_setup, __Handler
+from spatialist.ancillary import parallel_apply_along_axis
 
 
 def test_crsConvert():
@@ -93,6 +94,9 @@ def test_dissolve(tmpdir, travis, testdata):
 
 
 def test_Raster(tmpdir, testdata):
+    with pytest.raises(RuntimeError):
+        with Raster(1) as ras:
+            print(ras)
     with Raster(testdata['tif']) as ras:
         print(ras)
         assert ras.bands == 1
@@ -174,6 +178,17 @@ def test_Raster_extract(testdata):
         ras.assign(mat, band=0)
         assert ras.extract(px=ras.geo['xmin'], py=ras.geo['ymax'], radius=5) == ras.nodata
         assert ras.extract(px=ras.geo['xmax'], py=ras.geo['ymin'], radius=5) == ras.nodata
+
+
+def test_Raster_filestack(testdata):
+    with pytest.raises(RuntimeError):
+        with Raster([testdata['tif']]) as ras:
+            print(ras)
+    with Raster([testdata['tif'], testdata['tif2']]) as ras:
+        assert ras.bands == 2
+        arr = ras.array()
+    mean = parallel_apply_along_axis(np.nanmean, axis=2, arr=arr, cores=4)
+    assert mean.shape == (217, 268)
 
 
 def test_dtypes():
@@ -302,6 +317,17 @@ def test_auxil(tmpdir, testdata):
         ogr2ogr(bbox, os.path.join(dir, 'bbox.gml'), {'format': 'GML'})
         gdal_translate(ras.raster, os.path.join(dir, 'test'), {'format': 'ENVI'})
     gdal_rasterize(bbox, os.path.join(dir, 'test2'), {'format': 'GTiff', 'xRes': 20, 'yRes': 20})
+
+
+def test_auxil_coordinate_reproject():
+    point = coordinate_reproject(x=11, y=51, s_crs=4326, t_crs=32632)
+    assert round(point[0], 3) == 640333.296
+    assert round(point[1], 3) == 5651728.683
+
+
+def test_auxil_cmap_mpl2gdal():
+    cmap = cmap_mpl2gdal(mplcolor='YlGnBu', values=range(0, 100))
+    assert type(cmap) == gdal.ColorTable
 
 
 def test_rasterize(tmpdir, testdata):
