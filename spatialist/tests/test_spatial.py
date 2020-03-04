@@ -12,6 +12,10 @@ from spatialist.envi import hdr, HDRobject
 from spatialist.sqlite_util import sqlite_setup, __Handler
 from spatialist.ancillary import parallel_apply_along_axis
 
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+
 
 def test_crsConvert():
     assert crsConvert(crsConvert(4326, 'wkt'), 'proj4').strip() == '+proj=longlat +datum=WGS84 +no_defs'
@@ -251,6 +255,11 @@ def test_stack(tmpdir, testdata):
         with pytest.raises(ValueError):
             ras.rescale(lambda x: x * 10)
     
+    # outname exists and overwrite is False
+    with pytest.raises(RuntimeError):
+        stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=False,
+              srcnodata=-99, dstnodata=-99, dstfile=outname, layernames=['test1', 'test2'])
+    
     # pass shapefile
     outname = os.path.join(str(tmpdir), 'test2')
     with Raster(name).bbox() as box:
@@ -307,6 +316,20 @@ def test_stack(tmpdir, testdata):
     outdir = os.path.join(str(tmpdir), 'subdir2')
     stack(srcfiles=[name, name2], resampling='near', targetres=tr, overwrite=True, sortfun=os.path.basename,
           srcnodata=-99, dstnodata=-99, dstfile=outdir, separate=True, compress=True)
+    
+    # shapefile filtering
+    outdir = os.path.join(str(tmpdir), 'subdir3')
+    files = [testdata['tif'], testdata['tif2'], testdata['tif3']]
+    with Raster(files[0]).bbox() as box:
+        stack(srcfiles=files, resampling='near', targetres=(30, 30),
+              overwrite=False, layernames=['test1', 'test2', 'test3'],
+              srcnodata=-99, dstnodata=-99, dstfile=outdir,
+              separate=True, compress=True, shapefile=box)
+        # repeated run with different scene selection and only one scene after spatial filtering
+        stack(srcfiles=files[1:], resampling='near', targetres=(30, 30),
+              overwrite=True, layernames=['test2', 'test3'],
+              srcnodata=-99, dstnodata=-99, dstfile=outdir,
+              separate=True, compress=True, shapefile=box)
 
 
 def test_auxil(tmpdir, testdata):
