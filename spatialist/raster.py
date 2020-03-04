@@ -25,6 +25,10 @@ from .envi import HDRobject
 from osgeo import gdal, gdal_array, osr
 from osgeo.gdalconst import GA_ReadOnly, GA_Update
 
+import logging
+
+log = logging.getLogger(__name__)
+
 os.environ['GDAL_PAM_PROXY_DIR'] = tempfile.gettempdir()
 
 gdal.UseExceptions()
@@ -730,7 +734,7 @@ class Raster(object):
         # determine whether the current data type can hold np.nan
         buf_type = Dtype(self.dtype).gdalint
         if mask_nan and not np.can_cast('float32', Dtype(self.dtype).numpystr):
-                buf_type = gdal.GDT_Float32
+            buf_type = gdal.GDT_Float32
         
         mat = self.__data[band - 1]
         if mat is None:
@@ -867,7 +871,8 @@ class Raster(object):
         """
         return osr.SpatialReference(wkt=self.projection)
     
-    def write(self, outname, dtype='default', format='ENVI', nodata='default', compress_tif=False, overwrite=False, cmap=None):
+    def write(self, outname, dtype='default', format='ENVI', nodata='default', compress_tif=False, overwrite=False,
+              cmap=None):
         """
         write the raster object to a file.
 
@@ -1210,6 +1215,7 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
         stack(srcfiles=groups, dstfile='stack', resampling='bilinear', targetres=(20, 20),
               srcnodata=-99, dstnodata=-99, shapefile='site.shp', separate=False)
     """
+    srcfiles = srcfiles.copy()
     # perform some checks on the input data
     
     if len(dissolve(srcfiles)) == 0:
@@ -1228,9 +1234,12 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
     if resampling not in ['near', 'bilinear', 'cubic', 'cubicspline', 'lanczos',
                           'average', 'mode', 'max', 'min', 'med', 'Q1', 'Q3']:
         raise RuntimeError('resampling method not supported')
-
+    
     if os.path.isfile(dstfile) and not separate and not overwrite:
         raise RuntimeError('the output file already exists')
+    
+    if not separate and os.path.isdir(dstfile):
+        raise RuntimeError("'dstfile' is an existing directory, cannot write stack with same name")
     ##########################################################################################
     # check if the projection can be read from all images and whether all share the same projection
     projections = list()
@@ -1270,6 +1279,7 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
                 srcfiles[i] = None
         shp.close()
         srcfiles = list(filter(None, srcfiles))
+        log.debug('number of scenes after spatial filtering: {}'.format(len(srcfiles)))
     else:
         arg_ext = None
     ##########################################################################################
@@ -1345,7 +1355,7 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
                 print('all target tiff files already exist, nothing to be done')
                 return
         srcfiles, dstfiles = map(list, zip(*jobs))
-
+        log.debug('creating {} separate file(s):\n  {}'.format(len(dstfiles), '\n  '.join(dstfiles)))
         multicore(gdalwarp, cores=cores, options=options_warp,
                   multiargs={'src': srcfiles, 'dst': dstfiles})
     else:
@@ -1353,20 +1363,23 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
             options_warp['format'] = 'GTiff'
             if not dstfile.endswith('.tif'):
                 dstfile = os.path.splitext(dstfile)[0] + '.tif'
+            log.debug('creating file: {}'.format(dstfile))
             gdalwarp(srcfiles[0], dstfile, options_warp)
         else:
             # create VRT for stacking
             vrt = '/vsimem/' + os.path.basename(dst_base) + '.vrt'
             options_buildvrt['options'] = ['-separate']
             gdalbuildvrt(srcfiles, vrt, options_buildvrt)
-
+            
             # increase the number of threads for gdalwarp computations
             options_warp['options'].extend(['-wo', 'NUM_THREADS={}'.format(cores)])
-
+            
+            log.debug('creating file: {}'.format(dstfile))
             gdalwarp(vrt, dstfile, options_warp, pbar=pbar)
             
             # edit ENVI HDR files to contain specific layer names
-            with envi.HDRobject(dstfile + '.hdr') as hdr:
+            hdrfile = os.path.splitext(dstfile)[0] + '.hdr'
+            with envi.HDRobject(hdrfile) as hdr:
                 hdr.band_names = bandnames
                 hdr.write()
     ##########################################################################################
