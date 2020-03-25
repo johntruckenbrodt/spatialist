@@ -148,12 +148,19 @@ class Raster(object):
         """
         # subsetting via Vector object
         if isinstance(index, Vector):
-            # reproject vector object on the fly
-            index.reproject(self.proj4)
-            # intersect vector object with raster bounding box
-            inter = intersect(self.bbox(), index)
-            if inter is None:
-                raise RuntimeError('no intersection between Raster and Vector object')
+            geomtypes = list(set(index.geomTypes))
+            if len(geomtypes) != 1:
+                raise RuntimeError('Raster subsetting is only supported for Vector objects with one type of geometry')
+            geomtype = geomtypes[0]
+            if geomtype == 'POLYGON':
+                # reproject Vector object on the fly
+                index.reproject(self.proj4)
+                # intersect vector object with raster bounding box
+                inter = intersect(self.bbox(), index)
+                if inter is None:
+                    raise RuntimeError('no intersection between Raster and Vector object')
+            else:
+                raise RuntimeError('Raster subsetting is only supported for POLYGON geometries')
             # get raster indexing slices from intersect bounding box extent
             sl = self.__extent2slice(inter.extent)
             # subset raster object with slices
