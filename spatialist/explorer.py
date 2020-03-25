@@ -1,6 +1,7 @@
 import os
 import re
 import math
+import inspect
 import numpy as np
 from .raster import Raster
 from .vector import Vector
@@ -66,8 +67,13 @@ class RasterViewer(object):
         the label text font size
     custom: list
         custom functions to be plotted in additional figures;
-        each function is required to take two parameters, `axis` and `values`;
-        additional subplots are automatically added in a row major order.
+        each function is required to take two arguments, `axis` and `values`;
+        furthermore, the following arguments are supported:
+        
+            * `timestamps`: the list of time stamps as returned by `ts_convert`
+            * `band`: the index of the currently displayed band
+        
+        Additional subplots are automatically added in a row major order.
 
     See Also
     --------
@@ -320,7 +326,7 @@ class RasterViewer(object):
             # convert the map coordinates collected at the click to image pixel coordinates
             x, y = self.__map2img(self.x_coord, self.y_coord)
             # read the time series at the image coordinates
-            subset_vertical = self.__read_timeseries(x, y)
+            timeseries = self.__read_timeseries(x, y)
             
             # redraw/clear the vertical profile plot in case stacking is disabled
             if not self.checkbox.value:
@@ -328,12 +334,16 @@ class RasterViewer(object):
             
             # plot the vertical profile
             label = 'x: {0:03}; y: {1:03}'.format(x, y)
-            self.ax2.plot(self.timestamps, subset_vertical, label=label)
+            self.ax2.plot(self.timestamps, timeseries, label=label)
             self.ax2_legend = self.ax2.legend(loc=0, prop={'size': 7}, markerscale=1)
             if self.custom is not None:
                 for i, func in enumerate(self.custom):
                     self.cax[i].cla()
-                    func(axis=self.cax[i], values=subset_vertical)
+                    args = self._argcheck(function=func,
+                                          axis=self.cax[i],
+                                          values=timeseries)
+                    func(**args)
+            plt.tight_layout()
     
     def csv(self, outname=None):
         """
@@ -462,3 +472,14 @@ class RasterViewer(object):
         self.cbar.ax.tick_params(axis='both', which='major', labelsize=self.fontsize)
         if label is not None:
             self.cbar.ax.set_ylabel(label, fontsize=self.fontsize)
+    
+    def _argcheck(self, function, axis, values):
+        args = locals()
+        del args['function']
+        args['timestamps'] = self.timestamps
+        args['band'] = self.band
+        fargs = inspect.getfullargspec(function).args
+        for required in ['axis', 'values']:
+            if required not in fargs:
+                raise TypeError("missing argument '{}'".format(required))
+        return {key: value for key, value in args.items() if key in fargs}
