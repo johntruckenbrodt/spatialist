@@ -139,9 +139,11 @@ class RasterViewer(object):
         else:
             self.indices = range(1, self.bands + 1)
         
+        self.band = self.indices[len(self.indices) // 2]
+        
         # define a slider for changing a plotted image
         self.slider = IntSlider(min=min(self.indices), max=max(self.indices), step=1, continuous_update=False,
-                                value=self.indices[len(self.indices) // 2],
+                                value=self.band,
                                 description='band',
                                 style={'description_width': 'initial'},
                                 readout=self.slider_readout)
@@ -194,8 +196,10 @@ class RasterViewer(object):
         self.ax2.tick_params(axis='both', which='major', labelsize=self.fontsize)
         
         # format the values displayed for the mouse pointer
-        text_pointer = self.ylab + '={0:.2f}, ' + self.xlab + '={1:.2f}, value='
-        self.ax1.format_coord = lambda x, y: text_pointer.format(y, x)
+        text_pointer = 'x, y: {0}, {1}; ' + self.xlab + ', ' + self.ylab + ': {2:.2f}, {3:.2f}; value:'
+        self.ax1.format_coord = lambda x, y: text_pointer.format(self.__map2img(x, y)[0],
+                                                                 self.__map2img(x, y)[1],
+                                                                 x, y)
         
         # add a cross-hair to the horizontal slice plot
         self.x_coord, self.y_coord = self.__img2map(0, 0)
@@ -214,7 +218,8 @@ class RasterViewer(object):
         plt.tight_layout()
     
     def __onslide(self, h):
-        mat = self.__read_band(self.indices.index(h) + 1)
+        self.band = self.indices.index(h)
+        mat = self.__read_band(self.band + 1)
         masked = np.ma.array(mat, mask=np.isnan(mat))
         pmin, pmax = np.percentile(masked.compressed(), (self.pmin, self.pmax))
         vmin = self.zmin if self.zmin is not None else pmin
@@ -353,9 +358,9 @@ class RasterViewer(object):
             # Hide the main window
             root.withdraw()
             outname = filedialog.asksaveasfilename(initialdir=os.path.expanduser('~'),
-                                             defaultextension='.csv',
-                                             filetypes=(('csv', '*.csv'),
-                                                        ('all files', '*.*')))
+                                                   defaultextension='.csv',
+                                                   filetypes=(('csv', '*.csv'),
+                                                              ('all files', '*.*')))
             if outname is None:
                 return
         
@@ -365,7 +370,7 @@ class RasterViewer(object):
                 line = profiles[i]
                 xdata = line.get_xdata()
                 ydata = line.get_ydata()
-
+                
                 # get the row and column indices of the profile
                 legend_text = self.ax2.get_legend().texts[i].get_text()
                 legend_items = re.sub('[xy: ]', '', legend_text).split(';')
