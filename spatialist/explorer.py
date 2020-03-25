@@ -391,6 +391,21 @@ class RasterViewer(object):
                     csv.write(entry)
             csv.close()
     
+    def get_current_profile(self):
+        """
+        
+        Returns
+        -------
+        list
+            the values of the most recently plotted time series
+        """
+        profiles = self.ax2.get_lines()[1:]
+        if len(profiles) == 0:
+            return []
+        else:
+            line = profiles[-1]
+            return line.get_ydata()
+    
     def shp(self, outname=None):
         """
         write the collected samples to a CSV file
