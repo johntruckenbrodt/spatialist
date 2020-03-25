@@ -952,7 +952,11 @@ def wkt2vector(wkt, srs, layername='wkt'):
     
     vec = Vector(driver='Memory')
     vec.addlayer(layername, srs, geom.GetGeometryType())
-    vec.addfield('area', ogr.OFTReal)
-    vec.addfeature(geom, fields={'area': geom.Area()})
+    if geom.GetGeometryName() != 'POINT':
+        vec.addfield('area', ogr.OFTReal)
+        fields = {'area': geom.Area()}
+    else:
+        fields = None
+    vec.addfeature(geom, fields=fields)
     geom = None
     return vec
