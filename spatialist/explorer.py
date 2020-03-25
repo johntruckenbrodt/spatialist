@@ -1,5 +1,6 @@
 import os
 import re
+import math
 import numpy as np
 from .raster import Raster
 from .vector import Vector
@@ -61,6 +62,12 @@ class RasterViewer(object):
         See `Text rendering With LaTeX <https://matplotlib.org/users/usetex.html>`_.
     spectrumlabel: str
         a label for the x-axis of the vertical spectra
+    fontsize: int
+        the label text font size
+    custom: list
+        custom functions to be plotted in additional figures;
+        each function is required to take two parameters, `axis` and `values`;
+        additional subplots are automatically added in a row major order.
 
     See Also
     --------
@@ -68,9 +75,10 @@ class RasterViewer(object):
     """
     
     def __init__(self, filename, cmap='jet', band_indices=None, band_names=None, pmin=2, pmax=98, zmin=None, zmax=None,
-                 ts_convert=None, title=None, datalabel='data', spectrumlabel='time', fontsize=8):
+                 ts_convert=None, title=None, datalabel='data', spectrumlabel='time', fontsize=8, custom=None):
         
         self.ts_convert = ts_convert
+        self.custom = custom
         
         self.filename = filename
         with Raster(filename) as ras:
@@ -162,14 +170,20 @@ class RasterViewer(object):
         
         display(form)
         
-        self.fig = plt.figure(num=title)
+        # self.fig = plt.figure(num=title)
+        if custom is None:
+            self.fig, axes = plt.subplots(1, 2, num=title)
+            
+            # left display (image)
+            self.ax1 = axes[0]
+            # right display (time series)
+            self.ax2 = axes[1]
+        else:
+            rows = math.ceil(len(custom) / 2) + 1
+            self.fig, axes = plt.subplots(rows, 2, num=title)
+            self.ax1, self.ax2 = axes[0]
+            self.cax = np.ravel(axes[1:])
         
-        # left display (image)
-        self.ax1 = self.fig.add_subplot(121)
-        # right display (time series)
-        self.ax2 = self.fig.add_subplot(122)
-        
-        # self.ax1 = plt.gca()
         self.ax1.get_xaxis().get_major_formatter().set_useOffset(False)
         self.ax1.get_yaxis().get_major_formatter().set_useOffset(False)
         
@@ -311,8 +325,24 @@ class RasterViewer(object):
             label = 'x: {0:03}; y: {1:03}'.format(x, y)
             self.ax2.plot(self.timestamps, subset_vertical, label=label)
             self.ax2_legend = self.ax2.legend(loc=0, prop={'size': 7}, markerscale=1)
+            if self.custom is not None:
+                for i, func in enumerate(self.custom):
+                    self.cax[i].cla()
+                    func(axis=self.cax[i], values=subset_vertical)
     
     def csv(self, outname=None):
+        """
+        write the collected samples to a CSV file
+        
+        Parameters
+        ----------
+        outname: str
+            the name of the file to write; if left at the default `None`, a graphical file selection dialog is opened
+
+        Returns
+        -------
+
+        """
         # the first line is the vertical band line and is thus excluded
         profiles = self.ax2.get_lines()[1:]
         if len(profiles) == 0:
@@ -347,6 +377,18 @@ class RasterViewer(object):
             csv.close()
     
     def shp(self, outname=None):
+        """
+        write the collected samples to a CSV file
+
+        Parameters
+        ----------
+        outname: str
+            the name of the file to write; if left at the default `None`, a graphical file selection dialog is opened
+
+        Returns
+        -------
+
+        """
         # the first line is the vertical band line and is thus excluded
         profiles = self.ax2.get_lines()[1:]
         if len(profiles) == 0:
