@@ -109,11 +109,13 @@ class Vector(object):
         vals['proj4'] = self.proj4
         vals.update(self.extent)
         vals['filename'] = self.filename if self.filename is not None else 'memory'
+        vals['geomtype'] = ', '.join(list(set(self.geomTypes)))
         
-        info = 'class      : spatialist Vector object\n' \
-               'extent     : {xmin}, {xmax}, {ymin}, {ymax} (xmin, xmax, ymin, ymax)\n' \
-               'coord. ref.: {proj4}\n' \
-               'data source: {filename}'.format(**vals)
+        info = 'class         : spatialist Vector object\n' \
+               'geometry type : {geomtype}\n' \
+               'extent        : {xmin:.3f}, {xmax:.3f}, {ymin:.3f}, {ymax:.3f} (xmin, xmax, ymin, ymax)\n' \
+               'coord. ref.   : {proj4}\n' \
+               'data source   : {filename}'.format(**vals)
         return info
     
     @staticmethod
@@ -337,6 +339,17 @@ class Vector(object):
             the layer geometry type
         """
         return self.layerdef.GetGeomType()
+    
+    @property
+    def geomTypes(self):
+        """
+
+        Returns
+        -------
+        list
+            the geometry type of each feature
+        """
+        return [feat.GetGeometryRef().GetGeometryName() for feat in self.getfeatures()]
     
     def getArea(self):
         """
