@@ -132,9 +132,10 @@ class Raster(object):
     def __getitem__(self, index):
         """
         subset the object by slices or vector geometry. If slices are provided, one slice for each raster dimension
-        needs to be defined. I.e., if the raster object contains several image bands, three slices are necessary. If a
-        :class:`~spatialist.vector.Vector` geometry is defined, it is internally projected to the raster CRS if necessary,
-        its extent derived, and the extent converted to raster pixel slices, which are then used for subsetting.
+        needs to be defined. I.e., if the raster object contains several image bands, three slices are necessary.
+        Integer slices are treated as pixel coordinates and float slices as map coordinates.
+        If a :class:`~spatialist.vector.Vector` geometry is defined, it is internally projected to the raster CRS if
+        necessary, its extent derived, and the extent converted to raster pixel slices, which are then used for subsetting.
 
         Parameters
         ----------
@@ -145,6 +146,45 @@ class Raster(object):
         -------
         Raster
             a new raster object referenced through an in-memory GDAL VRT file
+        
+        Examples
+        --------
+        >>> filename = 'test'
+        >>> with Raster(filename) as ras:
+        >>>     print(ras)
+        class      : spatialist Raster object
+        dimensions : 2908, 2069, 115 (rows, cols, bands)
+        resolution : 20.0, -20.0 (x, y)
+        extent     : 713315.198, 754695.198, 4068985.595, 4127145.595 (xmin, xmax, ymin, ymax)
+        coord. ref.: +proj=utm +zone=29 +datum=WGS84 +units=m +no_defs
+        data source: test
+        >>>
+        >>>
+        >>> xmin = 0
+        >>> xmax = 100
+        >>> ymin = 4068985.595
+        >>> ymax = 4088985.595
+        >>> with Raster(filename)[ymin:ymax, xmin:xmax, :] as ras:
+        >>>     print(ras)
+        class      : spatialist Raster object
+        dimensions : 1000, 100, 115 (rows, cols, bands)
+        resolution : 20.0, -20.0 (x, y)
+        extent     : 713315.198, 715315.198, 4068985.595, 4088985.595 (xmin, xmax, ymin, ymax)
+        coord. ref.: +proj=utm +zone=29 +datum=WGS84 +units=m +no_defs
+        data source: /tmp/tmpk5weyhhq.vrt
+        >>>
+        >>>
+        >>> ext = {'xmin': 713315.198, 'xmax': 715315.198, 'ymin': ymin, 'ymax': ymax}
+        >>>
+        >>> with bbox(ext, crs=32629) as vec:
+        >>>     with Raster(filename)[vec] as ras:
+        >>>         print(ras)
+        class      : spatialist Raster object
+        dimensions : 1000, 100, 115 (rows, cols, bands)
+        resolution : 20.0, -20.0 (x, y)
+        extent     : 713315.198, 715315.198, 4068985.595, 4088985.595 (xmin, xmax, ymin, ymax)
+        coord. ref.: +proj=utm +zone=29 +datum=WGS84 +units=m +no_defs
+        data source: /tmp/tmps4rc9o09.vrt
         """
         # subsetting via Vector object
         if isinstance(index, Vector):
@@ -180,10 +220,29 @@ class Raster(object):
                 if hasattr(index[i], 'step') and index[i].step is not None:
                     raise IndexError('step slicing of {} is not allowed'.format(['rows', 'bands'][i]))
         
+        # treat float indices as map coordinates and convert them to image coordinates
+        yi = index[0]
+        if isinstance(yi, float):
+            yi = self.coord_map2img(y=yi)
+        if isinstance(yi, slice):
+            if isinstance(yi.start, float) or isinstance(yi.stop, float):
+                start = None if yi.stop is None else self.coord_map2img(y=yi.stop)
+                stop = None if yi.start is None else self.coord_map2img(y=yi.start)
+                yi = slice(start, stop)
+        
+        xi = index[1]
+        if isinstance(xi, float):
+            xi = self.coord_map2img(x=xi)
+        if isinstance(xi, slice):
+            if isinstance(xi.start, float) or isinstance(xi.stop, float):
+                start = None if xi.start is None else self.coord_map2img(x=xi.start)
+                stop = None if xi.stop is None else self.coord_map2img(x=xi.stop)
+                xi = slice(start, stop)
+        
         # create index lists from subset slices
         subset = dict()
-        subset['rows'] = list(range(0, self.rows))[index[0]]
-        subset['cols'] = list(range(0, self.cols))[index[1]]
+        subset['rows'] = list(range(0, self.rows))[yi]
+        subset['cols'] = list(range(0, self.cols))[xi]
         for key in ['rows', 'cols']:
             if not isinstance(subset[key], list):
                 subset[key] = [subset[key]]
@@ -199,14 +258,13 @@ class Raster(object):
         
         # update geo dimensions from subset list indices
         geo = self.geo
-        geo['xmin'] = geo['xmin'] + min(subset['cols']) * geo['xres']
-        geo['ymax'] = geo['ymax'] - min(subset['rows']) * abs(geo['yres'])
+        geo['xmin'] = self.coord_img2map(x=min(subset['cols']))
+        geo['ymax'] = self.coord_img2map(y=min(subset['rows']))
         
-        # note: yres is negative!
-        geo['xmax'] = geo['xmin'] + geo['xres'] * len(subset['cols'])
-        geo['ymin'] = geo['ymax'] + geo['yres'] * len(subset['rows'])
+        geo['xmax'] = self.coord_img2map(x=max(subset['cols']) + 1)
+        geo['ymin'] = self.coord_img2map(y=max(subset['rows']) + 1)
         
-        # create options for creating a GDAL VRT dataset
+        # options for creating a GDAL VRT data set
         opts = dict()
         opts['xRes'], opts['yRes'] = self.res
         opts['outputSRS'] = self.projection
