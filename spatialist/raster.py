@@ -485,6 +485,58 @@ class Raster(object):
         """
         return self.raster.RasterXSize
     
+    def coord_map2img(self, x=None, y=None):
+        """
+        convert map coordinates in the raster CRS to image pixel coordinates.
+        Either x, y or both must be defined.
+        
+        Parameters
+        ----------
+        x: int or float
+            the x coordinate
+        y: int or float
+            the y coordinate
+
+        Returns
+        -------
+        int or tuple
+            the converted coordinate for either x, y or both
+        """
+        if x is None and y is None:
+            raise TypeError("both 'x' and 'y' cannot be None")
+        out = []
+        if x is not None:
+            out.append(int((x - self.geo['xmin']) / self.geo['xres']))
+        if y is not None:
+            out.append(int((self.geo['ymax'] - y) / abs(self.geo['yres'])))
+        return tuple(out) if len(out) > 1 else out[0]
+    
+    def coord_img2map(self, x=None, y=None):
+        """
+        convert image pixel coordinates to map coordinates in the raster CRS.
+        Either x, y or both must be defined.
+        
+        Parameters
+        ----------
+        x: int or float
+            the x coordinate
+        y: int or float
+            the y coordinate
+
+        Returns
+        -------
+        float or tuple
+            the converted coordinate for either x, y or both
+        """
+        if x is None and y is None:
+            raise TypeError("both 'x' and 'y' cannot be None")
+        out = []
+        if x is not None:
+            out.append(self.geo['xmin'] + self.geo['xres'] * x)
+        if y is not None:
+            out.append(self.geo['ymax'] - abs(self.geo['yres']) * y)
+        return tuple(out) if len(out) > 1 else out[0]
+    
     @property
     def dim(self):
         """
