@@ -245,17 +245,6 @@ class RasterViewer(object):
             mat = ras.matrix(band)
         return mat
     
-    def __read_timeseries(self, x, y):
-        with Raster(self.filename) as ras:
-            vals = ras.raster.ReadAsArray(xoff=x, yoff=y, xsize=1, ysize=1)
-            if isinstance(self.nodata, list):
-                for i, x in enumerate(vals):
-                    if x == self.nodata[i]:
-                        vals[i] = np.nan
-            else:
-                vals[vals == self.nodata] = np.nan
-        return vals.reshape(vals.shape[0])
-    
     def __img2map(self, x, y):
         x_map = self.xmin + self.xres * x
         y_map = self.ymax - self.yres * y
@@ -323,10 +312,12 @@ class RasterViewer(object):
             # redraw the cross-hair
             self.__reset_crosshair()
             
+            # read the time series at the clicked coordinate
+            with Raster(self.filename)[self.y_coord, self.x_coord, :] as ras:
+                timeseries = ras.array()
+                
             # convert the map coordinates collected at the click to image pixel coordinates
             x, y = self.__map2img(self.x_coord, self.y_coord)
-            # read the time series at the image coordinates
-            timeseries = self.__read_timeseries(x, y)
             
             # redraw/clear the vertical profile plot in case stacking is disabled
             if not self.checkbox.value:
