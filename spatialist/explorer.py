@@ -72,6 +72,8 @@ class RasterViewer(object):
         
             * `timestamps`: the list of time stamps as returned by `ts_convert`
             * `band`: the index of the currently displayed band
+            * `x`: the x map coordinate in units of the image CRS
+            * `y`: the y map coordinate in units of the image CRS
         
         Additional subplots are automatically added in a row major order.
 
@@ -484,6 +486,8 @@ class RasterViewer(object):
         del args['function']
         args['timestamps'] = self.timestamps
         args['band'] = self.band
+        args['x'] = self.x_coord
+        args['y'] = self.y_coord
         fargs = inspect.getfullargspec(function).args
         for required in ['axis', 'values']:
             if required not in fargs:
