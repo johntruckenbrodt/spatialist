@@ -1,3 +1,6 @@
+"""
+Visualization tools using Jupyter notebooks
+"""
 import os
 import re
 import math
@@ -21,10 +24,6 @@ from IPython.display import display
 from ipywidgets import interactive_output, IntSlider, Layout, Checkbox, Button, HBox, Label, VBox
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-"""
-This module is intended for gathering functionalities for plotting spatial data with jupyter notebooks
-"""
-
 
 class RasterViewer(object):
     """
@@ -43,7 +42,7 @@ class RasterViewer(object):
     band_indices: list or None
         a list of indices for renaming the individual band indices in `filename`;
         e.g. -70:70, instead of the raw band indices, e.g. 1:140.
-        The number of unique elements must of same length as the number of bands in `filename`.
+        The number of unique elements must be of same length as the number of bands in `filename`.
     band_names: list or None
         alternative names to assign to the individual bands
     pmin: int
@@ -51,9 +50,9 @@ class RasterViewer(object):
     pmax: int
         the maximum percentile for linear histogram stretching
     zmin: int or float
-        the minimum value of the displayed data range; overrides pmin
-    zmax: int of float
-        the maximum value of the displayed data range; overrides pmax
+        the minimum value of the displayed data range; overrides `pmin`
+    zmax: int or float
+        the maximum value of the displayed data range; overrides `pmax`
     ts_convert: function or None
         a function to read time stamps from the band names
     title: str or None
@@ -66,16 +65,20 @@ class RasterViewer(object):
     fontsize: int
         the label text font size
     custom: list
-        custom functions to be plotted in additional figures;
-        each function is required to take two arguments, `axis` and `values`;
-        furthermore, the following arguments are supported:
+        Custom functions for plotting figures in additional subplots.
+        Each figure will be updated upon click on the major map display.
+        Each function is required to take at least an argument `axis`.
+        Furthermore, the following optional arguments are supported:
         
-            * `timestamps`: the list of time stamps as returned by `ts_convert`
-            * `band`: the index of the currently displayed band
-            * `x`: the x map coordinate in units of the image CRS
-            * `y`: the y map coordinate in units of the image CRS
+            * `values` (:py:obj:`list`): the time series values collected from the last click
+            * `timestamps` (:py:obj:`list`): the time stamps as returned by `ts_convert`
+            * `band` (:py:obj:`int`): the index of the currently displayed band
+            * `x` (:py:obj:`float`): the x map coordinate in units of the image CRS
+            * `y` (:py:obj:`float`): the y map coordinate in units of the image CRS
         
-        Additional subplots are automatically added in a row major order.
+        Additional subplots are automatically added in a row-major order.
+        The list may contain `None` elements to leave certain subplots empty for later usage.
+        This might be useful for plots which are not to be updated each time the map display is clicked on.
 
     See Also
     --------
@@ -331,11 +334,12 @@ class RasterViewer(object):
             self.ax2_legend = self.ax2.legend(loc=0, prop={'size': 7}, markerscale=1)
             if self.custom is not None:
                 for i, func in enumerate(self.custom):
-                    self.cax[i].cla()
-                    args = self._argcheck(function=func,
-                                          axis=self.cax[i],
-                                          values=timeseries)
-                    func(**args)
+                    if func is not None:
+                        self.cax[i].cla()
+                        args = self._argcheck(function=func,
+                                              axis=self.cax[i],
+                                              values=timeseries)
+                        func(**args)
             plt.tight_layout()
     
     def csv(self, outname=None):
@@ -489,7 +493,7 @@ class RasterViewer(object):
         args['x'] = self.x_coord
         args['y'] = self.y_coord
         fargs = inspect.getfullargspec(function).args
-        for required in ['axis', 'values']:
+        for required in ['axis']:
             if required not in fargs:
                 raise TypeError("missing argument '{}'".format(required))
         return {key: value for key, value in args.items() if key in fargs}
