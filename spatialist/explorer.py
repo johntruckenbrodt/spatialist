@@ -49,9 +49,9 @@ class RasterViewer(object):
         the minimum percentile for linear histogram stretching
     pmax: int
         the maximum percentile for linear histogram stretching
-    zmin: int or float
+    zmin: int or float or None
         the minimum value of the displayed data range; overrides `pmin`
-    zmax: int or float
+    zmax: int or float or None
         the maximum value of the displayed data range; overrides `pmax`
     ts_convert: function or None
         a function to read time stamps from the band names
@@ -64,7 +64,7 @@ class RasterViewer(object):
         a label for the x-axis of the vertical spectra
     fontsize: int
         the label text font size
-    custom: list
+    custom: list or None
         Custom functions for plotting figures in additional subplots.
         Each figure will be updated upon click on the major map display.
         Each function is required to take at least an argument `axis`.
@@ -207,10 +207,7 @@ class RasterViewer(object):
         self.ax2.tick_params(axis='both', which='major', labelsize=self.fontsize)
         
         # format the values displayed for the mouse pointer
-        text_pointer = 'x, y: {0}, {1}; ' + self.xlab + ', ' + self.ylab + ': {2:.2f}, {3:.2f}; value:'
-        self.ax1.format_coord = lambda x, y: text_pointer.format(self.__map2img(x, y)[0],
-                                                                 self.__map2img(x, y)[1],
-                                                                 x, y)
+        self.ax1.format_coord = self.__format_coord
         
         # add a cross-hair to the horizontal slice plot
         self.x_coord, self.y_coord = self.__img2map(0, 0)
@@ -242,7 +239,7 @@ class RasterViewer(object):
         self.ax1.imshow(masked, vmin=vmin, vmax=vmax, extent=self.extent, cmap=cmap)
         if hasattr(self, 'sliderlabel'):
             self.sliderlabel.value = title
-        self._set_colorbar(self.ax1)
+        self.__set_colorbar(self.ax1)
         self.vline.set_xdata(self.timestamps[self.slider.value])
     
     def __read_band(self, band):
@@ -320,7 +317,7 @@ class RasterViewer(object):
             # read the time series at the clicked coordinate
             with Raster(self.filename)[self.y_coord, self.x_coord, :] as ras:
                 timeseries = ras.array()
-                
+            
             # convert the map coordinates collected at the click to image pixel coordinates
             x, y = self.__map2img(self.x_coord, self.y_coord)
             
@@ -336,9 +333,9 @@ class RasterViewer(object):
                 for i, func in enumerate(self.custom):
                     if func is not None:
                         self.cax[i].cla()
-                        args = self._argcheck(function=func,
-                                              axis=self.cax[i],
-                                              values=timeseries)
+                        args = self.__argcheck(function=func,
+                                               axis=self.cax[i],
+                                               values=timeseries)
                         func(**args)
             plt.tight_layout()
     
@@ -472,7 +469,7 @@ class RasterViewer(object):
             csv.write('id;bandname\n')
             csv.write('\n'.join(content))
     
-    def _set_colorbar(self, axis, label=None):
+    def __set_colorbar(self, axis, label=None):
         if len(axis.images) > 1:
             axis.images[0].colorbar.remove()
             del axis.images[0]
@@ -485,7 +482,7 @@ class RasterViewer(object):
         if label is not None:
             self.cbar.ax.set_ylabel(label, fontsize=self.fontsize)
     
-    def _argcheck(self, function, axis, values):
+    def __argcheck(self, function, axis, values):
         args = locals()
         del args['function']
         args['timestamps'] = self.timestamps
@@ -497,3 +494,10 @@ class RasterViewer(object):
             if required not in fargs:
                 raise TypeError("missing argument '{}'".format(required))
         return {key: value for key, value in args.items() if key in fargs}
+    
+    def __format_coord(self, x, y):
+        text_pointer = 'x, y: {0}, {1}; ' \
+                       + self.xlab + ', ' + self.ylab \
+                       + ': {2:.2f}, {3:.2f}; value:'
+        x_img, y_img = self.__map2img(x, y)
+        return text_pointer.format(x_img, y_img, x, y)
