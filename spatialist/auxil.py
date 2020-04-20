@@ -358,6 +358,7 @@ def cmap_mpl2gdal(mplcolor, values):
     
     Examples
     --------
+    >>> from osgeo import gdal
     >>> from spatialist.auxil import cmap_mpl2gdal
     >>> values = list(range(0, 100))
     >>> cmap = cmap_mpl2gdal(mplcolor='YlGnBu', values=values)

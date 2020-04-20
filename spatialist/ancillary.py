@@ -629,7 +629,7 @@ def which(program, mode=os.F_OK | os.X_OK):
 
 def parallel_apply_along_axis(func1d, axis, arr, cores=4, *args, **kwargs):
     """
-    Like :func:`numpy.apply_along_axis()`, but takes advantage of multiple cores.
+    Like :func:`numpy.apply_along_axis()` but using multiple threads.
     Adapted from `here <https://stackoverflow.com/questions/45526700/
     easy-parallelization-of-numpy-apply-along-axis>`_.
 
