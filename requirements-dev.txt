@@ -3,8 +3,6 @@ pathos>=0.2
 numpy
 scoop
 matplotlib
-# jupyter_console does not yet support prompt_toolkit version 3.x
-prompt_toolkit~=2.0.10
 jupyter
 IPython
 ipywidgets
