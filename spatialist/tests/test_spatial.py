@@ -6,7 +6,7 @@ import numpy as np
 from osgeo import ogr, gdal
 from spatialist import crsConvert, haversine, Raster, stack, ogr2ogr, gdal_translate, gdal_rasterize, bbox, rasterize, \
     gdalwarp, utm_autodetect, coordinate_reproject, cmap_mpl2gdal
-from spatialist.raster import Dtype
+from spatialist.raster import Dtype, png
 from spatialist.vector import feature2vector, dissolve, Vector, intersect
 from spatialist.envi import hdr, HDRobject
 from spatialist.sqlite_util import sqlite_setup, __Handler
@@ -408,3 +408,23 @@ def test_sqlite(appveyor):
         con = __Handler(extensions=['spatialite'])
         assert sorted(con.version.keys()) == ['spatialite', 'sqlite']
         assert 'spatial_ref_sys' in con.get_tablenames()
+
+
+def test_png(tmpdir, testdata):
+    outname = os.path.join(str(tmpdir), 'test')
+    with Raster(testdata['tif']) as ras:
+        png(src=ras, dst=outname, percent=100, scale=(2, 98), worldfile=True)
+    assert os.path.isfile(outname + '.png')
+    
+    with pytest.raises(TypeError):
+        png(src=testdata['tif'], dst=outname, percent=100, scale=(2, 98), worldfile=True)
+
+    src = [testdata['tif'], testdata['tif2']]
+    with pytest.raises(ValueError):
+        with Raster(src) as ras:
+            png(src=ras, dst=outname, percent=100, scale=(2, 98), worldfile=True)
+    
+    src.append(testdata['tif3'])
+    outname = os.path.join(str(tmpdir), 'test_rgb.png')
+    with Raster(src) as ras:
+        png(src=ras, dst=outname, percent=100, scale=(2, 98), worldfile=True)

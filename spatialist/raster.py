@@ -17,7 +17,7 @@ from time import gmtime, strftime
 import numpy as np
 
 from . import envi
-from .auxil import gdalwarp, gdalbuildvrt
+from .auxil import gdalwarp, gdalbuildvrt, gdal_translate
 from .vector import Vector, bbox, crsConvert, intersect
 from .ancillary import dissolve, multicore
 from .envi import HDRobject
@@ -1066,19 +1066,6 @@ class Raster(object):
             with HDRobject(hdrfile) as hdr:
                 hdr.band_names = self.bandnames
                 hdr.write()
-        
-        # write a png image of three raster bands (provided in a list of 1-based integers); percent controls the size ratio of input and output
-        # def png(self, bands, outname, percent=10):
-        #     if len(bands) != 3 or max(bands) not in range(1, self.bands+1) or min(bands) not in range(1, self.bands+1):
-        #         print 'band indices out of range'
-        #         return
-        #     if not outname.endswith('.png'):
-        #         outname += '.png'
-        #     exp_bands = ' '.join(['-b '+str(x) for x in bands]).split()
-        #     exp_scale = [['-scale', self.getstat('min', x), self.getstat('max', x), 0, 255] for x in bands]
-        #     exp_size = ['-outsize', str(percent)+'%', str(percent)+'%']
-        #     cmd = dissolve([['gdal_translate', '-q', '-of', 'PNG', '-ot', 'Byte'], exp_size, exp_bands, exp_scale, self.filename, outname])
-        #     sp.check_call([str(x) for x in cmd])
     
     # def reduce(self, outname=None, format='ENVI'):
     #     """
@@ -1119,6 +1106,56 @@ class Raster(object):
     #         self.assign(mat, dim=[left, top, cols, rows], index=0)
     #     else:
     #         self.write(outname, dim=[left, top, cols, rows], format=format)
+
+
+def png(src, dst, percent=10, scale=(2, 98), worldfile=False):
+    """
+    convert a raster image to png
+    
+    Parameters
+    ----------
+    src: Raster
+        the input raster image to be converted
+    dst: str
+        the output png file name
+    percent: int
+        the size of the png relative to `src`
+    scale: tuple
+        the percentile bounds for scaling the values of the input image
+    worldfile: bool
+        create a world file (extension .wld)?
+
+    Returns
+    -------
+    
+    Examples
+    --------
+    >>> from spatialist.raster import Raster, png
+    >>> src = 'src.tif'
+    >>> dst = 'dst.png'
+    >>> with Raster(src) as ras:
+    >>>     png(src=ras, dst=dst, percent=10, scale=(2, 98), worldfile=True)
+    """
+    if not isinstance(src, Raster):
+        raise TypeError("'src' must be of type Raster")
+    if src.bands not in [1, 3]:
+        raise ValueError("'src' needs to have either 1 or 3 bands")
+    if not dst.endswith('.png'):
+        dst += '.png'
+    options = dict()
+    options['format'] = 'PNG'
+    options['outputType'] = gdal.GDT_Byte
+    options['widthPct'] = percent
+    options['heightPct'] = percent
+    scaleParams = []
+    for band in range(src.bands):
+        mat = src.matrix(band + 1)
+        lower, upper = np.nanpercentile(mat, scale)
+        scaleParams.append([lower, upper, 0, 255])
+    options['scaleParams'] = scaleParams
+    if worldfile:
+        options['options'] = ['-co', 'WORLDFILE=YES']
+    gdal_translate(src.raster, dst, options)
 
 
 def rasterize(vectorobject, reference, outname=None, burn_values=1, expressions=None, nodata=0, append=False):
@@ -1262,7 +1299,7 @@ def reproject(rasterobject, reference, outname, targetres=None, resampling='bili
 def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, shapefile=None, layernames=None,
           sortfun=None, separate=False, overwrite=False, compress=True, cores=4, pbar=False):
     """
-    function for mosaicking, resampling and stacking of multiple raster files into a 3D data cube
+    function for mosaicking, resampling and stacking of multiple raster files
 
     Parameters
     ----------

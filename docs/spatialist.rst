@@ -5,14 +5,22 @@ Raster Class
 ------------
 
 .. automodule:: spatialist.raster
+    :noindex:
     :members: subset_tolerance, Raster
 
 Raster Tools
 ------------
 
 .. automodule:: spatialist.raster
-    :members: stack, rasterize
+    :members: png, stack, rasterize
     :undoc-members:
+
+    .. autosummary::
+        :nosignatures:
+
+        png
+        stack
+        rasterize
 
 Vector Class
 ------------
