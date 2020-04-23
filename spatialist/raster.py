@@ -1108,9 +1108,10 @@ class Raster(object):
     #         self.write(outname, dim=[left, top, cols, rows], format=format)
 
 
-def png(src, dst, percent=10, scale=(2, 98), worldfile=False):
+def png(src, dst, percent=10, scale=(2, 98), worldfile=False, nodata=None):
     """
-    convert a raster image to png
+    convert a raster image to png. The input raster must either have one or three bands to create
+    a grey scale or RGB image respectively.
     
     Parameters
     ----------
@@ -1121,9 +1122,19 @@ def png(src, dst, percent=10, scale=(2, 98), worldfile=False):
     percent: int
         the size of the png relative to `src`
     scale: tuple
-        the percentile bounds for scaling the values of the input image
+        the percentile bounds  as (min, max) for scaling the values of the input image
     worldfile: bool
         create a world file (extension .wld)?
+    nodata: int or None
+        The no data value to write to the file. All pixels with this value will be transparent.
+    
+    Notes
+    -----
+    Currently it is not possible to control what happens with values outside of the percentile
+    range defined by `scale`. Therefore, if e.g. `nodata` is set to 0, all values below the
+    lower percentile will be marked as 0 and will thus be transparent in the image. On the other
+    hand if `nodata` is 255, all values higher than the upper percentile will be transparent.
+    This is addressed in GDAL issue `#1825 <https://github.com/OSGeo/gdal/issues/1825>`_.
 
     Returns
     -------
@@ -1147,6 +1158,7 @@ def png(src, dst, percent=10, scale=(2, 98), worldfile=False):
     options['outputType'] = gdal.GDT_Byte
     options['widthPct'] = percent
     options['heightPct'] = percent
+    options['noData'] = nodata
     scaleParams = []
     for band in range(src.bands):
         mat = src.matrix(band + 1)
