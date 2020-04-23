@@ -4,15 +4,23 @@ API Documentation
 Raster Class
 ------------
 
-.. automodule:: spatialist.raster
-    :members: subset_tolerance, Raster
+.. autoclass:: spatialist.raster.Raster
+    :members:
 
 Raster Tools
 ------------
 
 .. automodule:: spatialist.raster
-    :members: stack, rasterize
+    :members: png, rasterize, stack, subset_tolerance
     :undoc-members:
+
+    .. autosummary::
+        :nosignatures:
+
+        png
+        rasterize
+        stack
+        subset_tolerance
 
 Vector Class
 ------------

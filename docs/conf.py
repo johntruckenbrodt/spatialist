@@ -48,6 +48,7 @@ needs_sphinx = '1.6'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
     'sphinx.ext.coverage',
     'sphinx.ext.napoleon',
     'sphinx.ext.intersphinx',
