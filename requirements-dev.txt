@@ -1,13 +1,13 @@
 progressbar2
 pathos>=0.2
 numpy
-scoop
 matplotlib
 jupyter
 IPython
 ipywidgets
 tblib
 pyyaml
+dill
 
 #Testing requirements
 pytest
