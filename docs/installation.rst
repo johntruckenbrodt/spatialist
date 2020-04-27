@@ -1,11 +1,15 @@
 Installation
 ============
+The most convenient way to install spatialist is by using conda:
+
+.. code-block:: bash
+
+    conda install --channel conda-forge spatialist
+
+See below for more detailed Linux installation instructions outside of the Anaconda framework.
 
 Installation of dependencies
 ----------------------------
-If you are using Windows, the easiest way to work with spatialist and Python in general is by using
-`Anaconda <https://www.anaconda.com/download>`_. It comes with all basic requirements of spatialist.
-The more specific instructions below are intended for Linux users.
 
 GDAL
 ~~~~
@@ -92,18 +96,11 @@ Thus, it is safer to build a static sqlite3 library for it (see installation scr
 
 Installation of spatialist
 --------------------------
-For the installation we need the Python tool pip and the version control system git. On Windows, pip is
-installed together with Anaconda. Git can be installed like this:
+For the installation we need the Python tool pip.
 
 .. code-block:: bash
 
-    conda install git
-
-On Linux:
-
-.. code-block:: bash
-
-    sudo apt-get install python-pip git
+    sudo apt-get install python-pip
 
 Once everything is set up, spatialist is ready to be installed. You can install stable releases like this:
 
@@ -111,10 +108,10 @@ Once everything is set up, spatialist is ready to be installed. You can install 
 
     python -m pip install spatialist
 
-or the latest developer version like this:
+or the latest GitHub master branch using git like this:
 
 .. code-block:: bash
 
+    sudo apt-get install git
     sudo python -m pip install git+https://github.com/johntruckenbrodt/spatialist.git
 
-On Windows you need to use the Anaconda Prompt and leave out ``sudo`` in the above command.

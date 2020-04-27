@@ -1,5 +1,6 @@
 # spatialist
-[![Linux Build Status][1]][2] [![Windows Build status][3]][4] [![Coverage Status][5]][6] [![Documentation Status][7]][8] [![Binder][9]][10] [![PyPI version][12]][13]
+[![Linux Build Status][1]][2] [![Windows Build status][3]][4] [![Coverage Status][5]][6]
+[![Documentation Status][7]][8] [![Binder][9]][10] [![PyPI version][12]][13] [![Conda Version][15]][16]
 
 ### A Python module for spatial data handling
 
@@ -29,3 +30,5 @@ You can interactively use it by launching binder on the top.
 [12]: https://badge.fury.io/py/spatialist.svg
 [13]: https://badge.fury.io/py/spatialist
 [14]: https://spatialist.readthedocs.io/en/latest/installation.html
+[15]: https://img.shields.io/conda/vn/conda-forge/spatialist.svg
+[16]: https://anaconda.org/conda-forge/spatialist
