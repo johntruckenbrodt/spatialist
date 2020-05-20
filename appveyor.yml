@@ -29,7 +29,7 @@ install:
 
     # configure the conda environment
     - conda env create --file environment.yml
-    - conda install --name sp_test coveralls coverage
+    - conda install --name sp_test --yes coveralls coverage
     - conda activate sp_test
     - python setup.py install
 
