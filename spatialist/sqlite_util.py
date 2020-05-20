@@ -66,7 +66,7 @@ def sqlite_setup(driver=':memory:', extensions=None, verbose=False):
 
 
 def spatialite_setup():
-    if platform.system() is 'Windows':
+    if platform.system() == 'Windows':
         directory = os.path.join(os.path.expanduser('~'), '.spatialist')
         subdir = os.path.join(directory, 'mod_spatialite')
         if not os.path.isdir(subdir):
