@@ -27,16 +27,10 @@ install:
 
     - set PYTHONUNBUFFERED=1
 
-    # Add our channels.
-    - conda config --set show_channel_urls true
-    - conda config --remove channels defaults
-    - conda config --add channels defaults
-    - conda config --add channels conda-forge
-
-    # Configure the VM.
-    - conda install -n root --quiet --yes gdal swig
-    - python -m pip install --upgrade pip
-    - python -m pip install -r requirements-dev.txt coveralls coverage
+    # configure the conda environment
+    - conda env create --file environment.yml
+    - conda install --name sp_test --yes coveralls coverage pytest
+    - conda activate sp_test
     - python setup.py install
 
 # Skip .NET project specific build phase.
