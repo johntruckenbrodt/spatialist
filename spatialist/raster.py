@@ -1119,8 +1119,9 @@ def png(src, dst, percent=10, scale=(2, 98), worldfile=False, nodata=None):
         the output png file name
     percent: int
         the size of the png relative to `src`
-    scale: tuple
+    scale: tuple or None
         the percentile bounds  as (min, max) for scaling the values of the input image
+        or `None` to not apply any scaling.
     worldfile: bool
         create a world file (extension .wld)?
     nodata: int or None
@@ -1157,12 +1158,13 @@ def png(src, dst, percent=10, scale=(2, 98), worldfile=False, nodata=None):
     options['widthPct'] = percent
     options['heightPct'] = percent
     options['noData'] = nodata
-    scaleParams = []
-    for band in range(src.bands):
-        mat = src.matrix(band + 1)
-        lower, upper = np.nanpercentile(mat, scale)
-        scaleParams.append([lower, upper, 0, 255])
-    options['scaleParams'] = scaleParams
+    if scale is not None:
+        scaleParams = []
+        for band in range(src.bands):
+            mat = src.matrix(band + 1)
+            lower, upper = np.nanpercentile(mat, scale)
+            scaleParams.append([lower, upper, 0, 255])
+        options['scaleParams'] = scaleParams
     if worldfile:
         options['options'] = ['-co', 'WORLDFILE=YES']
     gdal_translate(src.raster, dst, options)
