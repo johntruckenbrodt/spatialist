@@ -1621,7 +1621,7 @@ class Dtype(object):
         return dict(map)
 
 
-def apply_along_time(srcfile, dstfile, func1d, nodata, format, cmap=None, maxlines=None, cores=8):
+def apply_along_time(srcfile, dstfile, func1d, nodata, format, cmap=None, maxlines=None, cores=8, *args, **kwargs):
     """
     Apply a time series computation to a 3D raster stack using multiple CPUs.
     The stack is read in chunks of maxlines x columns x time steps, for which the result is computed and stored in a 2D output array.
@@ -1651,7 +1651,15 @@ def apply_along_time(srcfile, dstfile, func1d, nodata, format, cmap=None, maxlin
         the maximum number of lines to read at once. Controls the amount of memory used.
     cores: int
         the number of parallel cores
+    args: any
+        Additional arguments to `func1d`.
+    kwargs:any
+        Additional named arguments to `func1d`.
 
+    See Also
+    --------
+    :func:`spatialist.ancillary.parallel_apply_along_axis`
+    
     Returns
     -------
 
@@ -1667,7 +1675,9 @@ def apply_along_time(srcfile, dstfile, func1d, nodata, format, cmap=None, maxlin
             print('reading lines {0}:{1}'.format(start, stop))
             with Raster(srcfile)[start:stop, :, :] as sub:
                 arr = sub.array()
-            out[start:stop, :] = parallel_apply_along_axis(func1d=func1d, axis=2, arr=arr, cores=cores)
+            out[start:stop, :] = parallel_apply_along_axis(func1d=func1d, axis=2,
+                                                           arr=arr, cores=cores,
+                                                           args=args, kwargs=kwargs)
             start += maxlines
             stop += maxlines
             if stop > rows:
