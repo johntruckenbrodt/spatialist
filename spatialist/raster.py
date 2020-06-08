@@ -19,7 +19,7 @@ import numpy as np
 from . import envi
 from .auxil import gdalwarp, gdalbuildvrt, gdal_translate
 from .vector import Vector, bbox, crsConvert, intersect
-from .ancillary import dissolve, multicore
+from .ancillary import dissolve, multicore, parallel_apply_along_axis
 from .envi import HDRobject
 
 from osgeo import gdal, gdal_array, osr
@@ -1622,3 +1622,60 @@ class Dtype(object):
         for key in self.gdalint2numpystr.keys():
             map.append((key, gdal.GetDataTypeName(key)))
         return dict(map)
+
+
+def apply_along_time(srcfile, dstfile, func1d, nodata, format, cmap=None, maxlines=None, cores=8):
+    """
+    Apply a time series computation to a 3D raster stack using multiple CPUs.
+    The stack is read in chunks of maxlines x columns x time steps, for which the result is computed and stored in a 2D output array.
+    After finishing the computation for all chunks, the output array is written to the specified file.
+
+    Notes
+    -----
+    It is intended to directly write the computation result of each chunk to the output file respectively so that no
+    unnecessary memory is used for storing the complete result.
+    This however first requires some restructuring of the method :meth:`spatialist.Raster.write`.
+
+    Parameters
+    ----------
+    srcfile: str
+        the input file containing the clustering result
+    dstfile: str
+        the output file in GeoTiff format containing the temporal frequency result
+    func1d: function
+        the function to be applied over a single time series 1D array
+    nodata: int
+        the nodata value to write to the output file
+    format: str
+        the output file format, e.g. 'GTiff'
+    cmap: gdal.ColorTable
+        a color table to write to the resulting file; see :func:`spatialist.auxil.cmap_mpl2gdal` for creation options.
+    maxlines: int
+        the maximum number of lines to read at once. Controls the amount of memory used.
+    cores: int
+        the number of parallel cores
+
+    Returns
+    -------
+
+    """
+    with Raster(srcfile) as stack:
+        rows, cols, bands = stack.dim
+        if maxlines is None or maxlines > rows:
+            maxlines = rows
+        out = np.empty((rows, cols), dtype='float32')
+        start = 0
+        stop = start + maxlines
+        while start < rows:
+            print('reading lines {0}:{1}'.format(start, stop))
+            with Raster(srcfile)[start:stop, :, :] as sub:
+                arr = sub.array()
+            out[start:stop, :] = parallel_apply_along_axis(func1d=func1d, axis=2, arr=arr, cores=cores)
+            start += maxlines
+            stop += maxlines
+            if stop > rows:
+                stop = rows
+    
+    with Raster(srcfile)[:, :, 0] as sub:
+        sub.assign(out, band=0)
+        sub.write(outname=dstfile, nodata=nodata, dtype='float32', format=format, cmap=cmap)
