@@ -119,13 +119,14 @@ class Raster(object):
         vals['rows'], vals['cols'], vals['bands'] = self.dim
         vals.update(self.geo)
         vals['proj4'] = self.proj4
+        vals['epsg'] = self.epsg
         vals['filename'] = self.filename if self.filename is not None else 'memory'
         
         info = 'class      : spatialist Raster object\n' \
                'dimensions : {rows}, {cols}, {bands} (rows, cols, bands)\n' \
                'resolution : {xres}, {yres} (x, y)\n' \
                'extent     : {xmin}, {xmax}, {ymin}, {ymax} (xmin, xmax, ymin, ymax)\n' \
-               'coord. ref.: {proj4}\n' \
+               'coord. ref.: {proj4} (EPSG:{epsg})\n' \
                'data source: {filename}'.format(**vals)
         return info
     
