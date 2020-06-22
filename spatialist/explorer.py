@@ -146,7 +146,7 @@ class RasterViewer(object):
                 raise RuntimeError('length mismatch of unique provided band indices ({0}) '
                                    'and image bands ({1})'.format(len(band_indices), self.bands))
             else:
-                self.indices = sorted(band_indices)
+                self.indices = band_indices
         else:
             self.indices = range(1, self.bands + 1)
         
