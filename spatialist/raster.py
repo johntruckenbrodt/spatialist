@@ -986,7 +986,7 @@ class Raster(object):
         return osr.SpatialReference(wkt=self.projection)
     
     def write(self, outname, dtype='default', format='ENVI', nodata='default', compress_tif=False, overwrite=False,
-              cmap=None, update=False, xoff=0, yoff=0):
+              cmap=None, update=False, xoff=0, yoff=0, array=None):
         """
         write the raster object to a file.
 
@@ -1014,6 +1014,8 @@ class Raster(object):
             the x/column offset
         yoff: int
             the y/row offset
+        array: numpy.ndarray
+            write different data than that associated with the Raster object
 
         Returns
         -------
@@ -1052,7 +1054,13 @@ class Raster(object):
                     outband.SetRasterColorTable(cmap)
                 if nodata is not None:
                     outband.SetNoDataValue(nodata)
-            mat = self.matrix(band=i)
+            if array is None:
+                mat = self.matrix(band=i)
+            else:
+                if len(array.shape) == 3:
+                    mat = array[:, :, i - 1]
+                else:
+                    mat = array
             dtype_mat = str(mat.dtype)
             dtype_ras = Dtype(dtype).numpystr
             if not np.can_cast(dtype_mat, dtype_ras):
