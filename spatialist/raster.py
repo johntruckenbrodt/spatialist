@@ -986,7 +986,7 @@ class Raster(object):
         return osr.SpatialReference(wkt=self.projection)
     
     def write(self, outname, dtype='default', format='ENVI', nodata='default', compress_tif=False, overwrite=False,
-              cmap=None, update=False):
+              cmap=None, update=False, xoff=0, yoff=0):
         """
         write the raster object to a file.
 
@@ -1010,6 +1010,10 @@ class Raster(object):
             Can for example be created with function :func:`~spatialist.auxil.cmap_mpl2gdal`.
         update: bool
             open the output file fpr update or only for writing?
+        xoff: int
+            the x/column offset
+        yoff: int
+            the y/row offset
 
         Returns
         -------
@@ -1057,7 +1061,7 @@ class Raster(object):
                     print('converting nan to nodata value {}'.format(nodata))
                     mat[np.isnan(mat)] = nodata
                     mat = mat.astype(dtype_ras)
-            outband.WriteArray(mat)
+            outband.WriteArray(mat, xoff, yoff)
             del mat
             outband.FlushCache()
             outband = None
