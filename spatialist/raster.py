@@ -1638,7 +1638,7 @@ class Dtype(object):
         return dict(map)
 
 
-def apply_along_time(srcfile, dstfile, func1d, nodata, format, cmap=None, maxlines=None, cores=8, *args, **kwargs):
+def apply_along_time(src, dst, func1d, nodata, format, cmap=None, maxlines=None, cores=8, *args, **kwargs):
     """
     Apply a time series computation to a 3D raster stack using multiple CPUs.
     The stack is read in chunks of maxlines x columns x time steps, for which the result is computed and stored in a 2D output array.
@@ -1652,10 +1652,10 @@ def apply_along_time(srcfile, dstfile, func1d, nodata, format, cmap=None, maxlin
 
     Parameters
     ----------
-    srcfile: str
-        the input file containing the clustering result
-    dstfile: str
-        the output file in GeoTiff format containing the temporal frequency result
+    src: Raster
+        the source raster data
+    dst: str
+        the output file in GeoTiff format
     func1d: function
         the function to be applied over a single time series 1D array
     nodata: int
@@ -1681,25 +1681,27 @@ def apply_along_time(srcfile, dstfile, func1d, nodata, format, cmap=None, maxlin
     -------
 
     """
-    with Raster(srcfile) as stack:
-        rows, cols, bands = stack.dim
-        if maxlines is None or maxlines > rows:
-            maxlines = rows
-        out = np.empty((rows, cols), dtype='float32')
-        start = 0
-        stop = start + maxlines
-        while start < rows:
-            print('reading lines {0}:{1}'.format(start, stop))
-            with Raster(srcfile)[start:stop, :, :] as sub:
-                arr = sub.array()
-            out[start:stop, :] = parallel_apply_along_axis(func1d=func1d, axis=2,
-                                                           arr=arr, cores=cores,
-                                                           args=args, kwargs=kwargs)
-            start += maxlines
-            stop += maxlines
-            if stop > rows:
-                stop = rows
+    rows, cols, bands = src.dim
     
-    with Raster(srcfile)[:, :, 0] as sub:
-        sub.assign(out, band=0)
-        sub.write(outname=dstfile, nodata=nodata, dtype='float32', format=format, cmap=cmap)
+    if maxlines is None or maxlines > rows:
+        maxlines = rows
+    start = 0
+    stop = start + maxlines
+    
+    while start < rows:
+        print('processing lines {0}:{1}'.format(start, stop))
+        with src[start:stop, :, :] as sub:
+            arr = sub.array()
+        out = parallel_apply_along_axis(func1d=func1d, axis=2,
+                                        arr=arr, cores=cores,
+                                        *args, **kwargs)
+        
+        with src[:, :, 0] as ref:
+            ref.write(outname=dst, nodata=nodata, dtype='float32',
+                      format=format, cmap=cmap, yoff=start,
+                      array=out, update=True)
+        
+        start += maxlines
+        stop += maxlines
+        if stop > rows:
+            stop = rows
