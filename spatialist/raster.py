@@ -68,7 +68,6 @@ class Raster(object):
         layers of a stack, the latter for tiles of a mosaic.
     """
     
-    # todo: init a Raster object from array data not only from a filename
     def __init__(self, filename, list_separate=True):
         if isinstance(filename, gdal.Dataset):
             self.raster = filename
@@ -988,7 +987,7 @@ class Raster(object):
         return osr.SpatialReference(wkt=self.projection)
     
     def write(self, outname, dtype='default', format='ENVI', nodata='default', compress_tif=False, overwrite=False,
-              cmap=None):
+              cmap=None, update=False):
         """
         write the raster object to a file.
 
@@ -1006,44 +1005,50 @@ class Raster(object):
         compress_tif: bool
             if the format is GeoTiff, compress the written file?
         overwrite: bool
-            overwrite an already existing file?
+            overwrite an already existing file? Only applies if `update` is `False`.
         cmap: :osgeo:class:`gdal.ColorTable`
             a color map to apply to each band.
             Can for example be created with function :func:`~spatialist.auxil.cmap_mpl2gdal`.
+        update: bool
+            open the output file fpr update or only for writing?
 
         Returns
         -------
 
         """
-        
-        if os.path.isfile(outname) and not overwrite:
-            raise RuntimeError('target file already exists')
-        
-        if format == 'GTiff' and not re.search(r'\.tif[f]*$', outname):
-            outname += '.tif'
-        
+        update_existing = update and os.path.isfile(outname)
         dtype = Dtype(self.dtype if dtype == 'default' else dtype).gdalint
-        nodata = self.nodata if nodata == 'default' else nodata
-        
-        options = []
-        if format == 'GTiff' and compress_tif:
-            options += ['COMPRESS=DEFLATE', 'PREDICTOR=2']
-        
-        driver = gdal.GetDriverByName(format)
-        outDataset = driver.Create(outname, self.cols, self.rows, self.bands, dtype, options)
-        driver = None
-        outDataset.SetMetadata(self.raster.GetMetadata())
-        outDataset.SetGeoTransform([self.geo[x] for x in ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']])
-        if self.projection is not None:
-            outDataset.SetProjection(self.projection)
+        if not update_existing:
+            if os.path.isfile(outname) and not overwrite:
+                raise RuntimeError('target file already exists')
+            
+            if format == 'GTiff' and not re.search(r'\.tif[f]*$', outname):
+                outname += '.tif'
+            
+            nodata = self.nodata if nodata == 'default' else nodata
+            
+            options = []
+            if format == 'GTiff' and compress_tif:
+                options += ['COMPRESS=DEFLATE', 'PREDICTOR=2']
+            
+            driver = gdal.GetDriverByName(format)
+            outDataset = driver.Create(outname, self.cols, self.rows, self.bands, dtype, options)
+            driver = None
+            outDataset.SetMetadata(self.raster.GetMetadata())
+            outDataset.SetGeoTransform(
+                [self.geo[x] for x in ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']])
+            if self.projection is not None:
+                outDataset.SetProjection(self.projection)
+        else:
+            outDataset = gdal.Open(outname, GA_Update)
         for i in range(1, self.bands + 1):
             outband = outDataset.GetRasterBand(i)
             
-            if cmap is not None:
-                outband.SetRasterColorTable(cmap)
-            
-            if nodata is not None:
-                outband.SetNoDataValue(nodata)
+            if not update_existing:
+                if cmap is not None:
+                    outband.SetRasterColorTable(cmap)
+                if nodata is not None:
+                    outband.SetNoDataValue(nodata)
             mat = self.matrix(band=i)
             dtype_mat = str(mat.dtype)
             dtype_ras = Dtype(dtype).numpystr
