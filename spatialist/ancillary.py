@@ -663,13 +663,18 @@ def parallel_apply_along_axis(func1d, axis, arr, cores=4, *args, **kwargs):
         func1d, axis, arr, args, kwargs = arguments
         return np.apply_along_axis(func1d, axis, arr, *args, **kwargs)
     
-    chunks = [(func1d, effective_axis, sub_arr, args, kwargs)
-              for sub_arr in np.array_split(arr, mp.cpu_count())]
-    
-    pool = mp.Pool(cores)
-    individual_results = pool.map(unpack, chunks)
-    # Freeing the workers:
-    pool.close()
-    pool.join()
-    
-    return np.concatenate(individual_results)
+    if cores <= 0:
+        raise ValueError('cores must be larger than 0')
+    elif cores == 1:
+        return np.apply_along_axis(func1d, axis, arr, *args, **kwargs)
+    else:
+        chunks = [(func1d, effective_axis, sub_arr, args, kwargs)
+                  for sub_arr in np.array_split(arr, mp.cpu_count())]
+        
+        pool = mp.Pool(cores)
+        individual_results = pool.map(unpack, chunks)
+        # Freeing the workers:
+        pool.close()
+        pool.join()
+        
+        return np.concatenate(individual_results)
