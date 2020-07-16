@@ -8,6 +8,7 @@ This script gathers central functions and classes for general applications
 import sys
 import dill
 import string
+import shutil
 import tempfile
 import platform
 import tblib.pickling_support
@@ -609,22 +610,24 @@ def which(program, mode=os.F_OK | os.X_OK):
     str or None
         the full path and name of the command
     """
-    
-    def is_exe(fpath, mode):
-        return os.path.isfile(fpath) and os.access(fpath, mode)
-    
-    fpath, fname = os.path.split(program)
-    if fpath:
-        if is_exe(program, mode):
-            return program
+    if sys.version_info >= (3, 3):
+        return shutil.which(program)
     else:
-        for path in os.environ['PATH'].split(os.path.pathsep):
-            path = path.strip('"')
-            exe_files = [os.path.join(path, program), os.path.join(path, program + '.exe')]
-            for exe_file in exe_files:
-                if is_exe(exe_file, mode):
-                    return exe_file
-    return None
+        def is_exe(fpath, mode):
+            return os.path.isfile(fpath) and os.access(fpath, mode)
+        
+        fpath, fname = os.path.split(program)
+        if fpath:
+            if is_exe(program, mode):
+                return program
+        else:
+            for path in os.environ['PATH'].split(os.path.pathsep):
+                path = path.strip('"')
+                exe_files = [os.path.join(path, program), os.path.join(path, program + '.exe')]
+                for exe_file in exe_files:
+                    if is_exe(exe_file, mode):
+                        return exe_file
+        return None
 
 
 def parallel_apply_along_axis(func1d, axis, arr, cores=4, *args, **kwargs):
