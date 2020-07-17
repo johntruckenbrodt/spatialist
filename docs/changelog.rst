@@ -53,3 +53,18 @@ v0.5
 - :class:`spatialist.explorer.RasterViewer`
 
   * optionally pass custom functions to create additional plots using argument `custom`
+
+v0.6
+----
+
+- method :meth:`spatialist.raster.Raster.write`
+
+  * optionally update an existing file with new arg `update`
+  * partial writing with new args `xoff` and `yoff`
+  * write external arrays with new arg `array`
+
+- new function :func:`spatialist.raster.png`
+
+- new function :func:`spatialist.raster.apply_along_time`
+
+- bug fixes
