@@ -11,12 +11,13 @@ Raster Tools
 ------------
 
 .. automodule:: spatialist.raster
-    :members: png, rasterize, stack, subset_tolerance
+    :members: apply_along_time, png, rasterize, stack, subset_tolerance
     :undoc-members:
 
     .. autosummary::
         :nosignatures:
 
+        apply_along_time
         png
         rasterize
         stack
