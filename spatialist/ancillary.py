@@ -1,6 +1,6 @@
 ##############################################################
 # core routines for software spatialist
-# John Truckenbrodt 2014-2019
+# John Truckenbrodt 2014-2020
 ##############################################################
 """
 This script gathers central functions and classes for general applications
@@ -611,7 +611,7 @@ def which(program, mode=os.F_OK | os.X_OK):
         the full path and name of the command
     """
     if sys.version_info >= (3, 3):
-        return shutil.which(program)
+        return shutil.which(program, mode=mode)
     else:
         def is_exe(fpath, mode):
             return os.path.isfile(fpath) and os.access(fpath, mode)
