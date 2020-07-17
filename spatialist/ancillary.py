@@ -487,11 +487,11 @@ def run(cmd, outdir=None, logfile=None, inlist=None, void=True, errorpass=False,
     ----------
     cmd: list
         the command arguments
-    outdir: str
+    outdir: str or None
         the directory to execute the command in
-    logfile: str
+    logfile: str or None
         a file to write stdout to
-    inlist: list
+    inlist: list or None
         a list of arguments passed to stdin, i.e. arguments passed to interactive input of the program
     void: bool
         return stdout and stderr?
