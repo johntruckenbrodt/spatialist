@@ -216,7 +216,8 @@ class Raster(object):
                     'mismatch of index length ({0}) and raster dimensions ({1})'.format(len(index), ras_dim))
             for i in [0, 1]:
                 if hasattr(index[i], 'step') and index[i].step is not None:
-                    raise IndexError('step slicing of {} is not allowed'.format(['rows', 'bands'][i]))
+                    raise IndexError('step slicing of {} is not allowed'.format(['rows', 'cols'][i]))
+            index = list(index)
         
         # treat float indices as map coordinates and convert them to image coordinates
         yi = index[0]
@@ -245,6 +246,32 @@ class Raster(object):
             if not isinstance(subset[key], list):
                 subset[key] = [subset[key]]
         if len(index) > 2:
+            bi = index[2]
+            if isinstance(bi, str):
+                bi = self.bandnames.index(bi)
+            elif isinstance(bi, int):
+                pass
+            elif isinstance(bi, slice):
+                if isinstance(bi.start, int):
+                    start = bi.start
+                elif isinstance(bi.start, str):
+                    start = self.bandnames.index(bi.start)
+                elif bi.start is None:
+                    start = None
+                else:
+                    raise TypeError('band indices must be either int or str')
+                if isinstance(bi.stop, int):
+                    stop = bi.stop
+                elif isinstance(bi.stop, str):
+                    stop = self.bandnames.index(bi.stop)
+                elif bi.stop is None:
+                    stop = None
+                else:
+                    raise TypeError('band indices must be either int or str')
+                bi = slice(start, stop)
+            else:
+                raise TypeError('band indices must be either int or str')
+            index[2] = bi
             subset['bands'] = list(range(0, self.bands))[index[2]]
             if not isinstance(subset['bands'], list):
                 subset['bands'] = [subset['bands']]
