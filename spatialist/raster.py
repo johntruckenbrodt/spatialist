@@ -12,6 +12,7 @@ import re
 import platform
 import warnings
 import tempfile
+from datetime import datetime
 from math import sqrt, floor, ceil
 from time import gmtime, strftime
 import numpy as np
@@ -66,9 +67,11 @@ class Raster(object):
     list_separate: bool
         treat a list of files as separate layers or otherwise as a single layer? The former is intended for single
         layers of a stack, the latter for tiles of a mosaic.
+    timestamps: list of str or None
+        the time information for each layer
     """
     
-    def __init__(self, filename, list_separate=True):
+    def __init__(self, filename, list_separate=True, timestamps=None):
         if isinstance(filename, gdal.Dataset):
             self.raster = filename
             self.filename = self.files[0] if self.files is not None else None
@@ -106,6 +109,11 @@ class Raster(object):
                 self.bandnames = ['mosaic']
         else:
             self.bandnames = ['band{}'.format(x) for x in range(1, self.bands + 1)]
+        
+        if timestamps is not None:
+            if len(timestamps) != len(self.bandnames):
+                raise RuntimeError('the number of time stamps is different to the number of bands')
+        self.timestamps = timestamps
     
     def __enter__(self):
         return self
@@ -120,10 +128,13 @@ class Raster(object):
         vals['proj4'] = self.proj4
         vals['epsg'] = self.epsg
         vals['filename'] = self.filename if self.filename is not None else 'memory'
+        if self.timestamps is not None:
+            vals['time'] = '{0} .. {1}'.format(min(self.timestamps), max(self.timestamps))
         
         info = 'class      : spatialist Raster object\n' \
                'dimensions : {rows}, {cols}, {bands} (rows, cols, bands)\n' \
                'resolution : {xres}, {yres} (x, y)\n' \
+               'time range : {time}\n' \
                'extent     : {xmin}, {xmax}, {ymin}, {ymax} (xmin, xmax, ymin, ymax)\n' \
                'coord. ref.: {proj4} (EPSG:{epsg})\n' \
                'data source: {filename}'.format(**vals)
@@ -249,6 +260,8 @@ class Raster(object):
             bi = index[2]
             if isinstance(bi, str):
                 bi = self.bandnames.index(bi)
+            elif isinstance(bi, datetime):
+                bi = self.timestamps.index(bi)
             elif isinstance(bi, int):
                 pass
             elif isinstance(bi, slice):
@@ -256,6 +269,11 @@ class Raster(object):
                     start = bi.start
                 elif isinstance(bi.start, str):
                     start = self.bandnames.index(bi.start)
+                elif isinstance(bi.start, datetime):
+                    larger = [x for x in self.timestamps if x > bi.start]
+                    tdiff = [x - bi.start for x in larger]
+                    closest = larger[tdiff.index(min(tdiff))]
+                    start = self.timestamps.index(closest)
                 elif bi.start is None:
                     start = None
                 else:
@@ -264,6 +282,11 @@ class Raster(object):
                     stop = bi.stop
                 elif isinstance(bi.stop, str):
                     stop = self.bandnames.index(bi.stop)
+                elif isinstance(bi.stop, datetime):
+                    smaller = [x for x in self.timestamps if x < bi.stop]
+                    tdiff = [bi.start - x for x in smaller]
+                    closest = smaller[tdiff.index(min(tdiff))]
+                    stop = self.timestamps.index(closest)
                 elif bi.stop is None:
                     stop = None
                 else:
@@ -302,14 +325,21 @@ class Raster(object):
         # outname = os.path.join('/vsimem/', os.path.basename(tempfile.mktemp()))
         outname = tempfile.NamedTemporaryFile(suffix='.vrt').name
         out_ds = gdalbuildvrt(src=self.filename, dst=outname, options=opts, void=False)
-        out = Raster(out_ds)
+        
         if len(index) > 2:
             bandnames = self.bandnames[index[2]]
+            timestamps = self.timestamps[index[2]]
         else:
             bandnames = self.bandnames
+            timestamps = self.timestamps
         if not isinstance(bandnames, list):
             bandnames = [bandnames]
+        if not isinstance(timestamps, list):
+            timestamps = [timestamps]
+        
+        out = Raster(out_ds)
         out.bandnames = bandnames
+        out.timestamps = timestamps
         return out
     
     def __extent2slice(self, extent):
@@ -380,7 +410,7 @@ class Raster(object):
         
         Parameters
         ----------
-        filename: str
+        filename: str or list
             the file name, e.g. archive.tar.gz/filename
 
         Returns
