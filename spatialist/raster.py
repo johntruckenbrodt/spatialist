@@ -129,15 +129,20 @@ class Raster(object):
         vals['epsg'] = self.epsg
         vals['filename'] = self.filename if self.filename is not None else 'memory'
         if self.timestamps is not None:
-            vals['time'] = '{0} .. {1}'.format(min(self.timestamps), max(self.timestamps))
+            t0 = min(self.timestamps)
+            t1 = max(self.timestamps)
+            vals['time'] = 'time range : {0} .. {1}\n'.format(t0, t1)
+        else:
+            vals['time'] = ''
         
         info = 'class      : spatialist Raster object\n' \
                'dimensions : {rows}, {cols}, {bands} (rows, cols, bands)\n' \
                'resolution : {xres}, {yres} (x, y)\n' \
-               'time range : {time}\n' \
+               '{time}' \
                'extent     : {xmin}, {xmax}, {ymin}, {ymax} (xmin, xmax, ymin, ymax)\n' \
                'coord. ref.: {proj4} (EPSG:{epsg})\n' \
                'data source: {filename}'.format(**vals)
+        
         return info
     
     def __getitem__(self, index):
@@ -326,15 +331,16 @@ class Raster(object):
         outname = tempfile.NamedTemporaryFile(suffix='.vrt').name
         out_ds = gdalbuildvrt(src=self.filename, dst=outname, options=opts, void=False)
         
+        timestamps = self.timestamps
         if len(index) > 2:
             bandnames = self.bandnames[index[2]]
-            timestamps = self.timestamps[index[2]]
+            if timestamps is not None:
+                timestamps = timestamps[index[2]]
         else:
             bandnames = self.bandnames
-            timestamps = self.timestamps
         if not isinstance(bandnames, list):
             bandnames = [bandnames]
-        if not isinstance(timestamps, list):
+        if timestamps is not None and not isinstance(timestamps, list):
             timestamps = [timestamps]
         
         out = Raster(out_ds)
