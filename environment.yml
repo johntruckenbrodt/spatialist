@@ -13,7 +13,7 @@ dependencies:
   - tblib
   - pyyaml
   - dill
-  - gdal
+  - gdal>=2.4
   - pip
   - sqlite
   - libspatialite
