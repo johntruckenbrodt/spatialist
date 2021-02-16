@@ -77,7 +77,14 @@ def crsConvert(crsIn, crsOut):
         return srs.ExportToProj4()
     elif crsOut == 'epsg':
         srs.AutoIdentifyEPSG()
-        return int(srs.GetAuthorityCode(None))
+        code = int(srs.GetAuthorityCode(None))
+        # make sure the ESPG code actually exists
+        try:
+            srsTest = osr.SpatialReference()
+            srsTest.ImportFromEPSG(code)
+        except RuntimeError:
+            raise RuntimeError('CRS does not have a EPSG representation')
+        return code
     elif crsOut == 'opengis':
         srs.AutoIdentifyEPSG()
         return 'http://www.opengis.net/def/crs/EPSG/0/{}'.format(srs.GetAuthorityCode(None))
