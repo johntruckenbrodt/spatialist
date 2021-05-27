@@ -5,23 +5,15 @@
 """
 This script gathers central functions and classes for general applications
 """
-import sys
 import dill
 import string
 import shutil
 import tempfile
 import platform
 import tblib.pickling_support
-
-if sys.version_info >= (3, 0):
-    from io import StringIO
-    from urllib.parse import urlparse, urlunparse, urlencode
-    from builtins import str
-else:
-    from urllib import urlencode
-    from StringIO import StringIO
-    from urlparse import urlparse, urlunparse
-
+from io import StringIO
+from urllib.parse import urlparse, urlunparse, urlencode
+from builtins import str
 import re
 import sys
 import fnmatch

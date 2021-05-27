@@ -9,17 +9,9 @@ import numpy as np
 from .raster import Raster
 from .vector import Vector
 import matplotlib.pyplot as plt
-
-import sys
-
 from osgeo import ogr
 
-if sys.version_info >= (3, 0):
-    from tkinter import filedialog, Tk
-else:
-    from Tkinter import Tk
-    import tkFileDialog as filedialog
-
+from tkinter import filedialog, Tk
 from IPython.display import display
 from ipywidgets import interactive_output, IntSlider, Layout, Checkbox, Button, HBox, Label, VBox
 from mpl_toolkits.axes_grid1 import make_axes_locatable
