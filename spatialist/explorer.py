@@ -11,10 +11,13 @@ from .vector import Vector
 import matplotlib.pyplot as plt
 from osgeo import ogr
 
-from tkinter import filedialog, Tk
-from IPython.display import display
-from ipywidgets import interactive_output, IntSlider, Layout, Checkbox, Button, HBox, Label, VBox
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+try:
+    from tkinter import filedialog, Tk
+    from IPython.display import display
+    from ipywidgets import interactive_output, IntSlider, Layout, Checkbox, Button, HBox, Label, VBox
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+except ImportError:
+    raise RuntimeError('this module requires installation of the optional visualization requirements')
 
 
 class RasterViewer(object):

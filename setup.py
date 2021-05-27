@@ -6,6 +6,9 @@ directory = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(directory, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
+with open(os.path.join(directory, 'requirements.txt'), 'r') as req:
+    requirements = req.read().split('\n')
+
 setup(name='spatialist',
       packages=find_packages(),
       include_package_data=True,
@@ -18,16 +21,10 @@ setup(name='spatialist',
           'Operating System :: POSIX :: Linux',
           'Programming Language :: Python',
       ],
-      install_requires=['progressbar2',
-                        'jupyter',
-                        'IPython',
-                        'ipywidgets',
-                        'matplotlib',
-                        'pathos>=0.2',
-                        'numpy',
-                        'tblib',
-                        'pyyaml',
-                        'dill'],
+      install_requires=requirements,
+      extras_require={'testing': ['pytest'],
+                      'docs': ['sphinx', 'sphinxcontrib-bibtex<2.0.0'],
+                      'visualization': ['matplotlib', 'jupyter', 'IPython', 'ipywidgets']},
       python_requires='>=3.0',
       url='https://github.com/johntruckenbrodt/spatialist.git',
       author='John Truckenbrodt',
