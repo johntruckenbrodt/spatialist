@@ -4,3 +4,4 @@ numpy
 tblib
 pyyaml
 dill
+matplotlib
