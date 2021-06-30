@@ -7,9 +7,6 @@ dependencies:
   - pathos>=0.2
   - numpy
   - matplotlib-base
-  - jupyter
-  - IPython
-  - ipywidgets
   - tblib
   - pyyaml
   - dill

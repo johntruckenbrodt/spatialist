@@ -67,13 +67,6 @@ ENVI HDR file manipulation
     :members:
     :undoc-members:
 
-Data Exploration
-----------------
-
-.. automodule:: spatialist.explorer
-    :members:
-    :undoc-members:
-
 Some general examples
 =====================
 in-memory vector object rasterization
