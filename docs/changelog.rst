@@ -1,8 +1,8 @@
 Changelog
 =========
 
-v0.4
-----
+0.4 | 2019-12-05
+----------------
 
 
 - :func:`spatialist.auxil.gdalwarp`: optional progressbar via new argument `pbar`
@@ -22,8 +22,8 @@ v0.4
 
 - bug fixes
 
-v0.5
-----
+0.5 | 2020-04-21
+----------------
 
 - compatibility of SpatiaLite tools with Windows10
 - compatibility with GDAL 3
@@ -54,8 +54,8 @@ v0.5
 
   * optionally pass custom functions to create additional plots using argument `custom`
 
-v0.6
-----
+0.6 | 2020-07-17
+----------------
 
 - method :meth:`spatialist.raster.Raster.write`
 
@@ -68,3 +68,15 @@ v0.6
 - new function :func:`spatialist.raster.apply_along_time`
 
 - bug fixes
+
+0.7 | 2021-06-30
+----------------
+
+- :class:`spatialist.raster.Raster`: option to subset objects by
+
+  * band names
+  * time range
+
+- :func:`spatialist.auxil.crsConvert`: raise a `RuntimeError` if no corresponding EPSG code was found
+
+- module `spatialist.explorer` and associated demo data and notebook have been outsourced to https://github.com/johntruckenbrodt/spatialist_explorer
