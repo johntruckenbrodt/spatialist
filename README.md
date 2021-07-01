@@ -15,8 +15,8 @@ Detailed instructions can be found in the documentation [here][14].
 ### Tutorial
 A jupyter notebook and test data are available [here][11].
 
-[1]: https://www.travis-ci.org/johntruckenbrodt/spatialist.svg?branch=master
-[2]: https://www.travis-ci.org/johntruckenbrodt/spatialist
+[1]: https://www.travis-ci.com/johntruckenbrodt/spatialist.svg?branch=master
+[2]: https://www.travis-ci.com/johntruckenbrodt/spatialist
 [3]: https://ci.appveyor.com/api/projects/status/3nxj2nnmp21ig860?svg=true
 [4]: https://ci.appveyor.com/project/johntruckenbrodt/spatialist
 [5]: https://coveralls.io/repos/github/johntruckenbrodt/spatialist/badge.svg?branch=master
