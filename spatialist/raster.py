@@ -1049,8 +1049,8 @@ class Raster(object):
         """
         return osr.SpatialReference(wkt=self.projection)
     
-    def write(self, outname, dtype='default', format='ENVI', nodata='default', compress_tif=False, overwrite=False,
-              cmap=None, update=False, xoff=0, yoff=0, array=None):
+    def write(self, outname, dtype='default', format='ENVI', nodata='default', overwrite=False,
+              cmap=None, update=False, xoff=0, yoff=0, array=None, options=None, overviews=None):
         """
         write the raster object to a file.
 
@@ -1096,10 +1096,6 @@ class Raster(object):
             
             nodata = self.nodata if nodata == 'default' else nodata
             
-            options = []
-            if format == 'GTiff' and compress_tif:
-                options += ['COMPRESS=DEFLATE', 'PREDICTOR=2']
-            
             driver = gdal.GetDriverByName(format)
             outDataset = driver.Create(outname, self.cols, self.rows, self.bands, dtype, options)
             driver = None
@@ -1139,6 +1135,8 @@ class Raster(object):
             outband = None
         if format == 'GTiff':
             outDataset.SetMetadataItem('TIFFTAG_DATETIME', strftime('%Y:%m:%d %H:%M:%S', gmtime()))
+        if overviews:
+            outDataset.BuildOverviews('NEAREST', overviews)
         outDataset = None
         if format == 'ENVI':
             hdrfile = os.path.splitext(outname)[0] + '.hdr'
