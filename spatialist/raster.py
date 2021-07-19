@@ -1080,6 +1080,10 @@ class Raster(object):
             the y/row offset
         array: numpy.ndarray
             write different data than that associated with the Raster object
+        options: list or None
+            as list of options for creating the output dataset; see :osgeo:meth:`gdal.Driver.Create`
+        overviews: list or None
+            a list of integer overview levels to be created; see :osgeo:meth:`gdal.Dataset.BuildOverviews`
 
         Returns
         -------
