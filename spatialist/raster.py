@@ -1,6 +1,6 @@
 #################################################################
 # GDAL wrapper for convenient raster data handling and processing
-# John Truckenbrodt 2015-2020
+# John Truckenbrodt 2015-2021
 #################################################################
 
 
@@ -1099,6 +1099,9 @@ class Raster(object):
                 outname += '.tif'
             
             nodata = self.nodata if nodata == 'default' else nodata
+            
+            if options is None:
+                options = []
             
             driver = gdal.GetDriverByName(format)
             outDataset = driver.Create(outname, self.cols, self.rows, self.bands, dtype, options)
