@@ -2,10 +2,6 @@
 # GDAL wrapper for convenient raster data handling and processing
 # John Truckenbrodt 2015-2021
 #################################################################
-
-
-# todo: function to write data with the same metadata as a given file
-
 from __future__ import division
 import os
 import re
