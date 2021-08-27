@@ -202,6 +202,9 @@ class Raster(object):
         coord. ref.: +proj=utm +zone=29 +datum=WGS84 +units=m +no_defs
         data source: /tmp/tmps4rc9o09.vrt
         """
+        if not isinstance(index, (slice, tuple, Vector)):
+            raise TypeError('index must be of type tuple, slice or spatialist.Vector')
+        
         # subsetting via Vector object
         if isinstance(index, Vector):
             geomtypes = list(set(index.geomTypes))
@@ -220,7 +223,7 @@ class Raster(object):
             # subset raster object with slices
             with self[sl] as sub:
                 # mask subsetted raster object with vector geometries
-                masked = sub.__maskbyvector(inter)
+                masked = sub.__maskbyvector(inter, nodata=self.nodata)
             inter = None
             return masked
         #####################################################################################################
@@ -385,7 +388,8 @@ class Raster(object):
                                    self.cols, self.rows, self.bands, Dtype(self.dtype).gdalint)
         driver = None
         outDataset.SetMetadata(self.raster.GetMetadata())
-        outDataset.SetGeoTransform([self.geo[x] for x in ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']])
+        keys = ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']
+        outDataset.SetGeoTransform([self.geo[x] for x in keys])
         if self.projection is not None:
             outDataset.SetProjection(self.projection)
         for i in range(1, self.bands + 1):
@@ -408,6 +412,7 @@ class Raster(object):
         else:
             out = Raster(outDataset)
             out.bandnames = self.bandnames
+            out.timestamps = self.timestamps
             return out
     
     def __prependVSIdirective(self, filename):
