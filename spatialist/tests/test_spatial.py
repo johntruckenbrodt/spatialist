@@ -139,7 +139,7 @@ def test_Raster(tmpdir, testdata):
         ras.rescale(lambda x: 10 * x)
         
         # test writing data with original data in memory
-        ras.write(os.path.join(str(tmpdir), 'test'), format='GTiff', compress_tif=True)
+        ras.write(os.path.join(str(tmpdir), 'test'), format='GTiff')
         with pytest.raises(RuntimeError):
             ras.write(os.path.join(str(tmpdir), 'test.tif'), format='GTiff')
 
