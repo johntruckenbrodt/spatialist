@@ -399,6 +399,14 @@ class Raster(object):
             mat = mat * mask
             outband.WriteArray(mat)
             del mat
+            
+            inband = self.raster.GetRasterBand(i)
+            cmap = inband.GetRasterColorTable()
+            if cmap is not None:
+                outband.SetRasterColorTable(cmap)
+                cmap = None
+            inband = None
+            
             outband.FlushCache()
             outband = None
         if outname is not None:
@@ -1122,8 +1130,19 @@ class Raster(object):
             outband = outDataset.GetRasterBand(i)
             
             if not update_existing:
-                if cmap is not None:
-                    outband.SetRasterColorTable(cmap)
+                if cmap is None:
+                    inband = self.raster.GetRasterBand(i)
+                    colmap = inband.GetRasterColorTable()
+                    inband = None
+                else:
+                    colmap = cmap
+                try:
+                    outband.SetRasterColorTable(colmap)
+                except RuntimeError as e:
+                    if cmap is not None:
+                        warnings.warn(str(e))
+                    else:
+                        pass
                 if nodata is not None:
                     outband.SetNoDataValue(nodata)
             if array is None:
