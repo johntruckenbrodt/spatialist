@@ -63,8 +63,8 @@ class Raster(object):
     list_separate: bool
         treat a list of files as separate layers or otherwise as a single layer? The former is intended for single
         layers of a stack, the latter for tiles of a mosaic.
-    timestamps: list of str or None
-        the time information for each layer
+    timestamps: list[str] or function or None
+        the time information for each layer or a function converting band names to a :obj:`datetime.datetime` object
     """
     
     def __init__(self, filename, list_separate=True, timestamps=None):
@@ -106,10 +106,14 @@ class Raster(object):
         else:
             self.bandnames = ['band{}'.format(x) for x in range(1, self.bands + 1)]
         
-        if timestamps is not None:
+        if isinstance(timestamps, list):
             if len(timestamps) != len(self.bandnames):
                 raise RuntimeError('the number of time stamps is different to the number of bands')
-        self.timestamps = timestamps
+            self.timestamps = timestamps
+        elif callable(timestamps):
+            self.timestamps = [timestamps(x) for x in self.bandnames]
+        else:
+            self.timestamps = None
     
     def __enter__(self):
         return self
