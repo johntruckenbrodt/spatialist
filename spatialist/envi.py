@@ -6,6 +6,7 @@
 This module offers functionality for editing ENVI header files
 """
 import re
+import zipfile as zf
 from .ancillary import parse_literal
 
 
@@ -104,8 +105,16 @@ class HDRobject(object):
         dict
             the hdr file metadata attributes
         """
-        with open(self.filename, 'r') as infile:
-            lines = infile.readlines()
+        if '.zip' in self.filename:
+            match = re.search('.zip', self.filename)
+            zip = self.filename[:match.end()]
+            with zf.ZipFile(zip, 'r') as zip:
+                member = self.filename[match.end():].strip('\\')
+                content = zip.read(member)
+            lines = content.decode().split('\n')
+        else:
+            with open(self.filename, 'r') as infile:
+                lines = infile.readlines()
         i = 0
         out = dict()
         while i < len(lines):
