@@ -92,7 +92,8 @@ class Raster(object):
         self.__data = [None] * self.bands
         
         if self.format == 'ENVI':
-            with HDRobject(self.filename + '.hdr') as hdr:
+            hdrfile = os.path.splitext(re.sub('/vsi(?:zip|tar)/', '', self.filename))[0] + '.hdr'
+            with HDRobject(hdrfile) as hdr:
                 if hasattr(hdr, 'band_names'):
                     self.bandnames = hdr.band_names
                 else:
@@ -437,9 +438,9 @@ class Raster(object):
 
         """
         if isinstance(filename, str):
-            if re.search(r'\.zip', filename):
+            if re.search(r'\.zip', filename) and not re.search('/vsizip/', filename):
                 filename = '/vsizip/' + filename
-            if re.search(r'\.tar', filename):
+            if re.search(r'\.tar', filename) and not re.search('/vsitar/', filename):
                 filename = '/vsitar/' + filename
         elif isinstance(filename, list):
             filename = [self.__prependVSIdirective(x) for x in filename]
