@@ -80,3 +80,19 @@ Changelog
 - :func:`spatialist.auxil.crsConvert`: raise a `RuntimeError` if no corresponding EPSG code was found
 
 - module `spatialist.explorer` and associated demo data and notebook have been outsourced to https://github.com/johntruckenbrodt/spatialist_explorer
+
+0.8 | 2021-09-07
+----------------
+
+- :class:`spatialist.raster.Raster`:
+
+  * method :meth:`~spatialist.raster.Raster.write`
+
+    + removed argument `compress_tif`
+    + added arguments `options` and `overviews`
+
+  * subsetting support for time stamps, color tables and nodata
+  * option to convert band names to time stamps by passing a function as argument `timestamps`
+  * bug fixes
+
+- :mod:`spatialist.envi`: enabled reading of HDR files in ZIP archives
