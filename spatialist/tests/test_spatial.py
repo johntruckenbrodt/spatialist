@@ -19,10 +19,9 @@ logging.basicConfig(level=logging.DEBUG)
 
 def test_crsConvert():
     assert crsConvert(crsConvert(4326, 'wkt'), 'proj4').strip() == '+proj=longlat +datum=WGS84 +no_defs'
-    assert crsConvert(crsConvert(4326, 'prettyWkt'), 'opengis') == 'http://www.opengis.net/def/crs/EPSG/0/4326'
-    assert crsConvert('+proj=longlat +datum=WGS84 +no_defs ', 'epsg') == 4326
-    assert crsConvert('http://www.opengis.net/def/crs/EPSG/0/4326', 'epsg') == 4326
-    assert crsConvert(crsConvert('http://www.opengis.net/def/crs/EPSG/0/4326', 'osr'), 'epsg') == 4326
+    assert crsConvert(crsConvert(4326, 'prettyWkt'), 'opengis') == 'https://www.opengis.net/def/crs/EPSG/0/4326'
+    assert crsConvert('https://www.opengis.net/def/crs/EPSG/0/4326', 'epsg') == 4326
+    assert crsConvert(crsConvert('https://www.opengis.net/def/crs/EPSG/0/4326', 'osr'), 'epsg') == 4326
     assert crsConvert('EPSG:4326+5773', 'proj4').strip() \
            == '+proj=longlat +datum=WGS84 +geoidgrids=egm96_15.gtx +vunits=m +no_defs' \
            or '+proj=longlat +datum=WGS84 +vunits=m +no_defs'

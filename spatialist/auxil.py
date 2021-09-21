@@ -1,6 +1,6 @@
 ##############################################################
 # Convenience functions for general spatial applications
-# John Truckenbrodt, 2016-2020
+# John Truckenbrodt, 2016-2021
 ##############################################################
 import math
 import warnings
@@ -35,11 +35,6 @@ def crsConvert(crsIn, crsOut):
 
     >>> crsConvert(4326, 'proj4')
     '+proj=longlat +datum=WGS84 +no_defs '
-
-    convert a PROJ4 string to an opengis URL:
-
-    >>> crsConvert('+proj=longlat +datum=WGS84 +no_defs ', 'opengis')
-    'http://www.opengis.net/def/crs/EPSG/0/4326'
 
     convert the opengis URL back to EPSG:
 
