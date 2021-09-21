@@ -353,7 +353,7 @@ class Raster(object):
         return out
     
     def __extent2slice(self, extent):
-        extent_bbox = bbox(extent, self.proj4)
+        extent_bbox = bbox(extent, self.projection)
         inter = intersect(self.bbox(), extent_bbox)
         extent_bbox.close()
         if inter:

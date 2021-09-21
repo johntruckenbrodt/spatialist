@@ -151,7 +151,7 @@ def test_Raster_subset(testdata):
         ext['xmax'] -= xres
         ext['ymin'] += yres
         ext['ymax'] -= yres
-        with bbox(ext, ras.proj4) as vec:
+        with bbox(ext, ras.projection) as vec:
             with ras[vec] as sub:
                 xres, yres = ras.res
                 assert sub.geo['xmin'] - ras.geo['xmin'] == xres
