@@ -76,19 +76,10 @@ def crsConvert(crsIn, crsOut):
     elif crsOut == 'proj4':
         return srs.ExportToProj4()
     elif crsOut == 'epsg':
-        try:
-            srs.AutoIdentifyEPSG()
-            code = int(srs.GetAuthorityCode(None))
-            # make sure the ESPG code actually exists
-            srsTest = osr.SpatialReference()
-            srsTest.ImportFromEPSG(code)
-            srsTest = None
-        except RuntimeError:
-            raise RuntimeError('CRS does not have an EPSG representation')
-        return code
+        return __osr2epsg(srs)
     elif crsOut == 'opengis':
-        srs.AutoIdentifyEPSG()
-        return 'http://www.opengis.net/def/crs/EPSG/0/{}'.format(srs.GetAuthorityCode(None))
+        code = __osr2epsg(srs)
+        return 'http://www.opengis.net/def/crs/EPSG/0/{}'.format(code)
     elif crsOut == 'osr':
         return srs
     else:
@@ -341,6 +332,39 @@ def __callback(pct, msg, data):
     percent = int(pct * 100)
     data.update(percent)
     return 1
+
+
+def __osr2epsg(srs):
+    """
+    helper function for crsConvert
+    
+    Parameters
+    ----------
+    srs: :osgeo:class:`osr.SpatialReference`
+        a SRS to be converted
+
+    Returns
+    -------
+    int
+        the EPSG code if one exists
+    
+    Raises
+    ------
+    RuntimeError
+    """
+    srs = srs.Clone()
+    try:
+        srs.AutoIdentifyEPSG()
+        code = int(srs.GetAuthorityCode(None))
+        # make sure the ESPG code actually exists
+        srsTest = osr.SpatialReference()
+        srsTest.ImportFromEPSG(code)
+        srsTest = None
+    except RuntimeError:
+        raise RuntimeError('CRS does not have an EPSG representation')
+    finally:
+        srs = None
+    return code
 
 
 def cmap_mpl2gdal(mplcolor, values):
