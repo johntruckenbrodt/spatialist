@@ -43,7 +43,7 @@ def crsConvert(crsIn, crsOut):
 
     convert the opengis URL back to EPSG:
 
-    >>> crsConvert('http://www.opengis.net/def/crs/EPSG/0/4326', 'epsg')
+    >>> crsConvert('https://www.opengis.net/def/crs/EPSG/0/4326', 'epsg')
     4326
     
     convert an EPSG compound CRS (WGS84 horizontal + EGM96 vertical)
