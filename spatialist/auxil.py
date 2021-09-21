@@ -79,7 +79,7 @@ def crsConvert(crsIn, crsOut):
         return __osr2epsg(srs)
     elif crsOut == 'opengis':
         code = __osr2epsg(srs)
-        return 'http://www.opengis.net/def/crs/EPSG/0/{}'.format(code)
+        return 'https://www.opengis.net/def/crs/EPSG/0/{}'.format(code)
     elif crsOut == 'osr':
         return srs
     else:
