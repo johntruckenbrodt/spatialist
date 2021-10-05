@@ -199,9 +199,9 @@ def finder(target, matchlist, foldermode=0, regex=False, recursive=True):
                 return sorted(out)
             
             else:
-                raise TypeError("if parameter 'target' is a file, "
-                                "it must be a zip or tar archive:\n    {}"
-                                .format(target))
+                raise RuntimeError("if parameter 'target' is a file, "
+                                   "it must be a zip or tar archive:\n    {}"
+                                   .format(target))
         else:
             raise RuntimeError("if parameter 'target' is of type str, "
                                "it must be a directory or a file:\n    {}"

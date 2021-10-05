@@ -91,6 +91,9 @@ def test_finder(tmpdir, testdata):
     
     with pytest.raises(RuntimeError):
         anc.finder('foobar', ['test*'], foldermode=2)
+    
+    with pytest.raises(RuntimeError):
+        anc.finder(testdata['tif'], ['test*'], foldermode=2)
 
 
 def test_rescale():
