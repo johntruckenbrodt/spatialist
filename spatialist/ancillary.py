@@ -203,9 +203,9 @@ def finder(target, matchlist, foldermode=0, regex=False, recursive=True):
                                 "it must be a zip or tar archive:\n    {}"
                                 .format(target))
         else:
-            raise TypeError("if parameter 'target' is of type str, "
-                            "it must be a directory or a file:\n    {}"
-                            .format(target))
+            raise RuntimeError("if parameter 'target' is of type str, "
+                               "it must be a directory or a file:\n    {}"
+                               .format(target))
     
     elif isinstance(target, list):
         groups = [finder(x, matchlist, foldermode, regex, recursive) for x in target]

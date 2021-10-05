@@ -89,7 +89,7 @@ def test_finder(tmpdir, testdata):
     with pytest.raises(ValueError):
         anc.finder(dir, ['test*'], foldermode=3)
     
-    with pytest.raises(TypeError):
+    with pytest.raises(RuntimeError):
         anc.finder('foobar', ['test*'], foldermode=2)
 
 
