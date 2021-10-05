@@ -96,3 +96,16 @@ Changelog
   * bug fixes
 
 - :mod:`spatialist.envi`: enabled reading of HDR files in ZIP archives
+
+0.8.1 | 2021-10-05
+------------------
+
+- :func:`spatialist.auxil.crsConvert`:
+
+  * use https for `opengis` links
+  * apply ESPG validity checks when output format is `opengis` (not just when `epsg`)
+
+- :func:`spatialist.ancillary.finder`:
+
+  * raise :class:`RuntimeError` (not :class:`TypeError`) if target is a file but is neither zip nor tar
+  * raise :class:`RuntimeError` (not :class:`TypeError`) if target is a string but is neither directory nor file
