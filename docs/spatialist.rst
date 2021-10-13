@@ -44,6 +44,20 @@ General Spatial Tools
     :undoc-members:
     :show-inheritance:
 
+    .. autosummary::
+        :nosignatures:
+
+        cmap_mpl2gdal
+        coordinate_reproject
+        crsConvert
+        gdalbuildvrt
+        gdal_rasterize
+        gdal_translate
+        gdalwarp
+        haversine
+        ogr2ogr
+        utm_autodetect
+
 Database Tools
 --------------
 

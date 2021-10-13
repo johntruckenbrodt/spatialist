@@ -15,7 +15,7 @@ gdal.UseExceptions()
 
 def crsConvert(crsIn, crsOut):
     """
-    convert between different types of spatial references
+    convert between different types of spatial reference representations
 
     Parameters
     ----------
@@ -31,7 +31,7 @@ def crsConvert(crsIn, crsOut):
 
     Examples
     --------
-    convert an integer EPSG code to PROJ4:
+    convert an integer EPSG code to PROJ.4:
 
     >>> crsConvert(4326, 'proj4')
     '+proj=longlat +datum=WGS84 +no_defs '
@@ -41,7 +41,7 @@ def crsConvert(crsIn, crsOut):
     >>> crsConvert('https://www.opengis.net/def/crs/EPSG/0/4326', 'epsg')
     4326
     
-    convert an EPSG compound CRS (WGS84 horizontal + EGM96 vertical)
+    convert an EPSG compound CRS (WGS84 horizontal + EGM96 vertical) to PROJ.4
     
     >>> crsConvert('EPSG:4326+5773', 'proj4')
     '+proj=longlat +datum=WGS84 +geoidgrids=egm96_15.gtx +vunits=m +no_defs '
@@ -120,7 +120,7 @@ def gdalwarp(src, dst, options, pbar=False):
     dst: str
         the output data set
     options: dict
-        additional parameters passed to gdal.Warp; see :osgeo:func:`gdal.WarpOptions`
+        additional parameters passed to :osgeo:func:`gdal.Warp`; see :osgeo:func:`gdal.WarpOptions`
     pbar: bool
         add a progressbar?
 
@@ -154,7 +154,7 @@ def gdalbuildvrt(src, dst, options=None, void=True):
     dst: str
         the output data set
     options: dict
-        additional parameters passed to gdal.BuildVRT; see :osgeo:func:`gdal.BuildVRTOptions`
+        additional parameters passed to :osgeo:func:`gdal.BuildVRT`; see :osgeo:func:`gdal.BuildVRTOptions`
     void: bool
         just write the results and don't return anything? If not, the spatial object is returned
 
@@ -183,7 +183,7 @@ def gdalbuildvrt(src, dst, options=None, void=True):
 
 def gdal_translate(src, dst, options):
     """
-    a simple wrapper for `gdal.Translate <https://gdal.org/python/osgeo.gdal-module.html#Translate>`_
+    a simple wrapper for :osgeo:func:`gdal.Translate`
 
     Parameters
     ----------
@@ -192,8 +192,8 @@ def gdal_translate(src, dst, options):
     dst: str
         the output data set
     options: dict
-        additional parameters passed to gdal.Translate;
-        see `gdal.TranslateOptions <http://gdal.org/python/osgeo.gdal-module.html#TranslateOptions>`_
+        additional parameters passed to :osgeo:func:`gdal.Translate`;
+        see :osgeo:func:`gdal.TranslateOptions`
 
     Returns
     -------
@@ -205,7 +205,7 @@ def gdal_translate(src, dst, options):
 
 def ogr2ogr(src, dst, options):
     """
-    a simple wrapper for gdal.VectorTranslate aka `ogr2ogr <https://www.gdal.org/ogr2ogr.html>`_
+    a simple wrapper for :osgeo:func:`gdal.VectorTranslate` aka `ogr2ogr <https://www.gdal.org/ogr2ogr.html>`_
 
     Parameters
     ----------
@@ -214,8 +214,8 @@ def ogr2ogr(src, dst, options):
     dst: str
         the output data set
     options: dict
-        additional parameters passed to gdal.VectorTranslate;
-        see `gdal.VectorTranslateOptions <http://gdal.org/python/osgeo.gdal-module.html#VectorTranslateOptions>`_
+        additional parameters passed to :osgeo:func:`gdal.VectorTranslate`;
+        see :osgeo:func:`gdal.VectorTranslateOptions`
 
     Returns
     -------
@@ -227,7 +227,7 @@ def ogr2ogr(src, dst, options):
 
 def gdal_rasterize(src, dst, options):
     """
-    a simple wrapper for gdal.Rasterize
+    a simple wrapper for :osgeo:func:`gdal.Rasterize`
 
     Parameters
     ----------
@@ -236,7 +236,7 @@ def gdal_rasterize(src, dst, options):
     dst: str
         the output data set
     options: dict
-        additional parameters passed to gdal.Rasterize; see :osgeo:func:`gdal.RasterizeOptions`
+        additional parameters passed to :osgeo:func:`gdal.Rasterize`; see :osgeo:func:`gdal.RasterizeOptions`
 
     Returns
     -------
@@ -378,8 +378,8 @@ def cmap_mpl2gdal(mplcolor, values):
     :osgeo:class:`gdal.ColorTable`
         the color table in GDAL format
     
-    Notes
-    -----
+    Note
+    ----
     This function is currently only developed for handling discrete integer data values in an 8 Bit file.
     Colors are thus scaled between 0 and 255.
     
