@@ -1079,8 +1079,6 @@ class Raster(object):
             the file format; e.g. 'GTiff'
         nodata: int or float
             the nodata value to write to the file
-        compress_tif: bool
-            if the format is GeoTiff, compress the written file?
         overwrite: bool
             overwrite an already existing file? Only applies if `update` is `False`.
         cmap: :osgeo:class:`gdal.ColorTable`
