@@ -1172,7 +1172,7 @@ class Raster(object):
             del mat
             outband.FlushCache()
             outband = None
-        if format == 'GTiff':
+        if format in ['GTiff', 'COG']:
             outDataset.SetMetadataItem('TIFFTAG_DATETIME', strftime('%Y:%m:%d %H:%M:%S', gmtime()))
         if overviews:
             outDataset.BuildOverviews('NEAREST', overviews)
