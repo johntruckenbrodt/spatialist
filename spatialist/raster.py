@@ -5,6 +5,7 @@
 from __future__ import division
 import os
 import re
+import copy
 import platform
 import warnings
 import tempfile
@@ -1107,7 +1108,7 @@ class Raster(object):
             if os.path.isfile(outname) and not overwrite:
                 raise RuntimeError('target file already exists')
             
-            if format == 'GTiff' and not re.search(r'\.tif[f]*$', outname):
+            if format in ['GTiff', 'COG'] and not re.search(r'\.tif[f]*$', outname):
                 outname += '.tif'
             
             nodata = self.nodata if nodata == 'default' else nodata
@@ -1115,7 +1116,15 @@ class Raster(object):
             if options is None:
                 options = []
             
-            driver = gdal.GetDriverByName(format)
+            if format == 'COG':
+                outname_cog = copy.deepcopy(outname)
+                outname = '/vsimem/' + os.path.basename(outname) + '.vrt'
+                options_cog = copy.deepcopy(options)
+                options = []
+                driver = gdal.GetDriverByName('GTiff')
+            else:
+                driver = gdal.GetDriverByName(format)
+            
             outDataset = driver.Create(outname, self.cols, self.rows, self.bands, dtype, options)
             driver = None
             outDataset.SetMetadata(self.raster.GetMetadata())
@@ -1167,6 +1176,10 @@ class Raster(object):
             outDataset.SetMetadataItem('TIFFTAG_DATETIME', strftime('%Y:%m:%d %H:%M:%S', gmtime()))
         if overviews:
             outDataset.BuildOverviews('NEAREST', overviews)
+        if format == 'COG':
+            outDataset_cog = gdal.GetDriverByName('COG').CreateCopy(outname_cog, outDataset,
+                                                                    strict=1, options=options_cog)
+            outDataset_cog = None
         outDataset = None
         if format == 'ENVI':
             hdrfile = os.path.splitext(outname)[0] + '.hdr'
