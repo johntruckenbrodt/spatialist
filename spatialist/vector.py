@@ -199,7 +199,7 @@ class Vector(object):
         ----------
         name: str
             the layer name
-        srs: int, str or :osgeo:class:`osr.SpatialReference`
+        srs: int or str or :osgeo:class:`osr.SpatialReference`
             the spatial reference system. See :func:`spatialist.auxil.crsConvert` for options.
         geomType: int
             an OGR well-known binary data type.
@@ -209,7 +209,7 @@ class Vector(object):
         -------
 
         """
-        self.vector.CreateLayer(name, srs, geomType)
+        self.vector.CreateLayer(name, crsConvert(srs, 'osr'), geomType)
         self.init_layer()
     
     def addvector(self, vec):
