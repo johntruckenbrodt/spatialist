@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 ################################################################
 # OGR wrapper for convenient vector data handling and processing
-# John Truckenbrodt 2015-2019
+# John Truckenbrodt 2015-2022
 ################################################################
 
 
 import os
 import yaml
-from osgeo import ogr, osr
-
+from osgeo import ogr, osr, gdal
+from osgeo.gdalconst import GDT_Byte
 from .auxil import crsConvert
 from .ancillary import parse_literal
 from .sqlite_util import sqlite_setup
@@ -973,3 +973,61 @@ def wkt2vector(wkt, srs, layername='wkt'):
     vec.addfeature(geom, fields=fields)
     geom = None
     return vec
+
+
+def vectorize(target, outname, reference, layername, fieldname, driver=None):
+    """
+    Vectorization of an array using :osgeo:func:`gdal.Polygonize`.
+    
+    Parameters
+    ----------
+    target: numpy.ndarray
+        the input array. Each identified object of pixels with the same value will be converted into a vector feature.
+    outname: str or None
+        the name of the vector file. If `None` a vector object is returned.
+    reference: Raster
+        a reference Raster object to retrieve geo information and extent from.
+    layername: str
+        the name of the vector object layer.
+    fieldname: str
+        the name of the field to contain the raster value for the respective vector feature.
+    driver: str or None
+        the vector file type of `outname`. Several extensions are read automatically (see :meth:`Vector.write`).
+        Is ignored if ``outname=None``.
+
+    Returns
+    -------
+
+    """
+    cols = reference.cols
+    rows = reference.rows
+    meta = reference.raster.GetMetadata()
+    geo = reference.raster.GetGeoTransform()
+    proj = reference.raster.GetProjection()
+    
+    tmp_driver = gdal.GetDriverByName('MEM')
+    tmp = tmp_driver.Create(layername, cols, rows, 1, GDT_Byte)
+    tmp.SetMetadata(meta)
+    tmp.SetGeoTransform(geo)
+    tmp.SetProjection(proj)
+    outband = tmp.GetRasterBand(1)
+    outband.WriteArray(target, 0, 0)
+    
+    try:
+        with Vector(driver='Memory') as vec:
+            vec.addlayer(name=layername, srs=proj,
+                         geomType=ogr.wkbPolygon)
+            vec.addfield(fieldname, ogr.OFTInteger)
+            
+            gdal.Polygonize(srcBand=outband, maskBand=None,
+                            outLayer=vec.layer, iPixValField=0)
+            if outname is not None:
+                vec.write(outfile=outname, driver=driver)
+            else:
+                return vec.clone()
+    except Exception as e:
+        raise e
+    finally:
+        outband = None
+        tmp_driver = None
+        out = None

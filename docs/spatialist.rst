@@ -33,7 +33,7 @@ Vector Tools
 ------------
 
 .. automodule:: spatialist.vector
-    :members: intersect, bbox, feature2vector, wkt2vector
+    :members: intersect, bbox, feature2vector, wkt2vector, vectorize
     :undoc-members:
 
 General Spatial Tools
