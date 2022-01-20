@@ -1086,7 +1086,7 @@ class Raster(object):
             a color map to apply to each band.
             Can for example be created with function :func:`~spatialist.auxil.cmap_mpl2gdal`.
         update: bool
-            open the output file fpr update or only for writing?
+            open the output file for update or only for writing?
         xoff: int
             the x/column offset
         yoff: int
