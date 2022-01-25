@@ -396,7 +396,8 @@ class Raster(object):
             outDataset.SetProjection(self.projection)
         for i in range(1, self.bands + 1):
             outband = outDataset.GetRasterBand(i)
-            outband.SetNoDataValue(nodata)
+            if nodata is not None:
+                outband.SetNoDataValue(nodata)
             mat = self.matrix(band=i)
             mat = mat * mask
             outband.WriteArray(mat)
