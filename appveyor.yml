@@ -2,9 +2,9 @@
 environment:
   matrix:
     - TARGET_ARCH: x64
-      CONDA_PY: 38
-      CONDA_INSTALL_LOCN: C:\Miniconda38-x64
-      GDAL_DATA: C:\Miniconda38-x64\Library\share\gdal
+      CONDA_PY: 37
+      CONDA_INSTALL_LOCN: C:\Miniconda37-x64
+      GDAL_DATA: C:\Miniconda37-x64\Library\share\gdal
       PROJECT_DIR: C:\projects\spatialist
 
 platform:
@@ -28,13 +28,13 @@ install:
     - set PYTHONUNBUFFERED=1
 
     # configure the conda environment
-    - conda env create --file environment.yml
-    - conda install --name sp_test --yes coveralls coverage pytest
+    - conda create --yes --name sp_test python=3.8 coveralls coverage pytest
+    - conda env update --name sp_test --file environment.yml
     - conda activate sp_test
     - python setup.py install
 
 # Skip .NET project specific build phase.
-build: off
+build: false
 
 test_script:
     - coverage run --source spatialist/ -m pytest
