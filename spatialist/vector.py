@@ -760,6 +760,90 @@ def bbox(coordinates, crs, outname=None, driver=None, overwrite=True):
         bbox.write(outfile=outname, driver=driver, overwrite=overwrite)
 
 
+def boundary(vectorobject, expression=None, outname=None):
+    """
+    Get the boundary of the largest geometry as new vector object. The following steps are performed:
+    
+     - find the largest geometry matching the expression
+     - compute the geometry's boundary using :osgeo:meth:`ogr.Geometry.Boundary`, returning a MULTILINE geometry
+     - select the longest line of the MULTILINE geometry
+     - create a closed linear ring from this longest line
+     - create a polygon from this linear ring
+     - create a new :class:`Vector` object and add the newly created polygon
+
+    Parameters
+    ----------
+    vectorobject: Vector
+        the vector object containing multiple polygon geometries, e.g. all geometries with a certain value in one field.
+    expression: str or None
+        the SQL expression to select the candidates for the largest geometry.
+    outname: str or None
+        the name of the output vector file; if None, an in-memory object of type :class:`Vector` is returned.
+
+    Returns
+    -------
+    Vector or None
+        if `outname` is `None`, a vector object pointing to an in-memory dataset else `None`
+    """
+    largest = None
+    area = None
+    vectorobject.layer.ResetReading()
+    if expression is not None:
+        vectorobject.layer.SetAttributeFilter(expression)
+    for feat in vectorobject.layer:
+        geom = feat.GetGeometryRef()
+        geom_area = geom.GetArea()
+        if (largest is None) or (geom_area > area):
+            largest = feat.GetFID()
+            area = geom_area
+    if expression is not None:
+        vectorobject.layer.SetAttributeFilter('')
+    vectorobject.layer.ResetReading()
+    
+    feat_major = vectorobject.layer.GetFeature(largest)
+    major = feat_major.GetGeometryRef()
+    
+    boundary = major.Boundary()
+    
+    longest = None
+    for line in boundary:
+        if (longest is None) or (line.Length() > longest.Length()):
+            longest = line
+    
+    points = longest.GetPoints()
+    ring = ogr.Geometry(ogr.wkbLinearRing)
+    
+    for point in points:
+        ring.AddPoint_2D(*point)
+    ring.CloseRings()
+    
+    poly = ogr.Geometry(ogr.wkbPolygon)
+    poly.AddGeometry(ring)
+    
+    vec_out = Vector(driver='Memory')
+    vec_out.addlayer('layer',
+                     vectorobject.layer.GetSpatialRef(),
+                     poly.GetGeometryType())
+    vec_out.addfield('area', ogr.OFTReal)
+    fields = {'area': poly.Area()}
+    vec_out.addfeature(poly, fields=fields)
+    
+    ring = None
+    geom = None
+    line = None
+    longest = None
+    poly = None
+    boundary = None
+    major = None
+    feat_major = None
+    
+    if outname is not None:
+        vec_out.write(outname)
+        vec_out.close()
+    else:
+        return vec_out
+
+
 def centerdist(obj1, obj2):
     if not isinstance(obj1, Vector) or isinstance(obj2, Vector):
         raise IOError('both objects must be of type Vector')
