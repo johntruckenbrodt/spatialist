@@ -23,6 +23,7 @@ install:
     - del ff_ci_pr_build.py
 
     # update conda
+    - dir C:\
     - conda update --yes --quiet conda
 
     - set PYTHONUNBUFFERED=1
@@ -34,7 +35,7 @@ install:
     - python setup.py install
 
 # Skip .NET project specific build phase.
-build: off
+build: false
 
 test_script:
     - coverage run --source spatialist/ -m pytest
