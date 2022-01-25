@@ -109,3 +109,26 @@ Changelog
 
   * raise :class:`RuntimeError` (not :class:`TypeError`) if target is a file but is neither zip nor tar
   * raise :class:`RuntimeError` (not :class:`TypeError`) if target is a string but is neither directory nor file
+
+0.9.0 | 2022-01-25
+------------------
+
+- :class:`spatialist.raster.Raster`:
+
+  * method :meth:`~spatialist.raster.Raster.write`:
+
+    + remove unused argument `compress_tif`
+    + add support for COG driver
+
+- :class:`spatialist.vector.Vector`:
+
+  * method :meth:`~spatialist.vector.Vector.addlayer`:
+
+    + enable all SRS type options supported by :func:`~spatialist.auxil.crsConvert`
+
+- :func:`spatialist.raster.rasterize`: allow value `None` for argument `nodata`
+
+- new functions:
+
+  * :func:`spatialist.vector.vectorize`
+  * :func:`spatialist.vector.boundary`
