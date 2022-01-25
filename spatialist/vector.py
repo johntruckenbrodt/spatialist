@@ -975,7 +975,7 @@ def wkt2vector(wkt, srs, layername='wkt'):
     return vec
 
 
-def vectorize(target, outname, reference, layername, fieldname, driver=None):
+def vectorize(target, reference, outname=None, layername='layer', fieldname='value', driver=None):
     """
     Vectorization of an array using :osgeo:func:`gdal.Polygonize`.
     
