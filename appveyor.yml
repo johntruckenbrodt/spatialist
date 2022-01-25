@@ -15,6 +15,7 @@ install:
     - rmdir C:\cygwin /s /q
 
     # activate conda
+    - dir C:\
     - call %CONDA_INSTALL_LOCN%\Scripts\activate.bat
 
     # If there is a newer build queued for the same PR, cancel this one.
@@ -23,7 +24,6 @@ install:
     - del ff_ci_pr_build.py
 
     # update conda
-    - dir C:\
     - conda update --yes --quiet conda
 
     - set PYTHONUNBUFFERED=1
