@@ -33,8 +33,19 @@ Vector Tools
 ------------
 
 .. automodule:: spatialist.vector
-    :members: intersect, bbox, feature2vector, wkt2vector, vectorize
+    :members: bbox, boundary, feature2vector, intersect, vectorize, wkt2vector
     :undoc-members:
+    :show-inheritance:
+
+    .. autosummary::
+        :nosignatures:
+
+        bbox
+        boundary
+        feature2vector
+        intersect
+        vectorize
+        wkt2vector
 
 General Spatial Tools
 ---------------------

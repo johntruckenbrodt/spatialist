@@ -713,7 +713,7 @@ class Vector(object):
 
 def bbox(coordinates, crs, outname=None, driver=None, overwrite=True):
     """
-    create a bounding box vector object or shapefile from coordinates and coordinate reference system.
+    create a bounding box vector object or file.
     The CRS can be in either WKT, EPSG or PROJ4 format
     
     Parameters
@@ -721,7 +721,7 @@ def bbox(coordinates, crs, outname=None, driver=None, overwrite=True):
     coordinates: dict
         a dictionary containing numerical variables with keys `xmin`, `xmax`, `ymin` and `ymax`
     crs: int, str, :osgeo:class:`osr.SpatialReference`
-        the CRS of the `coordinates`. See :func:`~spatialist.auxil.crsConvert` for options.
+        the coordinate reference system of the `coordinates`. See :func:`~spatialist.auxil.crsConvert` for options.
     outname: str
         the file to write to. If `None`, the bounding box is returned as :class:`~spatialist.vector.Vector` object
     driver: str
