@@ -2,9 +2,9 @@
 environment:
   matrix:
     - TARGET_ARCH: x64
-      CONDA_PY: 38
-      CONDA_INSTALL_LOCN: C:\Miniconda38-x64
-      GDAL_DATA: C:\Miniconda38-x64\Library\share\gdal
+      CONDA_PY: 37
+      CONDA_INSTALL_LOCN: C:\Miniconda37-x64
+      GDAL_DATA: C:\Miniconda37-x64\Library\share\gdal
       PROJECT_DIR: C:\projects\spatialist
 
 platform:
@@ -15,7 +15,6 @@ install:
     - rmdir C:\cygwin /s /q
 
     # activate conda
-    - dir C:\
     - call %CONDA_INSTALL_LOCN%\Scripts\activate.bat
 
     # If there is a newer build queued for the same PR, cancel this one.
