@@ -28,8 +28,8 @@ install:
     - set PYTHONUNBUFFERED=1
 
     # configure the conda environment
-    - conda env create --file environment.yml
-    - conda install --name sp_test --yes coveralls coverage pytest
+    - conda create --yes --name sp_test python=3.8 coveralls coverage pytest
+    - conda env update --name sp_test --file environment.yml
     - conda activate sp_test
     - python setup.py install
 
