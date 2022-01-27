@@ -1087,7 +1087,7 @@ class Raster(object):
             a color map to apply to each band.
             Can for example be created with function :func:`~spatialist.auxil.cmap_mpl2gdal`.
         update: bool
-            open the output file fpr update or only for writing?
+            open the output file for update or only for writing?
         xoff: int
             the x/column offset
         yoff: int
@@ -1318,7 +1318,7 @@ def rasterize(vectorobject, reference, outname=None, burn_values=1, expressions=
         the values to be written to the raster file
     expressions: list
         SQL expressions to filter the vector object by attributes
-    nodata: int
+    nodata: int or float or None
         the nodata value of the target raster file
     append: bool
         if the output file already exists, update this file with new rasterized values?
@@ -1369,7 +1369,8 @@ def rasterize(vectorobject, reference, outname=None, burn_values=1, expressions=
         target_ds.SetGeoTransform(reference.raster.GetGeoTransform())
         target_ds.SetProjection(reference.raster.GetProjection())
         band = target_ds.GetRasterBand(1)
-        band.SetNoDataValue(nodata)
+        if nodata is not None:
+            band.SetNoDataValue(nodata)
         band.FlushCache()
         band = None
     for expression, value in zip(expressions, burn_values):
