@@ -1178,6 +1178,14 @@ class Raster(object):
         if overviews:
             outDataset.BuildOverviews('NEAREST', overviews)
         if format == 'COG':
+            options_meta = []
+            for i, opt in enumerate(options_cog):
+                if opt.startswith('TIFFTAG_'):
+                    options_meta.append(opt)
+                    options_cog.pop(i)
+            for opt in options_meta:
+                opt_split = opt.split('=')
+                outDataset.SetMetadataItem(opt_split[0], opt_split[1])
             outDataset_cog = gdal.GetDriverByName('COG').CreateCopy(outname_cog, outDataset,
                                                                     strict=1, options=options_cog)
             outDataset_cog = None
