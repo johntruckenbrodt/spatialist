@@ -1,6 +1,6 @@
 #################################################################
 # GDAL wrapper for convenient raster data handling and processing
-# John Truckenbrodt 2015-2021
+# John Truckenbrodt 2015-2022
 #################################################################
 from __future__ import division
 import os
@@ -1103,6 +1103,8 @@ class Raster(object):
         -------
 
         """
+        if outname == self.filename:
+            raise RuntimeError('overwriting the currently opened file is not supported.')
         update_existing = update and os.path.isfile(outname)
         dtype = Dtype(self.dtype if dtype == 'default' else dtype).gdalint
         if not update_existing:
