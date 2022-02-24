@@ -1124,6 +1124,13 @@ class Raster(object):
             raise RuntimeError('overwriting the currently opened file is not supported.')
         update_existing = update and os.path.isfile(outname)
         dtype = Dtype(self.dtype if dtype == 'default' else dtype).gdalint
+        
+        if options is None:
+            options = []
+        
+        tifftags = [x for x in options if x.startswith('TIFFTAG_')]
+        create_options = [x for x in options if not x.startswith('TIFFTAG_')]
+        
         if not update_existing:
             if os.path.isfile(outname) and not overwrite:
                 raise RuntimeError('target file already exists')
@@ -1133,27 +1140,24 @@ class Raster(object):
             
             nodata = self.nodata if nodata == 'default' else nodata
             
-            if options is None:
-                options = []
-            
             if format == 'COG':
-                outname_cog = copy.deepcopy(outname)
-                outname = '/vsimem/' + os.path.basename(outname) + '.vrt'
-                options_cog = copy.deepcopy(options)
-                options = []
+                outname_tmp = '/vsimem/' + os.path.basename(outname) + '.vrt'
                 driver = gdal.GetDriverByName('GTiff')
+                outDataset = driver.Create(outname_tmp, self.cols, self.rows,
+                                           self.bands, dtype, options=[])
             else:
                 driver = gdal.GetDriverByName(format)
+                outDataset = driver.Create(outname, self.cols, self.rows,
+                                           self.bands, dtype, create_options)
             
-            outDataset = driver.Create(outname, self.cols, self.rows, self.bands, dtype, options)
-            driver = None
             outDataset.SetMetadata(self.raster.GetMetadata())
-            outDataset.SetGeoTransform(
-                [self.geo[x] for x in ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']])
+            gt_keys = ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']
+            outDataset.SetGeoTransform([self.geo[x] for x in gt_keys])
             if self.projection is not None:
                 outDataset.SetProjection(self.projection)
         else:
             outDataset = gdal.Open(outname, GA_Update)
+        
         for i in range(1, self.bands + 1):
             outband = outDataset.GetRasterBand(i)
             
@@ -1183,7 +1187,8 @@ class Raster(object):
             dtype_mat = str(mat.dtype)
             dtype_ras = Dtype(dtype).numpystr
             if not np.can_cast(dtype_mat, dtype_ras):
-                warnings.warn("writing band {}: unsafe casting from type {} to {}".format(i, dtype_mat, dtype_ras))
+                message = "writing band {}: unsafe casting from type {} to {}"
+                warnings.warn(message.format(i, dtype_mat, dtype_ras))
                 if nodata is not None:
                     print('converting nan to nodata value {}'.format(nodata))
                     mat[np.isnan(mat)] = nodata
@@ -1191,24 +1196,24 @@ class Raster(object):
             outband.WriteArray(mat, xoff, yoff)
             del mat
             outband.FlushCache()
-            outband = None
         if format in ['GTiff', 'COG']:
-            outDataset.SetMetadataItem('TIFFTAG_DATETIME', strftime('%Y:%m:%d %H:%M:%S', gmtime()))
+            for tag in tifftags:
+                outDataset.SetMetadataItem(*tag.split('='))
+            if 'TIFFTAG_DATETIME' not in tifftags:
+                time = strftime('%Y:%m:%d %H:%M:%S', gmtime())
+                outDataset.SetMetadataItem('TIFFTAG_DATETIME', time)
         if overviews:
             outDataset.BuildOverviews(overview_resampling, overviews)
         if format == 'COG':
-            options_meta = []
-            for i, opt in enumerate(options_cog):
-                if opt.startswith('TIFFTAG_'):
-                    options_meta.append(opt)
-                    options_cog.pop(i)
-            for opt in options_meta:
-                opt_split = opt.split('=')
-                outDataset.SetMetadataItem(opt_split[0], opt_split[1])
-            outDataset_cog = gdal.GetDriverByName('COG').CreateCopy(outname_cog, outDataset,
-                                                                    strict=1, options=options_cog)
+            driver_cog = gdal.GetDriverByName('COG')
+            outDataset_cog = driver_cog.CreateCopy(outname, outDataset,
+                                                   strict=1, options=create_options)
             outDataset_cog = None
+            driver_cog = None
+        outband = None
         outDataset = None
+        driver = None
+        
         if format == 'ENVI':
             hdrfile = os.path.splitext(outname)[0] + '.hdr'
             with HDRobject(hdrfile) as hdr:
