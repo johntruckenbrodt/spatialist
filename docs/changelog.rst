@@ -132,3 +132,22 @@ Changelog
 
   * :func:`spatialist.vector.vectorize`
   * :func:`spatialist.vector.boundary`
+
+0.10.0 | 2022-02-24
+-------------------
+
+- :class:`spatialist.raster.Raster`:
+
+  * method :meth:`~spatialist.raster.Raster.write`:
+
+    + TIFF tag writing via argument `options` (formats 'GTiff' and 'COG')
+    + new argument `overview_resampling`
+    + changed default format to 'GTiff'
+
+  * improved mechanism for temporary VRT file writing:
+
+    + old: written to :func:`tempfile.gettempdir` and never deleted
+    + new: written to subdirectory 'spatialist' of :func:`~tempfile.gettempdir` and deleted
+      during :meth:`~spatialist.raster.Raster.close`
+
+- :func:`spatialist.raster.png`: new arguments 'vmin' and 'vmax'
