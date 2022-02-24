@@ -1,6 +1,7 @@
 #################################################################
 # GDAL wrapper for convenient raster data handling and processing
 # John Truckenbrodt 2015-2022
+# Marco Wolsza 2021-2022
 #################################################################
 from __future__ import division
 import os
@@ -164,7 +165,7 @@ class Raster(object):
         -------
         Raster
             a new raster object referenced through an in-memory GDAL VRT file
-        
+
         Examples
         --------
         >>> filename = 'test'
@@ -429,7 +430,7 @@ class Raster(object):
     def __prependVSIdirective(self, filename):
         """
         prepend one of /vsizip/ or /vsitar/ to the file name if a zip of tar archive.
-        
+
         Parameters
         ----------
         filename: str or list
@@ -624,7 +625,7 @@ class Raster(object):
         """
         convert map coordinates in the raster CRS to image pixel coordinates.
         Either x, y or both must be defined.
-        
+
         Parameters
         ----------
         x: int or float
@@ -650,7 +651,7 @@ class Raster(object):
         """
         convert image pixel coordinates to map coordinates in the raster CRS.
         Either x, y or both must be defined.
-        
+
         Parameters
         ----------
         x: int or float
@@ -1066,7 +1067,8 @@ class Raster(object):
         return osr.SpatialReference(wkt=self.projection)
     
     def write(self, outname, dtype='default', format='ENVI', nodata='default', overwrite=False,
-              cmap=None, update=False, xoff=0, yoff=0, array=None, options=None, overviews=None):
+              cmap=None, update=False, xoff=0, yoff=0, array=None, options=None, overviews=None,
+              overview_resampling='AVERAGE'):
         """
         write the raster object to a file.
 
@@ -1095,9 +1097,11 @@ class Raster(object):
         array: numpy.ndarray
             write different data than that associated with the Raster object
         options: list or None
-            as list of options for creating the output dataset; see :osgeo:meth:`gdal.Driver.Create`
+            a list of options for creating the output dataset; see :osgeo:meth:`gdal.Driver.Create`
         overviews: list or None
             a list of integer overview levels to be created; see :osgeo:meth:`gdal.Dataset.BuildOverviews`
+        overview_resampling: str
+            the resampling to use for creating the overviews
 
         Returns
         -------
@@ -1178,7 +1182,7 @@ class Raster(object):
         if format in ['GTiff', 'COG']:
             outDataset.SetMetadataItem('TIFFTAG_DATETIME', strftime('%Y:%m:%d %H:%M:%S', gmtime()))
         if overviews:
-            outDataset.BuildOverviews('NEAREST', overviews)
+            outDataset.BuildOverviews(overview_resampling, overviews)
         if format == 'COG':
             options_meta = []
             for i, opt in enumerate(options_cog):
