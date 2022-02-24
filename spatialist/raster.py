@@ -6,7 +6,6 @@
 from __future__ import division
 import os
 import re
-import copy
 import platform
 import warnings
 import tempfile
