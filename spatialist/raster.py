@@ -1,11 +1,11 @@
 #################################################################
 # GDAL wrapper for convenient raster data handling and processing
 # John Truckenbrodt 2015-2022
+# Marco Wolsza 2021-2022
 #################################################################
 from __future__ import division
 import os
 import re
-import copy
 import platform
 import warnings
 import tempfile
@@ -80,7 +80,7 @@ class Raster(object):
             if len(filename) < 2:
                 raise RuntimeError("'filename' is a list with less than two elements")
             filename = self.__prependVSIdirective(filename)
-            self.filename = tempfile.NamedTemporaryFile(suffix='.vrt').name
+            self.filename = self.__create_tmp_name(suffix='.vrt')
             self.raster = gdalbuildvrt(src=filename,
                                        dst=self.filename,
                                        options={'separate': list_separate},
@@ -164,7 +164,7 @@ class Raster(object):
         -------
         Raster
             a new raster object referenced through an in-memory GDAL VRT file
-        
+
         Examples
         --------
         >>> filename = 'test'
@@ -331,9 +331,8 @@ class Raster(object):
         opts['bandList'] = [x + 1 for x in subset['bands']]
         opts['outputBounds'] = (geo['xmin'], geo['ymin'], geo['xmax'], geo['ymax'])
         
-        # create an in-memory VRT file and return the output raster dataset as new Raster object
-        # outname = os.path.join('/vsimem/', os.path.basename(tempfile.mktemp()))
-        outname = tempfile.NamedTemporaryFile(suffix='.vrt').name
+        # create a temporary VRT file and return the output raster dataset as new Raster object
+        outname = self.__create_tmp_name(suffix='.vrt')
         out_ds = gdalbuildvrt(src=self.filename, dst=outname, options=opts, void=False)
         
         timestamps = self.timestamps
@@ -352,6 +351,12 @@ class Raster(object):
         out.bandnames = bandnames
         out.timestamps = timestamps
         return out
+    
+    @staticmethod
+    def __create_tmp_name(suffix):
+        tmpdir = os.path.join(tempfile.gettempdir(), 'spatialist')
+        os.makedirs(tmpdir, exist_ok=True)
+        return tempfile.NamedTemporaryFile(suffix=suffix, dir=tmpdir).name
     
     def __extent2slice(self, extent):
         extent_bbox = bbox(extent, self.projection)
@@ -429,7 +434,7 @@ class Raster(object):
     def __prependVSIdirective(self, filename):
         """
         prepend one of /vsizip/ or /vsitar/ to the file name if a zip of tar archive.
-        
+
         Parameters
         ----------
         filename: str or list
@@ -608,6 +613,10 @@ class Raster(object):
 
         """
         self.raster = None
+        if self.filename is not None:
+            tmpdir = os.path.join(tempfile.gettempdir(), 'spatialist')
+            if os.path.basename(self.filename) == tmpdir:
+                os.remove(self.filename)
     
     @property
     def cols(self):
@@ -624,7 +633,7 @@ class Raster(object):
         """
         convert map coordinates in the raster CRS to image pixel coordinates.
         Either x, y or both must be defined.
-        
+
         Parameters
         ----------
         x: int or float
@@ -650,7 +659,7 @@ class Raster(object):
         """
         convert image pixel coordinates to map coordinates in the raster CRS.
         Either x, y or both must be defined.
-        
+
         Parameters
         ----------
         x: int or float
@@ -714,7 +723,11 @@ class Raster(object):
         int
             the CRS EPSG code
         """
-        return crsConvert(self.projection, 'epsg')
+        try:
+            code = crsConvert(self.projection, 'epsg')
+        except RuntimeError:
+            code = None
+        return code
     
     @property
     def extent(self):
@@ -1065,8 +1078,9 @@ class Raster(object):
         """
         return osr.SpatialReference(wkt=self.projection)
     
-    def write(self, outname, dtype='default', format='ENVI', nodata='default', overwrite=False,
-              cmap=None, update=False, xoff=0, yoff=0, array=None, options=None, overviews=None):
+    def write(self, outname, dtype='default', format='GTiff', nodata='default', overwrite=False,
+              cmap=None, update=False, xoff=0, yoff=0, array=None, options=None, overviews=None,
+              overview_resampling='AVERAGE'):
         """
         write the raster object to a file.
 
@@ -1095,9 +1109,11 @@ class Raster(object):
         array: numpy.ndarray
             write different data than that associated with the Raster object
         options: list or None
-            as list of options for creating the output dataset; see :osgeo:meth:`gdal.Driver.Create`
+            a list of options for creating the output dataset; see :osgeo:meth:`gdal.Driver.Create`
         overviews: list or None
             a list of integer overview levels to be created; see :osgeo:meth:`gdal.Dataset.BuildOverviews`
+        overview_resampling: str
+            the resampling to use for creating the overviews
 
         Returns
         -------
@@ -1107,6 +1123,13 @@ class Raster(object):
             raise RuntimeError('overwriting the currently opened file is not supported.')
         update_existing = update and os.path.isfile(outname)
         dtype = Dtype(self.dtype if dtype == 'default' else dtype).gdalint
+        
+        if options is None:
+            options = []
+        
+        tifftags = [x for x in options if x.startswith('TIFFTAG_')]
+        create_options = [x for x in options if not x.startswith('TIFFTAG_')]
+        
         if not update_existing:
             if os.path.isfile(outname) and not overwrite:
                 raise RuntimeError('target file already exists')
@@ -1116,27 +1139,24 @@ class Raster(object):
             
             nodata = self.nodata if nodata == 'default' else nodata
             
-            if options is None:
-                options = []
-            
             if format == 'COG':
-                outname_cog = copy.deepcopy(outname)
-                outname = '/vsimem/' + os.path.basename(outname) + '.vrt'
-                options_cog = copy.deepcopy(options)
-                options = []
+                outname_tmp = '/vsimem/' + os.path.basename(outname) + '.vrt'
                 driver = gdal.GetDriverByName('GTiff')
+                outDataset = driver.Create(outname_tmp, self.cols, self.rows,
+                                           self.bands, dtype, options=[])
             else:
                 driver = gdal.GetDriverByName(format)
+                outDataset = driver.Create(outname, self.cols, self.rows,
+                                           self.bands, dtype, create_options)
             
-            outDataset = driver.Create(outname, self.cols, self.rows, self.bands, dtype, options)
-            driver = None
             outDataset.SetMetadata(self.raster.GetMetadata())
-            outDataset.SetGeoTransform(
-                [self.geo[x] for x in ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']])
+            gt_keys = ['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres']
+            outDataset.SetGeoTransform([self.geo[x] for x in gt_keys])
             if self.projection is not None:
                 outDataset.SetProjection(self.projection)
         else:
             outDataset = gdal.Open(outname, GA_Update)
+        
         for i in range(1, self.bands + 1):
             outband = outDataset.GetRasterBand(i)
             
@@ -1166,7 +1186,8 @@ class Raster(object):
             dtype_mat = str(mat.dtype)
             dtype_ras = Dtype(dtype).numpystr
             if not np.can_cast(dtype_mat, dtype_ras):
-                warnings.warn("writing band {}: unsafe casting from type {} to {}".format(i, dtype_mat, dtype_ras))
+                message = "writing band {}: unsafe casting from type {} to {}"
+                warnings.warn(message.format(i, dtype_mat, dtype_ras))
                 if nodata is not None:
                     print('converting nan to nodata value {}'.format(nodata))
                     mat[np.isnan(mat)] = nodata
@@ -1174,24 +1195,24 @@ class Raster(object):
             outband.WriteArray(mat, xoff, yoff)
             del mat
             outband.FlushCache()
-            outband = None
         if format in ['GTiff', 'COG']:
-            outDataset.SetMetadataItem('TIFFTAG_DATETIME', strftime('%Y:%m:%d %H:%M:%S', gmtime()))
+            for tag in tifftags:
+                outDataset.SetMetadataItem(*tag.split('='))
+            if 'TIFFTAG_DATETIME' not in tifftags:
+                time = strftime('%Y:%m:%d %H:%M:%S', gmtime())
+                outDataset.SetMetadataItem('TIFFTAG_DATETIME', time)
         if overviews:
-            outDataset.BuildOverviews('NEAREST', overviews)
+            outDataset.BuildOverviews(overview_resampling, overviews)
         if format == 'COG':
-            options_meta = []
-            for i, opt in enumerate(options_cog):
-                if opt.startswith('TIFFTAG_'):
-                    options_meta.append(opt)
-                    options_cog.pop(i)
-            for opt in options_meta:
-                opt_split = opt.split('=')
-                outDataset.SetMetadataItem(opt_split[0], opt_split[1])
-            outDataset_cog = gdal.GetDriverByName('COG').CreateCopy(outname_cog, outDataset,
-                                                                    strict=1, options=options_cog)
+            driver_cog = gdal.GetDriverByName('COG')
+            outDataset_cog = driver_cog.CreateCopy(outname, outDataset,
+                                                   strict=1, options=create_options)
             outDataset_cog = None
+            driver_cog = None
+        outband = None
         outDataset = None
+        driver = None
+        
         if format == 'ENVI':
             hdrfile = os.path.splitext(outname)[0] + '.hdr'
             with HDRobject(hdrfile) as hdr:
