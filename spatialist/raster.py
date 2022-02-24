@@ -724,7 +724,11 @@ class Raster(object):
         int
             the CRS EPSG code
         """
-        return crsConvert(self.projection, 'epsg')
+        try:
+            code = crsConvert(self.projection, 'epsg')
+        except RuntimeError:
+            code = None
+        return code
     
     @property
     def extent(self):
