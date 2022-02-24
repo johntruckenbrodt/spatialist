@@ -1073,7 +1073,7 @@ class Raster(object):
         """
         return osr.SpatialReference(wkt=self.projection)
     
-    def write(self, outname, dtype='default', format='ENVI', nodata='default', overwrite=False,
+    def write(self, outname, dtype='default', format='GTiff', nodata='default', overwrite=False,
               cmap=None, update=False, xoff=0, yoff=0, array=None, options=None, overviews=None,
               overview_resampling='AVERAGE'):
         """
