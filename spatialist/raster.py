@@ -1239,7 +1239,7 @@ class Raster(object):
     #         self.write(outname, dim=[left, top, cols, rows], format=format)
 
 
-def png(src, dst, percent=10, scale=(2, 98), worldfile=False, nodata=None):
+def png(src, dst, percent=10, scale=(2, 98), vmin=None, vmax=None, worldfile=False, nodata=None):
     """
     convert a raster image to png. The input raster must either have one or three bands to create
     a grey scale or RGB image respectively.
@@ -1254,7 +1254,11 @@ def png(src, dst, percent=10, scale=(2, 98), worldfile=False, nodata=None):
         the size of the png relative to `src`
     scale: tuple or None
         the percentile bounds  as (min, max) for scaling the values of the input image
-        or `None` to not apply any scaling.
+        or `None` to not apply any scaling. Overridden by `vmin` and `vmax` if both are not `None`.
+    vmin: int or float or None
+        the minimum value used for image scaling.
+    vmax: int or float or None
+        the maximum value used for image scaling.
     worldfile: bool
         create a world file (extension .wld)?
     nodata: int or None
@@ -1291,7 +1295,13 @@ def png(src, dst, percent=10, scale=(2, 98), worldfile=False, nodata=None):
     options['widthPct'] = percent
     options['heightPct'] = percent
     options['noData'] = nodata
-    if scale is not None:
+    
+    if vmin is not None and vmax is not None:
+        scaleParams = []
+        for band in range(src.bands):
+            scaleParams.append([vmin, vmax, 0, 255])
+        options['scaleParams'] = scaleParams
+    elif scale is not None:
         scaleParams = []
         for band in range(src.bands):
             mat = src.matrix(band + 1)
