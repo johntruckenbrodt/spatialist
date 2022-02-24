@@ -81,7 +81,7 @@ class Raster(object):
             if len(filename) < 2:
                 raise RuntimeError("'filename' is a list with less than two elements")
             filename = self.__prependVSIdirective(filename)
-            self.filename = tempfile.NamedTemporaryFile(suffix='.vrt').name
+            self.filename = self.__create_tmp_name(suffix='.vrt')
             self.raster = gdalbuildvrt(src=filename,
                                        dst=self.filename,
                                        options={'separate': list_separate},
@@ -332,9 +332,8 @@ class Raster(object):
         opts['bandList'] = [x + 1 for x in subset['bands']]
         opts['outputBounds'] = (geo['xmin'], geo['ymin'], geo['xmax'], geo['ymax'])
         
-        # create an in-memory VRT file and return the output raster dataset as new Raster object
-        # outname = os.path.join('/vsimem/', os.path.basename(tempfile.mktemp()))
-        outname = tempfile.NamedTemporaryFile(suffix='.vrt').name
+        # create a temporary VRT file and return the output raster dataset as new Raster object
+        outname = self.__create_tmp_name(suffix='.vrt')
         out_ds = gdalbuildvrt(src=self.filename, dst=outname, options=opts, void=False)
         
         timestamps = self.timestamps
@@ -353,6 +352,12 @@ class Raster(object):
         out.bandnames = bandnames
         out.timestamps = timestamps
         return out
+    
+    @staticmethod
+    def __create_tmp_name(suffix):
+        tmpdir = os.path.join(tempfile.gettempdir(), 'spatialist')
+        os.makedirs(tmpdir, exist_ok=True)
+        return tempfile.NamedTemporaryFile(suffix=suffix, dir=tmpdir).name
     
     def __extent2slice(self, extent):
         extent_bbox = bbox(extent, self.projection)
@@ -609,6 +614,8 @@ class Raster(object):
 
         """
         self.raster = None
+        if self.filename.startswith(tempfile.gettempdir()):
+            os.remove(self.filename)
     
     @property
     def cols(self):
