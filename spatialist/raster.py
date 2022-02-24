@@ -1108,10 +1108,13 @@ class Raster(object):
             the y/row offset
         array: numpy.ndarray
             write different data than that associated with the Raster object
-        options: list or None
-            a list of options for creating the output dataset; see :osgeo:meth:`gdal.Driver.Create`
+        options: list[str] or None
+            a list of options for creating the output dataset via :osgeo:meth:`gdal.Driver.Create`.
+            For drivers `GTiff` and `COG`, TIFF tags can also be defined, which are then written to the
+            file using :osgeo:meth:`gdal.Dataset.SetMetadataItem`.
+            For example ``TIFFTAG_SOFTWARE=spatialist``.
         overviews: list or None
-            a list of integer overview levels to be created; see :osgeo:meth:`gdal.Dataset.BuildOverviews`
+            a list of integer overview levels to be created; see :osgeo:meth:`gdal.Dataset.BuildOverviews`.
         overview_resampling: str
             the resampling to use for creating the overviews
 
