@@ -151,3 +151,8 @@ Changelog
       during :meth:`~spatialist.raster.Raster.close`
 
 - :func:`spatialist.raster.png`: new arguments 'vmin' and 'vmax'
+
+0.10.1 | 2022-03-02
+-------------------
+
+- :func:`spatialist.vector.boundary` bug fix
