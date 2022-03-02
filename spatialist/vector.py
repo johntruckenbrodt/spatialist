@@ -804,11 +804,13 @@ def boundary(vectorobject, expression=None, outname=None):
     major = feat_major.GetGeometryRef()
     
     boundary = major.Boundary()
-    
-    longest = None
-    for line in boundary:
-        if (longest is None) or (line.Length() > longest.Length()):
-            longest = line
+    if boundary.GetGeometryName() == 'LINESTRING':
+        longest = boundary
+    else:  # MULTILINESTRING
+        longest = None
+        for line in boundary:
+            if (longest is None) or (line.Length() > longest.Length()):
+                longest = line
     
     points = longest.GetPoints()
     ring = ogr.Geometry(ogr.wkbLinearRing)
