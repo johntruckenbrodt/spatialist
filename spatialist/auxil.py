@@ -13,7 +13,7 @@ ogr.UseExceptions()
 gdal.UseExceptions()
 
 
-def crsConvert(crsIn, crsOut):
+def crsConvert(crsIn, crsOut, wkt_format='DEFAULT'):
     """
     convert between different types of spatial reference representations
 
@@ -30,6 +30,9 @@ def crsConvert(crsIn, crsOut):
         - prettyWkt
         - proj4
         - wkt
+    wkt_format: str
+        the format of the `wkt` string. See here for options:
+        https://gdal.org/doxygen/classOGRSpatialReference.html#ae986da88649783b5c194de55c46890a5
 
     Returns
     -------
@@ -51,7 +54,7 @@ def crsConvert(crsIn, crsOut):
     convert an EPSG compound CRS (WGS84 horizontal + EGM96 vertical) to PROJ.4
     
     >>> crsConvert('EPSG:4326+5773', 'proj4')
-    '+proj=longlat +datum=WGS84 +geoidgrids=egm96_15.gtx +vunits=m +no_defs '
+    '+proj=longlat +datum=WGS84 +geoidgrids=us_nga_egm96_15.tif +vunits=m +no_defs'
     """
     if isinstance(crsIn, osr.SpatialReference):
         srs = crsIn.Clone()
@@ -72,7 +75,7 @@ def crsConvert(crsIn, crsOut):
         else:
             raise TypeError('crsIn must be of type int, str or osr.SpatialReference')
     if crsOut == 'wkt':
-        return srs.ExportToWkt()
+        return srs.ExportToWkt(['FORMAT={}'.format(wkt_format)])
     elif crsOut == 'prettyWkt':
         return srs.ExportToPrettyWkt()
     elif crsOut == 'proj4':
