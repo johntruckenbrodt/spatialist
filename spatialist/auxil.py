@@ -1,6 +1,6 @@
 ##############################################################
 # Convenience functions for general spatial applications
-# John Truckenbrodt, 2016-2021
+# John Truckenbrodt, 2016-2022
 ##############################################################
 import math
 import warnings
@@ -88,7 +88,7 @@ def crsConvert(crsIn, crsOut, wkt_format='DEFAULT'):
     elif crsOut == 'osr':
         return srs
     else:
-        raise ValueError('crsOut not recognized; must be either wkt, proj4, opengis or epsg')
+        raise ValueError('crsOut not recognized; must be either wkt, prettyWkt, proj4, epsg, opengis or osr')
 
 
 def haversine(lat1, lon1, lat2, lon2):
@@ -361,7 +361,7 @@ def __osr2epsg(srs):
     try:
         srs.AutoIdentifyEPSG()
         code = int(srs.GetAuthorityCode(None))
-        # make sure the ESPG code actually exists
+        # make sure the EPSG code actually exists
         srsTest = osr.SpatialReference()
         srsTest.ImportFromEPSG(code)
         srsTest = None
