@@ -564,24 +564,28 @@ class Raster(object):
                 'length mismatch of names to be set ({}) and number of bands ({})'.format(len(names), self.bands))
         self.__bandnames = names
     
-    def bbox(self, outname=None, driver='ESRI Shapefile', overwrite=True, source='image'):
+    def bbox(self, outname=None, driver=None, overwrite=True, source='image'):
         """
         Parameters
         ----------
         outname: str or None
             the name of the file to write; If `None`, the bounding box is returned
             as :class:`~spatialist.vector.Vector` object
-        driver: str
-            The file format to write
+        driver: str or None
+            The file format to write. `None`: auto-detect from filename extension.
         overwrite: bool
             overwrite an already existing file?
-        source: {'image', 'gcp'}
-            get the bounding box of either the image or the ground control points
+        source: str
+            get the bounding box of either the image ('image') or the ground control points ('gcp').
 
         Returns
         -------
         Vector or None
-            the bounding box vector object
+            the bounding box vector object if `outname` is not `None` and `None` otherwise.
+        
+        See Also
+        --------
+        :func:`spatialist.vector.bbox`
         """
         if source == 'image':
             extent = self.extent
