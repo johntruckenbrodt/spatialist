@@ -619,7 +619,7 @@ class Raster(object):
         self.raster = None
         if self.filename is not None:
             tmpdir = os.path.join(tempfile.gettempdir(), 'spatialist')
-            if os.path.basename(self.filename) == tmpdir:
+            if os.path.dirname(self.filename) == tmpdir:
                 os.remove(self.filename)
     
     @property
