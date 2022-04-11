@@ -673,3 +673,68 @@ def parallel_apply_along_axis(func1d, axis, arr, cores=4, *args, **kwargs):
         pool.join()
         
         return np.concatenate(individual_results)
+
+
+def sampler(mask, samples=None, dim=1, replace=False, seed=42):
+    """
+    General function to select random sample indexes from arrays.
+    Adapted from package `S1_ARD <https://github.com/johntruckenbrodt/S1_ARD>`_.
+
+    Parameters
+    ----------
+    mask: numpy.ndarray
+        A 2D boolean mask to limit the sample selection.
+    samples: int or None
+        The number of samples to select. If None, the positions of all matching values are returned.
+        If there are fewer values than required samples, the positions of all values are returned.
+    dim: int
+        The dimensions of the output array and its indexes. If 1, the returned array has one
+        dimension and the indexes refer to the one-dimensional (i.e., flattened) representation
+        of the input mask. If 2, the output array is of shape `(2, samples)` with two separate
+        2D arrays for y (index 0) and x respectively, which reference positions in the original
+        2D shape of the input array.
+    replace: bool
+        Draw samples with or without replacement?
+    seed: int
+        Seed used to initialize the pseudo-random number generator.
+    
+    Returns
+    -------
+    numpy.ndarray
+        The index positions of the generated random samples as 1D or 2D array.
+    
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from spatialist.ancillary import sampler
+    >>> array = np.array([[1, 2], [3, 4], [5, 6], [7, 8]])
+    >>> mask = array > 2
+    >>> s1d = sampler(mask=mask, samples=2, dim=1)
+    >>> s2d = sampler(mask=mask, samples=2, dim=2)
+    >>> print(s1d)
+    [2 3]
+    >>> print(s2d)
+    [[1 1]
+     [0 1]]
+    >>> print(array.flatten()[s1d] == array[s2d[0], s2d[1]])
+    [ True  True]
+    
+    See Also
+    --------
+    numpy.random.seed
+    numpy.random.choice
+    """
+    cols, rows = mask.shape
+    indices = np.where(mask.flatten())[0]
+    samplesize = min(indices.size, samples) if samples is not None else indices.size
+    np.random.seed(seed)
+    sample_ids = np.random.choice(a=indices, size=samplesize, replace=replace)
+    if dim == 1:
+        return sample_ids
+    elif dim == 2:
+        out = np.ndarray(shape=(2, samples), dtype=np.uint)
+        out[0] = sample_ids // rows
+        out[1] = sample_ids % rows
+        return out
+    else:
+        raise ValueError("'dim' must either be 1 or 2")
