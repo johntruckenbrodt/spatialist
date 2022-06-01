@@ -156,3 +156,14 @@ Changelog
 -------------------
 
 - :func:`spatialist.vector.boundary` bug fix
+
+0.11.0 | 2022-06-01
+-------------------
+
+- :func:`spatialist.auxil.crsConvert`: new argument `wkt_format`
+
+- :meth:`spatialist.raster.Raster.bbox`: set default of argument 'driver' to `None`
+
+- :func:`spatialist.ancillary.sampler`: new function
+
+- bug fixes
