@@ -32,7 +32,7 @@ def crsConvert(crsIn, crsOut, wkt_format='DEFAULT'):
         - wkt
     wkt_format: str
         the format of the `wkt` string. See here for options:
-        https://gdal.org/doxygen/classOGRSpatialReference.html#ae986da88649783b5c194de55c46890a5
+        https://gdal.org/api/ogrspatialref.html#_CPPv4NK19OGRSpatialReference11exportToWktEPPcPPCKc
 
     Returns
     -------
@@ -75,7 +75,11 @@ def crsConvert(crsIn, crsOut, wkt_format='DEFAULT'):
         else:
             raise TypeError('crsIn must be of type int, str or osr.SpatialReference')
     if crsOut == 'wkt':
-        return srs.ExportToWkt(['FORMAT={}'.format(wkt_format)])
+        if wkt_format == 'DEFAULT':
+            # keep downward compatibility
+            return srs.ExportToWkt()
+        else:
+            return srs.ExportToWkt(['FORMAT={}'.format(wkt_format)])
     elif crsOut == 'prettyWkt':
         return srs.ExportToPrettyWkt()
     elif crsOut == 'proj4':
