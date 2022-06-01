@@ -1,5 +1,5 @@
 ##############################################################
-# ENVI header management
+# ENVI header file management
 # John Truckenbrodt 2015-2019
 ##############################################################
 """
@@ -99,7 +99,7 @@ class HDRobject(object):
     def __hdr2dict(self):
         """
         read a HDR file into a dictionary
-        http://gis.stackexchange.com/questions/48618/how-to-read-write-envi-metadata-using-gdal
+        https://gis.stackexchange.com/questions/48618/how-to-read-write-envi-metadata-using-gdal
         Returns
         -------
         dict
@@ -109,7 +109,7 @@ class HDRobject(object):
             match = re.search('.zip', self.filename)
             zip = self.filename[:match.end()]
             with zf.ZipFile(zip, 'r') as zip:
-                member = self.filename[match.end():].strip('\\')
+                member = self.filename[match.end():].strip('\\/')
                 content = zip.read(member)
             lines = content.decode().split('\n')
         else:
