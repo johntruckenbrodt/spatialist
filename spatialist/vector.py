@@ -955,7 +955,7 @@ def intersect(obj1, obj2):
     Returns
     -------
     Vector or None
-        the intersect of obj1 and obj2 if both intersect and None otherwise
+        the intersection of obj1 and obj2 if both intersect and None otherwise
     """
     if not isinstance(obj1, Vector) or not isinstance(obj2, Vector):
         raise RuntimeError('both objects must be of type Vector')
@@ -967,20 +967,28 @@ def intersect(obj1, obj2):
     
     #######################################################
     # create basic overlap
-    union1 = ogr.Geometry(ogr.wkbMultiPolygon)
-    # union all the geometrical features of layer 1
-    for feat in obj1.layer:
-        union1.AddGeometry(feat.GetGeometryRef())
-    obj1.layer.ResetReading()
-    union1.Simplify(0)
-    # same for layer2
-    union2 = ogr.Geometry(ogr.wkbMultiPolygon)
-    for feat in obj2.layer:
-        union2.AddGeometry(feat.GetGeometryRef())
-    obj2.layer.ResetReading()
-    union2.Simplify(0)
+    
+    def union(vector):
+        out = ogr.Geometry(ogr.wkbMultiPolygon)
+        for feat in vector.layer:
+            geom = feat.GetGeometryRef()
+            type = geom.GetGeometryName()
+            if type == 'MULTIPOLYGON':
+                for subgeom in geom:
+                    out.AddGeometry(subgeom)
+            else:
+                out.AddGeometry(geom)
+        vector.layer.ResetReading()
+        out.Simplify(0)
+        return out
+    
+    # get the union of all polygons of the two layers
+    union1 = union(obj1)
+    union2 = union(obj2)
+    
     # intersection
     intersect_base = union1.Intersection(union2)
+    
     union1 = None
     union2 = None
     #######################################################
