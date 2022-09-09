@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import setup, find_namespace_packages
 import os
 
 directory = os.path.abspath(os.path.dirname(__file__))
@@ -10,7 +10,7 @@ with open(os.path.join(directory, 'requirements.txt'), 'r') as req:
     requirements = req.read().split('\n')
 
 setup(name='spatialist',
-      packages=find_packages(),
+      packages=find_namespace_packages(),
       include_package_data=True,
       setup_requires=['setuptools_scm'],
       use_scm_version=True,
