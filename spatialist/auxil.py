@@ -350,7 +350,7 @@ def __osr2epsg(srs):
     Parameters
     ----------
     srs: :osgeo:class:`osr.SpatialReference`
-        a SRS to be converted
+        an SRS to be converted
 
     Returns
     -------
@@ -363,7 +363,16 @@ def __osr2epsg(srs):
     """
     srs = srs.Clone()
     try:
-        srs.AutoIdentifyEPSG()
+        try:
+            srs.AutoIdentifyEPSG()
+        except RuntimeError:
+            # Sometimes EPSG identification might fail
+            # but a match exists for which it does not.
+            matches = srs.FindMatches()
+            for srs, confidence in matches:
+                if confidence == 100:
+                    srs.AutoIdentifyEPSG()
+                    break
         code = int(srs.GetAuthorityCode(None))
         # make sure the EPSG code actually exists
         srsTest = osr.SpatialReference()
