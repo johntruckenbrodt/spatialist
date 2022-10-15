@@ -702,8 +702,8 @@ class Vector(object):
         for feature in self.layer:
             outFeature = ogr.Feature(outlayerdef)
             outFeature.SetGeometry(feature.GetGeometryRef())
-            for name in self.fieldnames:
-                outFeature.SetField(name, feature.GetField(name))
+            for i in range(len(feature.keys())):
+                outFeature.SetField(i, feature.GetField(i))
             # add the feature to the shapefile
             outlayer.CreateFeature(outFeature)
             outFeature = None
