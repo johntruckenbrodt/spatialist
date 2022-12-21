@@ -167,3 +167,15 @@ Changelog
 - :func:`spatialist.ancillary.sampler`: new function
 
 - bug fixes
+
+0.12.0 | 2022-12-21
+-------------------
+
+- replace argument `options` with general keyword arguments `kwargs` in functions
+
+    + :func:`spatialist.auxil.gdalwarp`
+    + :func:`spatialist.auxil.gdalbuildvrt`
+    + :func:`spatialist.auxil.gdal_translate`
+    + :func:`spatialist.auxil.ogr2ogr`
+    + :func:`spatialist.auxil.gdal_rasterize`
+
