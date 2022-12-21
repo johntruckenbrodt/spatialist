@@ -83,7 +83,7 @@ class Raster(object):
             self.filename = self.__create_tmp_name(suffix='.vrt')
             self.raster = gdalbuildvrt(src=filename,
                                        dst=self.filename,
-                                       options={'separate': list_separate},
+                                       separate=list_separate,
                                        void=False)
         else:
             raise RuntimeError('raster input must be of type str, list or gdal.Dataset; is: {}'
@@ -333,7 +333,7 @@ class Raster(object):
         
         # create a temporary VRT file and return the output raster dataset as new Raster object
         outname = self.__create_tmp_name(suffix='.vrt')
-        out_ds = gdalbuildvrt(src=self.filename, dst=outname, options=opts, void=False)
+        out_ds = gdalbuildvrt(src=self.filename, dst=outname, void=False, **opts)
         
         timestamps = self.timestamps
         if len(index) > 2:
@@ -1338,7 +1338,7 @@ def png(src, dst, percent=10, scale=(2, 98), vmin=None, vmax=None, worldfile=Fal
         options['scaleParams'] = scaleParams
     if worldfile:
         options['options'] = ['-co', 'WORLDFILE=YES']
-    gdal_translate(src.raster, dst, options)
+    gdal_translate(src=src.raster, dst=dst, **options)
 
 
 def rasterize(vectorobject, reference, outname=None, burn_values=1, expressions=None, nodata=0, append=False):
@@ -1476,7 +1476,7 @@ def reproject(rasterobject, reference, outname, targetres=None, resampling='bili
                'srcNodata': rasterobject.nodata,
                'dstNodata': rasterobject.nodata,
                'dstSRS': projection}
-    gdalwarp(rasterobject.raster, outname, options)
+    gdalwarp(src=rasterobject.raster, dst=outname, **options)
 
 
 # todo improve speed until aborting when all target files already exist
@@ -1661,7 +1661,7 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
                     vrt = os.path.join(tempfile.gettempdir(), vrt_base)
                 else:
                     vrt = '/vsimem/' + vrt_base
-                gdalbuildvrt(group, vrt, options_buildvrt)
+                gdalbuildvrt(src=group, dst=vrt, **options_buildvrt)
                 srcfiles[i] = vrt
             else:
                 srcfiles[i] = group[0]
@@ -1694,7 +1694,7 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
                 return
         srcfiles, dstfiles = map(list, zip(*jobs))
         log.debug('creating {} separate file(s):\n  {}'.format(len(dstfiles), '\n  '.join(dstfiles)))
-        multicore(gdalwarp, cores=cores, options=options_warp,
+        multicore(gdalwarp, cores=cores, **options_warp,
                   multiargs={'src': srcfiles, 'dst': dstfiles})
     else:
         if len(srcfiles) == 1:
@@ -1702,18 +1702,18 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
             if not dstfile.endswith('.tif'):
                 dstfile = os.path.splitext(dstfile)[0] + '.tif'
             log.debug('creating file: {}'.format(dstfile))
-            gdalwarp(srcfiles[0], dstfile, options_warp)
+            gdalwarp(src=srcfiles[0], dst=dstfile, **options_warp)
         else:
             # create VRT for stacking
             vrt = '/vsimem/' + os.path.basename(dst_base) + '.vrt'
             options_buildvrt['options'] = ['-separate']
-            gdalbuildvrt(srcfiles, vrt, options_buildvrt)
+            gdalbuildvrt(src=srcfiles, dst=vrt, **options_buildvrt)
             
             # increase the number of threads for gdalwarp computations
             options_warp['options'].extend(['-wo', 'NUM_THREADS={}'.format(cores)])
             
             log.debug('creating file: {}'.format(dstfile))
-            gdalwarp(vrt, dstfile, options_warp, pbar=pbar)
+            gdalwarp(src=vrt, dst=dstfile, pbar=pbar, **options_warp)
             
             # edit ENVI HDR files to contain specific layer names
             hdrfile = os.path.splitext(dstfile)[0] + '.hdr'

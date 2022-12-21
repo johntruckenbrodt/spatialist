@@ -123,20 +123,20 @@ def haversine(lat1, lon1, lat2, lon2):
     return radius * c
 
 
-def gdalwarp(src, dst, options, pbar=False):
+def gdalwarp(src, dst, pbar=False, **kwargs):
     """
     a simple wrapper for :func:`osgeo.gdal.Warp`
 
     Parameters
     ----------
-    src: str or osgeo.ogr.DataSource or osgeo.gdal.Dataset
+    src: str or osgeo.ogr.DataSource or osgeo.gdal.Dataset or list[str or osgeo.ogr.DataSource or osgeo.gdal.Dataset]
         the input data set
     dst: str
         the output data set
-    options: dict
-        additional parameters passed to :func:`osgeo.gdal.Warp`; see :func:`osgeo.gdal.WarpOptions`
     pbar: bool
         add a progressbar?
+    **kwargs
+        additional parameters passed to :func:`osgeo.gdal.Warp`; see :func:`osgeo.gdal.WarpOptions`
 
     Returns
     -------
@@ -145,22 +145,22 @@ def gdalwarp(src, dst, options, pbar=False):
     progress = None
     try:
         if pbar:
-            options = options.copy()
+            kwargs = kwargs.copy()
             widgets = [pb.Percentage(), pb.Bar(), pb.Timer(), ' ', pb.ETA()]
             progress = pb.ProgressBar(max_value=100, widgets=widgets).start()
-            options['callback'] = __callback
-            options['callback_data'] = progress
-        out = gdal.Warp(dst, src, options=gdal.WarpOptions(**options))
+            kwargs['callback'] = __callback
+            kwargs['callback_data'] = progress
+        out = gdal.Warp(dst, src, options=gdal.WarpOptions(**kwargs))
         if progress is not None:
             progress.finish()
     except RuntimeError as e:
         msg = '{}:\n  src: {}\n  dst: {}\n  options: {}'
-        raise RuntimeError(msg.format(str(e), src, dst, options))
+        raise RuntimeError(msg.format(str(e), src, dst, kwargs))
     finally:
         out = None
 
 
-def gdalbuildvrt(src, dst, options=None, void=True):
+def gdalbuildvrt(src, dst, void=True, **kwargs):
     """
     a simple wrapper for :func:`osgeo.gdal.BuildVRT`
 
@@ -170,18 +170,17 @@ def gdalbuildvrt(src, dst, options=None, void=True):
         the input data set(s)
     dst: str
         the output data set
-    options: dict
-        additional parameters passed to :func:`osgeo.gdal.BuildVRT`; see :func:`osgeo.gdal.BuildVRTOptions`
     void: bool
         just write the results and don't return anything? If not, the spatial object is returned
+    **kwargs
+        additional parameters passed to :func:`osgeo.gdal.BuildVRT`; see :func:`osgeo.gdal.BuildVRTOptions`
 
     Returns
     -------
 
     """
-    options = {} if options is None else options
     
-    if 'outputBounds' in options.keys() and gdal.__version__ < '2.4.0':
+    if 'outputBounds' in kwargs.keys() and gdal.__version__ < '2.4.0':
         warnings.warn('\ncreating VRT files with subsetted extent is very likely to cause problems. '
                       'Please use GDAL version >= 2.4.0, which fixed the problem.\n'
                       'see here for a description of the problem:\n'
@@ -190,7 +189,7 @@ def gdalbuildvrt(src, dst, options=None, void=True):
                       'and here for the release note of GDAL 2.4.0:\n'
                       '  https://trac.osgeo.org/gdal/wiki/Release/2.4.0-News')
     
-    out = gdal.BuildVRT(dst, src, options=gdal.BuildVRTOptions(**options))
+    out = gdal.BuildVRT(dst, src, options=gdal.BuildVRTOptions(**kwargs))
     out.FlushCache()
     if void:
         out = None
@@ -198,7 +197,7 @@ def gdalbuildvrt(src, dst, options=None, void=True):
         return out
 
 
-def gdal_translate(src, dst, options):
+def gdal_translate(src, dst, **kwargs):
     """
     a simple wrapper for :func:`osgeo.gdal.Translate`
 
@@ -208,7 +207,7 @@ def gdal_translate(src, dst, options):
         the input data set
     dst: str
         the output data set
-    options: dict
+    **kwargs
         additional parameters passed to :func:`osgeo.gdal.Translate`;
         see :func:`osgeo.gdal.TranslateOptions`
 
@@ -216,11 +215,11 @@ def gdal_translate(src, dst, options):
     -------
 
     """
-    out = gdal.Translate(dst, src, options=gdal.TranslateOptions(**options))
+    out = gdal.Translate(dst, src, options=gdal.TranslateOptions(**kwargs))
     out = None
 
 
-def ogr2ogr(src, dst, options):
+def ogr2ogr(src, dst, **kwargs):
     """
     a simple wrapper for :func:`osgeo.gdal.VectorTranslate` aka `ogr2ogr <https://www.gdal.org/ogr2ogr.html>`_
 
@@ -230,7 +229,7 @@ def ogr2ogr(src, dst, options):
         the input data set
     dst: str
         the output data set
-    options: dict
+    **kwargs
         additional parameters passed to :func:`osgeo.gdal.VectorTranslate`;
         see :func:`osgeo.gdal.VectorTranslateOptions`
 
@@ -238,11 +237,11 @@ def ogr2ogr(src, dst, options):
     -------
 
     """
-    out = gdal.VectorTranslate(dst, src, options=gdal.VectorTranslateOptions(**options))
+    out = gdal.VectorTranslate(dst, src, options=gdal.VectorTranslateOptions(**kwargs))
     out = None
 
 
-def gdal_rasterize(src, dst, options):
+def gdal_rasterize(src, dst, **kwargs):
     """
     a simple wrapper for :func:`osgeo.gdal.Rasterize`
 
@@ -252,14 +251,14 @@ def gdal_rasterize(src, dst, options):
         the input data set
     dst: str
         the output data set
-    options: dict
+    **kwargs
         additional parameters passed to :func:`osgeo.gdal.Rasterize`; see :func:`osgeo.gdal.RasterizeOptions`
 
     Returns
     -------
 
     """
-    out = gdal.Rasterize(dst, src, options=gdal.RasterizeOptions(**options))
+    out = gdal.Rasterize(dst, src, options=gdal.RasterizeOptions(**kwargs))
     out = None
 
 
@@ -396,7 +395,7 @@ def cmap_mpl2gdal(mplcolor, values):
     ----------
     mplcolor: str
         a color table code
-    values: list[int]
+    values: list[int] or range
         the integer data values for which to retrieve colors
 
     Returns
