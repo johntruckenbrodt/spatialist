@@ -121,9 +121,9 @@ def finder(target, matchlist, foldermode=0, regex=False, recursive=True):
 
     Parameters
     ----------
-    target: str or list of str
+    target: str or list[str]
         a directory, zip- or tar-archive or a list of them to be searched
-    matchlist: list
+    matchlist: list[str]
         a list of search patterns
     foldermode: int
         * 0: only files
@@ -137,7 +137,7 @@ def finder(target, matchlist, foldermode=0, regex=False, recursive=True):
 
     Returns
     -------
-    list of str
+    list[str]
         the absolute names of files/folders matching the patterns
     """
     if foldermode not in [0, 1, 2]:

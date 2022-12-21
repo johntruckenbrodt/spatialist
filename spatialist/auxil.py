@@ -19,7 +19,7 @@ def crsConvert(crsIn, crsOut, wkt_format='DEFAULT'):
 
     Parameters
     ----------
-    crsIn: int, str, :osgeo:class:`osr.SpatialReference`
+    crsIn: int or str or osgeo.osr.SpatialReference
         the input CRS
     crsOut: str
         the output CRS type; supported options:
@@ -36,7 +36,7 @@ def crsConvert(crsIn, crsOut, wkt_format='DEFAULT'):
 
     Returns
     -------
-    int, str, :osgeo:class:`osr.SpatialReference`
+    int or str or osgeo.osr.SpatialReference
         the output CRS
 
     Examples
@@ -123,62 +123,64 @@ def haversine(lat1, lon1, lat2, lon2):
     return radius * c
 
 
-def gdalwarp(src, dst, options, pbar=False):
+def gdalwarp(src, dst, pbar=False, **kwargs):
     """
-    a simple wrapper for :osgeo:func:`gdal.Warp`
+    a simple wrapper for :func:`osgeo.gdal.Warp`
 
     Parameters
     ----------
-    src: str, :osgeo:class:`ogr.DataSource` or :osgeo:class:`gdal.Dataset`
+    src: str or osgeo.ogr.DataSource or osgeo.gdal.Dataset or list[str or osgeo.ogr.DataSource or osgeo.gdal.Dataset]
         the input data set
     dst: str
         the output data set
-    options: dict
-        additional parameters passed to :osgeo:func:`gdal.Warp`; see :osgeo:func:`gdal.WarpOptions`
     pbar: bool
         add a progressbar?
+    **kwargs
+        additional parameters passed to :func:`osgeo.gdal.Warp`; see :func:`osgeo.gdal.WarpOptions`
 
     Returns
     -------
 
     """
+    progress = None
     try:
         if pbar:
-            options = options.copy()
+            kwargs = kwargs.copy()
             widgets = [pb.Percentage(), pb.Bar(), pb.Timer(), ' ', pb.ETA()]
             progress = pb.ProgressBar(max_value=100, widgets=widgets).start()
-            options['callback'] = __callback
-            options['callback_data'] = progress
-        out = gdal.Warp(dst, src, options=gdal.WarpOptions(**options))
-        if pbar:
+            kwargs['callback'] = __callback
+            kwargs['callback_data'] = progress
+        out = gdal.Warp(dst, src, options=gdal.WarpOptions(**kwargs))
+        if progress is not None:
             progress.finish()
     except RuntimeError as e:
-        raise RuntimeError('{}:\n  src: {}\n  dst: {}\n  options: {}'.format(str(e), src, dst, options))
-    out = None
+        msg = '{}:\n  src: {}\n  dst: {}\n  options: {}'
+        raise RuntimeError(msg.format(str(e), src, dst, kwargs))
+    finally:
+        out = None
 
 
-def gdalbuildvrt(src, dst, options=None, void=True):
+def gdalbuildvrt(src, dst, void=True, **kwargs):
     """
-    a simple wrapper for :osgeo:func:`gdal.BuildVRT`
+    a simple wrapper for :func:`osgeo.gdal.BuildVRT`
 
     Parameters
     ----------
-    src: str, list, :osgeo:class:`ogr.DataSource` or :osgeo:class:`gdal.Dataset`
+    src: str, list, :class:`osgeo.ogr.DataSource` or :class:`osgeo.gdal.Dataset`
         the input data set(s)
     dst: str
         the output data set
-    options: dict
-        additional parameters passed to :osgeo:func:`gdal.BuildVRT`; see :osgeo:func:`gdal.BuildVRTOptions`
     void: bool
         just write the results and don't return anything? If not, the spatial object is returned
+    **kwargs
+        additional parameters passed to :func:`osgeo.gdal.BuildVRT`; see :func:`osgeo.gdal.BuildVRTOptions`
 
     Returns
     -------
 
     """
-    options = {} if options is None else options
     
-    if 'outputBounds' in options.keys() and gdal.__version__ < '2.4.0':
+    if 'outputBounds' in kwargs.keys() and gdal.__version__ < '2.4.0':
         warnings.warn('\ncreating VRT files with subsetted extent is very likely to cause problems. '
                       'Please use GDAL version >= 2.4.0, which fixed the problem.\n'
                       'see here for a description of the problem:\n'
@@ -187,7 +189,7 @@ def gdalbuildvrt(src, dst, options=None, void=True):
                       'and here for the release note of GDAL 2.4.0:\n'
                       '  https://trac.osgeo.org/gdal/wiki/Release/2.4.0-News')
     
-    out = gdal.BuildVRT(dst, src, options=gdal.BuildVRTOptions(**options))
+    out = gdal.BuildVRT(dst, src, options=gdal.BuildVRTOptions(**kwargs))
     out.FlushCache()
     if void:
         out = None
@@ -195,68 +197,68 @@ def gdalbuildvrt(src, dst, options=None, void=True):
         return out
 
 
-def gdal_translate(src, dst, options):
+def gdal_translate(src, dst, **kwargs):
     """
-    a simple wrapper for :osgeo:func:`gdal.Translate`
+    a simple wrapper for :func:`osgeo.gdal.Translate`
 
     Parameters
     ----------
-    src: str, :osgeo:class:`ogr.DataSource` or :osgeo:class:`gdal.Dataset`
+    src: str, osgeo.ogr.DataSource or osgeo.gdal.Dataset
         the input data set
     dst: str
         the output data set
-    options: dict
-        additional parameters passed to :osgeo:func:`gdal.Translate`;
-        see :osgeo:func:`gdal.TranslateOptions`
+    **kwargs
+        additional parameters passed to :func:`osgeo.gdal.Translate`;
+        see :func:`osgeo.gdal.TranslateOptions`
 
     Returns
     -------
 
     """
-    out = gdal.Translate(dst, src, options=gdal.TranslateOptions(**options))
+    out = gdal.Translate(dst, src, options=gdal.TranslateOptions(**kwargs))
     out = None
 
 
-def ogr2ogr(src, dst, options):
+def ogr2ogr(src, dst, **kwargs):
     """
-    a simple wrapper for :osgeo:func:`gdal.VectorTranslate` aka `ogr2ogr <https://www.gdal.org/ogr2ogr.html>`_
+    a simple wrapper for :func:`osgeo.gdal.VectorTranslate` aka `ogr2ogr <https://www.gdal.org/ogr2ogr.html>`_
 
     Parameters
     ----------
-    src: str or :osgeo:class:`ogr.DataSource`
+    src: str or osgeo.ogr.DataSource
         the input data set
     dst: str
         the output data set
-    options: dict
-        additional parameters passed to :osgeo:func:`gdal.VectorTranslate`;
-        see :osgeo:func:`gdal.VectorTranslateOptions`
+    **kwargs
+        additional parameters passed to :func:`osgeo.gdal.VectorTranslate`;
+        see :func:`osgeo.gdal.VectorTranslateOptions`
 
     Returns
     -------
 
     """
-    out = gdal.VectorTranslate(dst, src, options=gdal.VectorTranslateOptions(**options))
+    out = gdal.VectorTranslate(dst, src, options=gdal.VectorTranslateOptions(**kwargs))
     out = None
 
 
-def gdal_rasterize(src, dst, options):
+def gdal_rasterize(src, dst, **kwargs):
     """
-    a simple wrapper for :osgeo:func:`gdal.Rasterize`
+    a simple wrapper for :func:`osgeo.gdal.Rasterize`
 
     Parameters
     ----------
-    src: str or :osgeo:class:`ogr.DataSource`
+    src: str or osgeo.ogr.DataSource
         the input data set
     dst: str
         the output data set
-    options: dict
-        additional parameters passed to :osgeo:func:`gdal.Rasterize`; see :osgeo:func:`gdal.RasterizeOptions`
+    **kwargs
+        additional parameters passed to :func:`osgeo.gdal.Rasterize`; see :func:`osgeo.gdal.RasterizeOptions`
 
     Returns
     -------
 
     """
-    out = gdal.Rasterize(dst, src, options=gdal.RasterizeOptions(**options))
+    out = gdal.Rasterize(dst, src, options=gdal.RasterizeOptions(**kwargs))
     out = None
 
 
@@ -270,9 +272,9 @@ def coordinate_reproject(x, y, s_crs, t_crs):
         the X coordinate component
     y: int or float
         the Y coordinate component
-    s_crs: int, str or :osgeo:class:`osr.SpatialReference`
+    s_crs: int, str or osgeo.osr.SpatialReference
         the source CRS. See :func:`~spatialist.auxil.crsConvert` for options.
-    t_crs: int, str or :osgeo:class:`osr.SpatialReference`
+    t_crs: int, str or osgeo.osr.SpatialReference
         the target CRS. See :func:`~spatialist.auxil.crsConvert` for options.
 
     Returns
@@ -303,7 +305,7 @@ def utm_autodetect(spatial, crsOut):
     
     Returns
     -------
-    int or str or :osgeo:class:`osr.SpatialReference`
+    int or str or osgeo.osr.SpatialReference
         the output CRS
     """
     with spatial.bbox() as box:
@@ -349,7 +351,7 @@ def __osr2epsg(srs):
     
     Parameters
     ----------
-    srs: :osgeo:class:`osr.SpatialReference`
+    srs: osgeo.osr.SpatialReference
         an SRS to be converted
 
     Returns
@@ -393,18 +395,18 @@ def cmap_mpl2gdal(mplcolor, values):
     ----------
     mplcolor: str
         a color table code
-    values: list
+    values: list[int] or range
         the integer data values for which to retrieve colors
 
     Returns
     -------
-    :osgeo:class:`gdal.ColorTable`
+    osgeo.gdal.ColorTable
         the color table in GDAL format
     
     Note
     ----
-    This function is currently only developed for handling discrete integer data values in an 8 Bit file.
-    Colors are thus scaled between 0 and 255.
+    This function is currently only developed for handling discrete integer
+    data values in an 8 Bit file. Colors are thus scaled between 0 and 255.
     
     Examples
     --------

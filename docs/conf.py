@@ -53,7 +53,6 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
-    'osgeo_links',
     'epsg_links',
     'list_drivers'
 ]
@@ -61,7 +60,8 @@ extensions = [
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
                        'matplotlib': ('https://matplotlib.org', None),
                        'numpy': ('https://numpy.org/doc/stable', None),
-                       'pathos': ('https://pathos.readthedocs.io/en/latest', None)}
+                       'pathos': ('https://pathos.readthedocs.io/en/latest', None),
+                       'osgeo': ('https://gdal.org', None)}
 
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True

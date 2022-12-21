@@ -279,14 +279,14 @@ def test_stack(tmpdir, testdata):
     # projection mismatch
     name2 = os.path.join(str(tmpdir), os.path.basename(name))
     outname = os.path.join(str(tmpdir), 'test4')
-    gdalwarp(name, name2, options={'dstSRS': crsConvert(4326, 'wkt')})
+    gdalwarp(src=name, dst=name2, dstSRS=crsConvert(4326, 'wkt'))
     with pytest.raises(RuntimeError):
         stack(srcfiles=[name, name2], resampling='near', targetres=tr, overwrite=True,
               srcnodata=-99, dstnodata=-99, dstfile=outname)
     
     # no projection found
     outname = os.path.join(str(tmpdir), 'test5')
-    gdal_translate(name, name2, {'options': ['-co', 'PROFILE=BASELINE']})
+    gdal_translate(src=name, dst=name2, options=['-co', 'PROFILE=BASELINE'])
     with Raster(name2) as ras:
         print(ras.projection)
     with pytest.raises(RuntimeError):
@@ -336,9 +336,9 @@ def test_auxil(tmpdir, testdata):
     with Raster(testdata['tif']) as ras:
         bbox = os.path.join(dir, 'bbox.shp')
         ras.bbox(bbox)
-        ogr2ogr(bbox, os.path.join(dir, 'bbox.gml'), {'format': 'GML'})
-        gdal_translate(ras.raster, os.path.join(dir, 'test'), {'format': 'ENVI'})
-    gdal_rasterize(bbox, os.path.join(dir, 'test2'), {'format': 'GTiff', 'xRes': 20, 'yRes': 20})
+        ogr2ogr(src=bbox, dst=os.path.join(dir, 'bbox.gml'), format='GML')
+        gdal_translate(src=ras.raster, dst=os.path.join(dir, 'test'), format='ENVI')
+    gdal_rasterize(src=bbox, dst=os.path.join(dir, 'test2'), format='GTiff', xRes=20, yRes=20)
 
 
 def test_auxil_coordinate_reproject():
@@ -416,7 +416,7 @@ def test_png(tmpdir, testdata):
     
     with pytest.raises(TypeError):
         png(src=testdata['tif'], dst=outname, percent=100, scale=(2, 98), worldfile=True)
-
+    
     src = [testdata['tif'], testdata['tif2']]
     with pytest.raises(ValueError):
         with Raster(src) as ras:

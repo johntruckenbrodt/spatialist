@@ -66,7 +66,7 @@ class Vector(object):
         ----------
         expression: int or str
             the key or expression to be used for subsetting.
-            See :osgeo:meth:`ogr.Layer.SetAttributeFilter` for details on the expression syntax.
+            See :meth:`osgeo.ogr.Layer.SetAttributeFilter` for details on the expression syntax.
 
         Returns
         -------
@@ -138,7 +138,7 @@ class Vector(object):
 
         Parameters
         ----------
-        geometry: :osgeo:class:`ogr.Geometry`
+        geometry: osgeo.ogr.Geometry
             the geometry to add as a feature
         fields: dict or None
             the field names and values to assign to the new feature
@@ -199,7 +199,7 @@ class Vector(object):
         ----------
         name: str
             the layer name
-        srs: int or str or :osgeo:class:`osr.SpatialReference`
+        srs: int or str or osgeo.osr.SpatialReference
             the spatial reference system. See :func:`spatialist.auxil.crsConvert` for options.
         geomType: int
             an OGR well-known binary data type.
@@ -313,7 +313,7 @@ class Vector(object):
 
         Returns
         -------
-        list of :osgeo:class:`ogr.FieldDefn`
+        list[osgeo.ogr.FieldDefn]
             the field definition for each field of the Vector object
         """
         return [self.layerdef.GetFieldDefn(x) for x in range(0, self.nfields)]
@@ -374,7 +374,7 @@ class Vector(object):
 
         Returns
         -------
-        list of :osgeo:class:`ogr.Feature` or :osgeo:class:`ogr.Feature`
+        list[osgeo.ogr.Feature] or osgeo.ogr.Feature
             the feature(s) matching the search query
         """
         attr = attribute.strip() if isinstance(attribute, str) else attribute
@@ -406,7 +406,7 @@ class Vector(object):
 
         Returns
         -------
-        :osgeo:class:`ogr.Feature`
+        osgeo.ogr.Feature
             the requested feature
         """
         feature = self.layer[index]
@@ -419,7 +419,7 @@ class Vector(object):
 
         Returns
         -------
-        list of :osgeo:class:`ogr.Feature`
+        list[osgeo.ogr.Feature]
             a list of cloned features
         """
         self.layer.ResetReading()
@@ -438,7 +438,7 @@ class Vector(object):
 
         Returns
         -------
-        int, str or :osgeo:class:`osr.SpatialReference`
+        int or str or osgeo.osr.SpatialReference
             the output CRS
         """
         return crsConvert(self.layer.GetSpatialRef(), type)
@@ -489,7 +489,7 @@ class Vector(object):
 
         Returns
         -------
-        :osgeo:class:`ogr.FeatureDefn`
+        osgeo.ogr.FeatureDefn
             the layer's feature definition
         """
         return self.layer.GetLayerDefn()
@@ -568,7 +568,7 @@ class Vector(object):
 
         Parameters
         ----------
-        projection: int, str, :osgeo:class:`osr.SpatialReference`
+        projection: int or str or osgeo.osr.SpatialReference
             the target CRS. See :func:`spatialist.auxil.crsConvert`.
 
         Returns
@@ -610,7 +610,7 @@ class Vector(object):
 
         Parameters
         ----------
-        crs: int, str, :osgeo:class:`osr.SpatialReference`
+        crs: int or str or osgeo.osr.SpatialReference
             the input CRS
 
         Returns
@@ -650,7 +650,7 @@ class Vector(object):
 
         Returns
         -------
-        :osgeo:class:`osr.SpatialReference`
+        osgeo.osr.SpatialReference
             the geometry's spatial reference system
         """
         return self.layer.GetSpatialRef()
@@ -702,8 +702,8 @@ class Vector(object):
         for feature in self.layer:
             outFeature = ogr.Feature(outlayerdef)
             outFeature.SetGeometry(feature.GetGeometryRef())
-            for name in self.fieldnames:
-                outFeature.SetField(name, feature.GetField(name))
+            for i in range(len(feature.keys())):
+                outFeature.SetField(i, feature.GetField(i))
             # add the feature to the shapefile
             outlayer.CreateFeature(outFeature)
             outFeature = None
@@ -720,7 +720,7 @@ def bbox(coordinates, crs, outname=None, driver=None, overwrite=True):
     ----------
     coordinates: dict
         a dictionary containing numerical variables with keys `xmin`, `xmax`, `ymin` and `ymax`
-    crs: int, str, :osgeo:class:`osr.SpatialReference`
+    crs: int or str or osgeo.osr.SpatialReference
         the coordinate reference system of the `coordinates`. See :func:`~spatialist.auxil.crsConvert` for options.
     outname: str
         the file to write to. If `None`, the bounding box is returned as :class:`~spatialist.vector.Vector` object
@@ -765,7 +765,7 @@ def boundary(vectorobject, expression=None, outname=None):
     Get the boundary of the largest geometry as new vector object. The following steps are performed:
     
      - find the largest geometry matching the expression
-     - compute the geometry's boundary using :osgeo:meth:`ogr.Geometry.Boundary`, returning a MULTILINE geometry
+     - compute the geometry's boundary using :meth:`osgeo.ogr.Geometry.Boundary`, returning a MULTILINE geometry
      - select the longest line of the MULTILINE geometry
      - create a closed linear ring from this longest line
      - create a polygon from this linear ring
@@ -916,7 +916,7 @@ def feature2vector(feature, ref, layername=None):
 
     Parameters
     ----------
-    feature: list of :osgeo:class:`ogr.Feature` or :osgeo:class:`ogr.Feature`
+    feature: list[osgeo.ogr.Feature] or osgeo.ogr.Feature
         a single feature or a list of features
     ref: Vector
         a reference Vector object to retrieve geo information from
@@ -1037,7 +1037,7 @@ def wkt2vector(wkt, srs, layername='wkt'):
     srs: int, str
         the spatial reference system; see :func:`spatialist.auxil.crsConvert` for options.
     layername: str
-        the name of the internal :osgeo:class:`ogr.Layer` object
+        the name of the internal :class:`osgeo.ogr.Layer` object
 
     Returns
     -------
@@ -1071,7 +1071,7 @@ def wkt2vector(wkt, srs, layername='wkt'):
 
 def vectorize(target, reference, outname=None, layername='layer', fieldname='value', driver=None):
     """
-    Vectorization of an array using :osgeo:func:`gdal.Polygonize`.
+    Vectorization of an array using :func:`osgeo.gdal.Polygonize`.
     
     Parameters
     ----------

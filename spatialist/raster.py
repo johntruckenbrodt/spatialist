@@ -59,7 +59,7 @@ class Raster(object):
 
     Parameters
     ----------
-    filename: str or list or :osgeo:class:`gdal.Dataset`
+    filename: str or list or osgeo.gdal.Dataset
         the raster file(s)/object to read
     list_separate: bool
         treat a list of files as separate layers or otherwise as a single layer? The former is intended for single
@@ -83,7 +83,7 @@ class Raster(object):
             self.filename = self.__create_tmp_name(suffix='.vrt')
             self.raster = gdalbuildvrt(src=filename,
                                        dst=self.filename,
-                                       options={'separate': list_separate},
+                                       separate=list_separate,
                                        void=False)
         else:
             raise RuntimeError('raster input must be of type str, list or gdal.Dataset; is: {}'
@@ -333,7 +333,7 @@ class Raster(object):
         
         # create a temporary VRT file and return the output raster dataset as new Raster object
         outname = self.__create_tmp_name(suffix='.vrt')
-        out_ds = gdalbuildvrt(src=self.filename, dst=outname, options=opts, void=False)
+        out_ds = gdalbuildvrt(src=self.filename, dst=outname, void=False, **opts)
         
         timestamps = self.timestamps
         if len(index) > 2:
@@ -464,9 +464,9 @@ class Raster(object):
 
         Returns
         -------
-        list of dicts
+        list[dict]
             a list with a dictionary of statistics for each band. Keys: `min`, `max`, `mean`, `sdev`.
-            See :osgeo:meth:`gdal.Band.ComputeStatistics`.
+            See :meth:`osgeo.gdal.Band.ComputeStatistics`.
         """
         statcollect = []
         for x in self.layers():
@@ -702,7 +702,7 @@ class Raster(object):
 
         Returns
         -------
-        :osgeo:class:`gdal.Driver`
+        osgeo.gdal.Driver
             a GDAL raster driver object.
         """
         return self.raster.GetDriver()
@@ -912,8 +912,8 @@ class Raster(object):
 
         Returns
         -------
-        list of :osgeo:class:`gdal.Band`
-            a list containing a :osgeo:class:`gdal.Band` object for each image band
+        list[osgeo.gdal.Band]
+            a list containing a :class:`osgeo.gdal.Band` object for each image band
         """
         return [self.raster.GetRasterBand(band) for band in range(1, self.bands + 1)]
     
@@ -1077,7 +1077,7 @@ class Raster(object):
 
         Returns
         -------
-        :osgeo:class:`osr.SpatialReference`
+        osgeo.osr.SpatialReference
             the spatial reference system of the data set.
         """
         return osr.SpatialReference(wkt=self.projection)
@@ -1101,7 +1101,7 @@ class Raster(object):
             the nodata value to write to the file
         overwrite: bool
             overwrite an already existing file? Only applies if `update` is `False`.
-        cmap: :osgeo:class:`gdal.ColorTable`
+        cmap: osgeo.gdal.ColorTable
             a color map to apply to each band.
             Can for example be created with function :func:`~spatialist.auxil.cmap_mpl2gdal`.
         update: bool
@@ -1113,12 +1113,12 @@ class Raster(object):
         array: numpy.ndarray
             write different data than that associated with the Raster object
         options: list[str] or None
-            a list of options for creating the output dataset via :osgeo:meth:`gdal.Driver.Create`.
+            a list of options for creating the output dataset via :meth:`osgeo.gdal.Driver.Create`.
             For drivers `GTiff` and `COG`, TIFF tags can also be defined, which are then written to the
-            file using :osgeo:meth:`gdal.Dataset.SetMetadataItem`.
+            file using :meth:`osgeo.gdal.MajorObject.SetMetadataItem`.
             For example ``TIFFTAG_SOFTWARE=spatialist``.
-        overviews: list or None
-            a list of integer overview levels to be created; see :osgeo:meth:`gdal.Dataset.BuildOverviews`.
+        overviews: list[int] or None
+            a list of integer overview levels to be created; see :meth:`osgeo.gdal.Dataset.BuildOverviews`.
         overview_resampling: str
             the resampling to use for creating the overviews
 
@@ -1338,7 +1338,7 @@ def png(src, dst, percent=10, scale=(2, 98), vmin=None, vmax=None, worldfile=Fal
         options['scaleParams'] = scaleParams
     if worldfile:
         options['options'] = ['-co', 'WORLDFILE=YES']
-    gdal_translate(src.raster, dst, options)
+    gdal_translate(src=src.raster, dst=dst, **options)
 
 
 def rasterize(vectorobject, reference, outname=None, burn_values=1, expressions=None, nodata=0, append=False):
@@ -1476,7 +1476,7 @@ def reproject(rasterobject, reference, outname, targetres=None, resampling='bili
                'srcNodata': rasterobject.nodata,
                'dstNodata': rasterobject.nodata,
                'dstSRS': projection}
-    gdalwarp(rasterobject.raster, outname, options)
+    gdalwarp(src=rasterobject.raster, dst=outname, **options)
 
 
 # todo improve speed until aborting when all target files already exist
@@ -1661,7 +1661,7 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
                     vrt = os.path.join(tempfile.gettempdir(), vrt_base)
                 else:
                     vrt = '/vsimem/' + vrt_base
-                gdalbuildvrt(group, vrt, options_buildvrt)
+                gdalbuildvrt(src=group, dst=vrt, **options_buildvrt)
                 srcfiles[i] = vrt
             else:
                 srcfiles[i] = group[0]
@@ -1694,7 +1694,7 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
                 return
         srcfiles, dstfiles = map(list, zip(*jobs))
         log.debug('creating {} separate file(s):\n  {}'.format(len(dstfiles), '\n  '.join(dstfiles)))
-        multicore(gdalwarp, cores=cores, options=options_warp,
+        multicore(gdalwarp, cores=cores, **options_warp,
                   multiargs={'src': srcfiles, 'dst': dstfiles})
     else:
         if len(srcfiles) == 1:
@@ -1702,18 +1702,18 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
             if not dstfile.endswith('.tif'):
                 dstfile = os.path.splitext(dstfile)[0] + '.tif'
             log.debug('creating file: {}'.format(dstfile))
-            gdalwarp(srcfiles[0], dstfile, options_warp)
+            gdalwarp(src=srcfiles[0], dst=dstfile, **options_warp)
         else:
             # create VRT for stacking
             vrt = '/vsimem/' + os.path.basename(dst_base) + '.vrt'
             options_buildvrt['options'] = ['-separate']
-            gdalbuildvrt(srcfiles, vrt, options_buildvrt)
+            gdalbuildvrt(src=srcfiles, dst=vrt, **options_buildvrt)
             
             # increase the number of threads for gdalwarp computations
             options_warp['options'].extend(['-wo', 'NUM_THREADS={}'.format(cores)])
             
             log.debug('creating file: {}'.format(dstfile))
-            gdalwarp(vrt, dstfile, options_warp, pbar=pbar)
+            gdalwarp(src=vrt, dst=dstfile, pbar=pbar, **options_warp)
             
             # edit ENVI HDR files to contain specific layer names
             hdrfile = os.path.splitext(dstfile)[0] + '.hdr'
@@ -1724,6 +1724,25 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
 
 
 class Dtype(object):
+    """
+    Convert between different data type representations. After initialization, other representations can be obtained
+    from the object attributes `gdalint`, `gdalstr` and `numpystr`.
+    
+    Parameters
+    ----------
+    dtype: int or str
+        the input data type. Currently supported:
+    
+        - GDAL integer, e.g. 1 as obtained from `from osgeo.gdalconst import GDT_Byte`
+        - GDAL string, e.g. 'Byte'
+        - numpy string, e.g. 'uint8'
+    
+    Examples
+    --------
+    >>> from spatialist.raster import Dtype
+    >>> print(Dtype('Byte').numpystr)
+    'uint8'
+    """
     def __init__(self, dtype):
         if isinstance(dtype, int):
             if dtype in self.numpy2gdalint.values():
@@ -1744,7 +1763,7 @@ class Dtype(object):
         
         required = ['gdalint', 'gdalstr', 'numpystr']
         if sum([x in dir(self) for x in required]) != len(required):
-            raise ValueError('unknown data type identifer')
+            raise ValueError('unknown data type identifier')
     
     @property
     def numpy2gdalint(self):
