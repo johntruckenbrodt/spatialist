@@ -59,7 +59,7 @@ class Raster(object):
 
     Parameters
     ----------
-    filename: str or list or :osgeo:class:`gdal.Dataset`
+    filename: str or list or osgeo.gdal.Dataset
         the raster file(s)/object to read
     list_separate: bool
         treat a list of files as separate layers or otherwise as a single layer? The former is intended for single
@@ -464,9 +464,9 @@ class Raster(object):
 
         Returns
         -------
-        list of dicts
+        list[dict]
             a list with a dictionary of statistics for each band. Keys: `min`, `max`, `mean`, `sdev`.
-            See :osgeo:meth:`gdal.Band.ComputeStatistics`.
+            See :meth:`osgeo.gdal.Band.ComputeStatistics`.
         """
         statcollect = []
         for x in self.layers():
@@ -702,7 +702,7 @@ class Raster(object):
 
         Returns
         -------
-        :osgeo:class:`gdal.Driver`
+        osgeo.gdal.Driver
             a GDAL raster driver object.
         """
         return self.raster.GetDriver()
@@ -912,8 +912,8 @@ class Raster(object):
 
         Returns
         -------
-        list of :osgeo:class:`gdal.Band`
-            a list containing a :osgeo:class:`gdal.Band` object for each image band
+        list[osgeo.gdal.Band]
+            a list containing a :class:`osgeo.gdal.Band` object for each image band
         """
         return [self.raster.GetRasterBand(band) for band in range(1, self.bands + 1)]
     
@@ -1077,7 +1077,7 @@ class Raster(object):
 
         Returns
         -------
-        :osgeo:class:`osr.SpatialReference`
+        osgeo.osr.SpatialReference
             the spatial reference system of the data set.
         """
         return osr.SpatialReference(wkt=self.projection)
@@ -1101,7 +1101,7 @@ class Raster(object):
             the nodata value to write to the file
         overwrite: bool
             overwrite an already existing file? Only applies if `update` is `False`.
-        cmap: :osgeo:class:`gdal.ColorTable`
+        cmap: osgeo.gdal.ColorTable
             a color map to apply to each band.
             Can for example be created with function :func:`~spatialist.auxil.cmap_mpl2gdal`.
         update: bool
@@ -1113,12 +1113,12 @@ class Raster(object):
         array: numpy.ndarray
             write different data than that associated with the Raster object
         options: list[str] or None
-            a list of options for creating the output dataset via :osgeo:meth:`gdal.Driver.Create`.
+            a list of options for creating the output dataset via :meth:`osgeo.gdal.Driver.Create`.
             For drivers `GTiff` and `COG`, TIFF tags can also be defined, which are then written to the
-            file using :osgeo:meth:`gdal.Dataset.SetMetadataItem`.
+            file using :meth:`osgeo.gdal.MajorObject.SetMetadataItem`.
             For example ``TIFFTAG_SOFTWARE=spatialist``.
-        overviews: list or None
-            a list of integer overview levels to be created; see :osgeo:meth:`gdal.Dataset.BuildOverviews`.
+        overviews: list[int] or None
+            a list of integer overview levels to be created; see :meth:`osgeo.gdal.Dataset.BuildOverviews`.
         overview_resampling: str
             the resampling to use for creating the overviews
 
@@ -1724,6 +1724,25 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
 
 
 class Dtype(object):
+    """
+    Convert between different data type representations. After initialization, other representations can be obtained
+    from the object attributes `gdalint`, `gdalstr` and `numpystr`.
+    
+    Parameters
+    ----------
+    dtype: int or str
+        the input data type. Currently supported:
+    
+        - GDAL integer, e.g. 1 as obtained from `from osgeo.gdalconst import GDT_Byte`
+        - GDAL string, e.g. 'Byte'
+        - numpy string, e.g. 'uint8'
+    
+    Examples
+    --------
+    >>> from spatialist.raster import Dtype
+    >>> print(Dtype('Byte').numpystr)
+    'uint8'
+    """
     def __init__(self, dtype):
         if isinstance(dtype, int):
             if dtype in self.numpy2gdalint.values():
@@ -1744,7 +1763,7 @@ class Dtype(object):
         
         required = ['gdalint', 'gdalstr', 'numpystr']
         if sum([x in dir(self) for x in required]) != len(required):
-            raise ValueError('unknown data type identifer')
+            raise ValueError('unknown data type identifier')
     
     @property
     def numpy2gdalint(self):
