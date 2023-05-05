@@ -14,4 +14,4 @@ dependencies:
   - pip
   - sqlite
   - libspatialite
-  - sphinx
+  - sphinx<7.0  # https://github.com/readthedocs/sphinx_rtd_theme/issues/1463
