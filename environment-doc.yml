@@ -1,0 +1,17 @@
+name: sp_test
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - progressbar2
+  - pathos>=0.2
+  - numpy
+  - matplotlib-base
+  - tblib
+  - pyyaml
+  - dill
+  - gdal>=2.4
+  - pip
+  - sqlite
+  - libspatialite
+  - sphinx
