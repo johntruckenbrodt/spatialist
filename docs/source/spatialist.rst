@@ -11,7 +11,7 @@ Raster Tools
 ------------
 
 .. automodule:: spatialist.raster
-    :members: apply_along_time, png, rasterize, stack, subset_tolerance
+    :members: apply_along_time, png, rasterize, stack, subset_tolerance, Dtype
     :undoc-members:
 
     .. autosummary::
@@ -22,6 +22,7 @@ Raster Tools
         rasterize
         stack
         subset_tolerance
+        Dtype
 
 Vector Class
 ------------

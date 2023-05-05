@@ -31,7 +31,7 @@ install:
     - conda create --yes --name sp_test python=3.8 coveralls coverage pytest
     - conda env update --name sp_test --file environment.yml
     - conda activate sp_test
-    - python setup.py install
+    - pip install .
 
 # Skip .NET project specific build phase.
 build: false
