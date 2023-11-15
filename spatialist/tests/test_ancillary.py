@@ -78,6 +78,8 @@ def test_finder(tmpdir, testdata):
     assert len(anc.finder(testdata['zip'], ['file*'])) == 3
     assert len(anc.finder(testdata['zip'], ['*'], foldermode=1)) == 5
     assert len(anc.finder(testdata['zip'], ['[a-z]{1}'], foldermode=2, regex=True)) == 2
+
+    assert len(anc.finder(testdata['zip_noimplicit'], ['*'], foldermode=1)) == 5
     
     assert len(anc.finder(testdata['tar'], ['file*'])) == 3
     assert len(anc.finder(testdata['tar'], ['*'], foldermode=1)) == 5

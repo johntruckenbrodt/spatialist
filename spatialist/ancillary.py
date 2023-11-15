@@ -23,6 +23,7 @@ import os
 import subprocess as sp
 import tarfile as tf
 import zipfile as zf
+from typing import Iterable, List
 import numpy as np
 
 try:
@@ -114,6 +115,47 @@ def dissolve(inlist):
         out.extend(dissolve(i)) if isinstance(i, list) else out.append(i)
     return out
 
+def parent_dirs(path: str) -> Iterable[str]:
+    """
+    generator that yields parent directories of a zipfile path
+
+    Parameters
+    ----------
+    path: str
+        a path to get parent directories from
+
+    Yields
+    -------
+    Iterable[str]
+        generator of parent directories
+    """
+    parent = os.path.dirname(path)
+    if parent:
+        parent_dirs(parent)
+        yield parent + "/"
+
+
+def namelist_with_implicit_dirs(root: zf.ZipFile) -> List[str]:
+    """
+    returns a list of files in zipfile archive, including implicit directories
+
+    Parameters
+    ----------
+    root: ZipFile
+        zipfile archive get namelist from
+
+    Returns
+    -------
+    List[str]
+        list of zipfile folders and files in the archive
+    """
+    complete_namelist = set()
+    for file_name in root.namelist():
+        complete_namelist.update(set(parent_dirs(file_name)))
+        complete_namelist.add(file_name)
+
+    return list(complete_namelist)
+
 
 def finder(target, matchlist, foldermode=0, regex=False, recursive=True):
     """
@@ -170,7 +212,7 @@ def finder(target, matchlist, foldermode=0, regex=False, recursive=True):
             if zf.is_zipfile(target):
                 with zf.ZipFile(target, 'r') as zip:
                     out = [os.path.join(target, name)
-                           for name in zip.namelist()
+                           for name in namelist_with_implicit_dirs(zip)
                            if re.search(pattern, os.path.basename(name.strip('/')))]
                 
                 if foldermode == 0:
