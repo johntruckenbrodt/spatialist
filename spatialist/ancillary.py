@@ -24,7 +24,6 @@ import subprocess as sp
 import tarfile as tf
 import zipfile as zf
 from typing import Iterable, List
-from zipfile import ZipFile
 import numpy as np
 
 try:
@@ -118,7 +117,7 @@ def dissolve(inlist):
 
 def parent_dirs(path: str) -> Iterable[str]:
     """
-    generator that yeilds parent directories of a zipfile path
+    generator that yields parent directories of a zipfile path
 
     Parameters
     ----------
@@ -136,7 +135,7 @@ def parent_dirs(path: str) -> Iterable[str]:
         yield parent + "/"
 
 
-def namelist_with_implicit_dirs(root: ZipFile) -> List[str]:
+def namelist_with_implicit_dirs(root: zf.ZipFile) -> List[str]:
     """
     returns a list of files in zipfile archive, including implicit directories
 
