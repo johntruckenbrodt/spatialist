@@ -179,3 +179,8 @@ Changelog
     + :func:`spatialist.auxil.ogr2ogr`
     + :func:`spatialist.auxil.gdal_rasterize`
 
+0.12.1 | 2023-11-16
+-------------------
+
+- installation via `pyproject.toml` instead of `setup.py`
+- :func:`spatialist.ancillary.finder`: support for zipfiles with implicit directories
