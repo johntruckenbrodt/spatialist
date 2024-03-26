@@ -275,7 +275,7 @@ def multicore(function, cores, multiargs, pbar=False, **singleargs):
         a dictionary containing sub-function argument names as keys and lists of arguments to be
         distributed among the processes as values
     pbar: bool
-        add a progres bar? Does not yet work on Windows.
+        add a progress bar? Does not yet work on Windows.
     singleargs
         all remaining arguments which are invariant among the subprocesses
 
