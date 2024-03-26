@@ -309,12 +309,8 @@ def multicore(function, cores, multiargs, pbar=False, **singleargs):
     tblib.pickling_support.install()
     
     # compare the function arguments with the multi and single arguments and raise errors if mismatches occur
-    if sys.version_info >= (3, 0):
-        check = inspect.getfullargspec(function)
-        varkw = check.varkw
-    else:
-        check = inspect.getargspec(function)
-        varkw = check.keywords
+    check = inspect.getfullargspec(function)
+    varkw = check.varkw
     
     if not check.varargs and not varkw:
         multiargs_check = [x for x in multiargs if x not in check.args]
