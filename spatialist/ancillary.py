@@ -395,8 +395,7 @@ def multicore(function, cores, multiargs, pbar=False, **singleargs):
         results = pool.amap(lambda x: wrapper(**x), processlist)
         while not results.ready():
             left = results._number_left * chunksize
-            done = jobs - left if left < jobs else 0
-            time.sleep(1)
+            done = jobs - left if left <= jobs else 0
             if pbar:
                 progress.update(done)
         
