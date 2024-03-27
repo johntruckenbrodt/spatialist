@@ -6,7 +6,6 @@
 This script gathers central functions and classes for general applications
 """
 import dill
-import time
 import string
 import shutil
 import tempfile
