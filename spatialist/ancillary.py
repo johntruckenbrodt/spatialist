@@ -323,6 +323,8 @@ def multicore(function, cores, multiargs, pbar=False, **singleargs):
     arglengths = list(set([len(multiargs[x]) for x in multiargs]))
     if len(arglengths) > 1:
         raise AttributeError('multi argument lists of different length')
+    if arglengths[0] == 0:
+        raise RuntimeError('did not get any multiargs')
     
     # prevent starting more threads than necessary
     cores = cores if arglengths[0] >= cores else arglengths[0]
