@@ -35,9 +35,9 @@ jobs:
     - name: Install package
       run: |
         pip install .
-    - name: List installed packages
+    - name: List PROJ_DATA folder content
       run: |
-        conda list
+        ls -lha $PROJ_DATA
     - name: Test with pytest
       run: |
         conda install pytest
