@@ -31,6 +31,9 @@ jobs:
     - name: Install package
       run: |
         pip install .
+    - name: List installed packages
+      run: |
+        conda list
     - name: Test with pytest
       run: |
         conda install pytest
