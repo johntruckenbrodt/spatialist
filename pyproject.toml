@@ -18,8 +18,8 @@ classifiers = [
 dynamic = ["version", "readme", "dependencies"]
 
 [project.urls]
-repository = "https://github.com/johntruckenbrodt/pyroSAR"
-documentation = "https://pyrosar.readthedocs.io/en/latest/"
+repository = "https://github.com/johntruckenbrodt/spatialist"
+documentation = "https://spatialist.readthedocs.io/en/latest/"
 
 [project.optional-dependencies]
 test = ["pytest"]
