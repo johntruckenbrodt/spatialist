@@ -385,20 +385,14 @@ def multicore(function, cores, multiargs, pbar=False, **singleargs):
             widgets = [pb.Percentage(), pb.Bar(), pb.Timer(), ' ', pb.ETA()]
             progress = pb.ProgressBar(max_value=jobs, widgets=widgets).start()
         
-        try:
-            pool = mp.ProcessPool(processes=cores)
-        except NameError:
-            raise ImportError("package 'pathos' could not be imported")
-        results = pool.amap(lambda x: wrapper(**x), processlist)
-        while not results.ready():
-            left = results._number_left * chunksize
-            done = jobs - left if left <= jobs else 0
-            if pbar:
-                progress.update(done)
-        
-        results = results.get()
-        pool.close()
-        pool.join()
+        with mp.ProcessPool(processes=cores) as pool:
+            results = pool.amap(lambda x: wrapper(**x), processlist)
+            while not results.ready():
+                left = results._number_left * chunksize
+                done = jobs - left if left <= jobs else 0
+                if pbar:
+                    progress.update(done)
+            results = results.get()
         
         if progress is not None:
             progress.finish()
