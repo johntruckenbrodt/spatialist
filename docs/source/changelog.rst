@@ -184,3 +184,8 @@ Changelog
 
 - installation via `pyproject.toml` instead of `setup.py`
 - :func:`spatialist.ancillary.finder`: support for zipfiles with implicit directories
+
+0.13.0 | 2024-04-11
+-------------------
+
+- add progress bar to :func:`spatialist.ancillary.multicore` (non-Windows only)
