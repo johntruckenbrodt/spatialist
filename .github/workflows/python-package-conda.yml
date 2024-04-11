@@ -5,6 +5,8 @@ on: [push]
 jobs:
   build-linux:
     runs-on: ubuntu-latest
+    env:
+      PROJ_DATA: $CONDA/share/proj
     strategy:
       max-parallel: 5
 
