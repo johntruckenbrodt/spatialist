@@ -3,10 +3,14 @@ name: conda build
 on: [ push ]
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ${{ matrix.os }}
     strategy:
-      max-parallel: 5
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python 3.10

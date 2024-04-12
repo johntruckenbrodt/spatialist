@@ -16,7 +16,7 @@ Detailed instructions can be found in the documentation [here][14].
 A jupyter notebook and test data are available [here][11].
 
 [1]: https://github.com/johntruckenbrodt/spatialist/actions/workflows/python-package-conda.yml/badge.svg
-[2]: https://www.travis-ci.com/johntruckenbrodt/spatialist
+[2]: https://github.com/johntruckenbrodt/spatialist/actions/workflows/python-package-conda.yml
 [5]: https://coveralls.io/repos/github/johntruckenbrodt/spatialist/badge.svg?branch=master
 [6]: https://coveralls.io/github/johntruckenbrodt/spatialist?branch=master
 [7]: https://readthedocs.org/projects/spatialist/badge/?version=latest
