@@ -22,6 +22,7 @@ jobs:
         run: |
           echo "$env:CONDA\condabin" | Out-File -FilePath $env:GITHUB_PATH -Append
           echo "$env:CONDA\Scripts" | Out-File -FilePath $env:GITHUB_PATH -Append
+          echo "$env:CONDA\Library\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
           echo "PROJ_DATA=$env:CONDA\Library\share\proj" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Set paths and variables
         if: ${{ ! startsWith(matrix.os, 'windows') }}
