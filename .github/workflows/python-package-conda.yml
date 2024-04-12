@@ -22,10 +22,10 @@ jobs:
         run: dir "$env:CONDA\condabin"
       - name: Add conda to system path
         if: startsWith(matrix.os, 'windows')
-        run: echo "$env:CONDA/bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+        run: echo "$env:CONDA\condabin" | Out-File -FilePath $env:GITHUB_PATH -Append
       - name: Add conda to system path
         if: ${{ ! startsWith(matrix.os, 'windows') }}
-        run: echo "$CONDA\condabin" >> $GITHUB_PATH
+        run: echo "$CONDA/bin" >> $GITHUB_PATH
       - name: Install dependencies
         run: |
           conda env update --file environment.yml --name base
