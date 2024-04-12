@@ -18,7 +18,7 @@ import datetime
 from pkg_resources import get_distribution
 
 project = 'spatialist'
-authors = 'John Truckenbrodt, Felix Cremer, Ismail Baris'
+authors = 'John Truckenbrodt, Ismail Baris, Felix Cremer, Marco Wolsza, Tyler Anderson'
 year = datetime.datetime.now().year
 
 # If extensions (or modules to document with autodoc) are in another directory,
