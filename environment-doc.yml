@@ -3,6 +3,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
+  - python>=3.8
   - progressbar2
   - pathos>=0.2
   - numpy
@@ -14,4 +15,4 @@ dependencies:
   - pip
   - sqlite
   - libspatialite
-  - sphinx<7.0  # https://github.com/readthedocs/sphinx_rtd_theme/issues/1463
+  - sphinx

@@ -1,12 +1,10 @@
-name: Python Package using Conda
+name: conda build
 
 on: [ push ]
 
 jobs:
   build-linux:
     runs-on: ubuntu-latest
-    env:
-      PROJ_DATA: $CONDA/share/proj
     strategy:
       max-parallel: 5
     steps:
@@ -35,5 +33,9 @@ jobs:
           pip install .
       - name: Test with pytest
         run: |
-          conda install pytest
-          pytest
+          conda install pytest coverage
+          coverage run -m pytest
+      - name: Publish to coveralls.io
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ github.token }}
