@@ -21,7 +21,7 @@ jobs:
         if: startsWith(matrix.os, 'windows')
         run: |
           echo "$env:CONDA\condabin" | Out-File -FilePath $env:GITHUB_PATH -Append
-          echo "$env:CONDA\Library\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+          echo "$env:CONDA\Scripts" | Out-File -FilePath $env:GITHUB_PATH -Append
           echo "PROJ_DATA=$env:CONDA\Library\share\proj" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Set paths and variables
         if: ${{ ! startsWith(matrix.os, 'windows') }}
@@ -32,6 +32,7 @@ jobs:
         run: |
           conda env update --file environment.yml --name base
       - name: Lint with flake8
+        if: startsWith(matrix.os, 'ubuntu')
         run: |
           conda install flake8
           # stop the build if there are Python syntax errors or undefined names
