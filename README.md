@@ -1,5 +1,5 @@
 # spatialist
-[![Linux Build Status][1]][2] [![Windows Build status][3]][4] [![Coverage Status][5]][6]
+[![Conda Build Status][1]][2] [![Coverage Status][5]][6]
 [![Documentation Status][7]][8] [![PyPI version][12]][13] [![Conda Version][15]][16]
 
 ### A Python module for spatial data handling
@@ -15,10 +15,8 @@ Detailed instructions can be found in the documentation [here][14].
 ### Tutorial
 A jupyter notebook and test data are available [here][11].
 
-[1]: https://www.travis-ci.com/johntruckenbrodt/spatialist.svg?branch=master
+[1]: https://github.com/johntruckenbrodt/spatialist/actions/workflows/python-package-conda.yml/badge.svg
 [2]: https://www.travis-ci.com/johntruckenbrodt/spatialist
-[3]: https://ci.appveyor.com/api/projects/status/3nxj2nnmp21ig860?svg=true
-[4]: https://ci.appveyor.com/project/johntruckenbrodt/spatialist
 [5]: https://coveralls.io/repos/github/johntruckenbrodt/spatialist/badge.svg?branch=master
 [6]: https://coveralls.io/github/johntruckenbrodt/spatialist?branch=master
 [7]: https://readthedocs.org/projects/spatialist/badge/?version=latest
