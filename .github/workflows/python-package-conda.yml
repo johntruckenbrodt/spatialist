@@ -19,7 +19,7 @@ jobs:
           python-version: '3.10'
       - name: Add conda to system path
         if: startsWith(matrix.os, 'windows')
-        run: "$env:CONDA/bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+        run: echo "$env:CONDA/bin" | Out-File -FilePath $env:GITHUB_PATH -Append
       - name: Add conda to system path
         if: ${{ ! startsWith(matrix.os, 'windows') }}
         run: echo "$CONDA/bin" >> $GITHUB_PATH
