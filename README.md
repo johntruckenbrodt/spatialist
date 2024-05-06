@@ -17,8 +17,8 @@ A jupyter notebook and test data are available [here][11].
 
 [1]: https://github.com/johntruckenbrodt/spatialist/actions/workflows/python-package-conda.yml/badge.svg
 [2]: https://github.com/johntruckenbrodt/spatialist/actions/workflows/python-package-conda.yml
-[5]: https://coveralls.io/repos/github/johntruckenbrodt/spatialist/badge.svg?branch=master
-[6]: https://coveralls.io/github/johntruckenbrodt/spatialist?branch=master
+[5]: https://coveralls.io/repos/github/johntruckenbrodt/spatialist/badge.svg?branch=main
+[6]: https://coveralls.io/github/johntruckenbrodt/spatialist?branch=main
 [7]: https://readthedocs.org/projects/spatialist/badge/?version=latest
 [8]: https://spatialist.readthedocs.io/en/latest/?badge=latest
 [11]: https://github.com/johntruckenbrodt/spatialist_explorer
