@@ -120,6 +120,14 @@ class Vector(object):
     
     @property
     def __geo_interface__(self):
+        """
+        See https://gist.github.com/sgillies/2217756
+        
+        Returns
+        -------
+        dict
+            a GeoJSON dictionary
+        """
         if self.nfeatures > 1:
             raise RuntimeError('multiple features are currently not supported')
         with self.clone() as tmp:
