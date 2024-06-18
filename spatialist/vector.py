@@ -753,28 +753,41 @@ def bbox(coordinates, crs, outname=None, driver=None, overwrite=True):
         the bounding box Vector object
     """
     srs = crsConvert(crs, 'osr')
-    ring = ogr.Geometry(ogr.wkbLinearRing)
     
-    ring.AddPoint(coordinates['xmin'], coordinates['ymin'])
-    ring.AddPoint(coordinates['xmin'], coordinates['ymax'])
-    ring.AddPoint(coordinates['xmax'], coordinates['ymax'])
-    ring.AddPoint(coordinates['xmax'], coordinates['ymin'])
-    ring.CloseRings()
+    def create_polygon(xmin, ymin, xmax, ymax):
+        ring = ogr.Geometry(ogr.wkbLinearRing)
+        ring.AddPoint(xmin, ymin)
+        ring.AddPoint(xmin, ymax)
+        ring.AddPoint(xmax, ymax)
+        ring.AddPoint(xmax, ymin)
+        ring.CloseRings()
+        geom = ogr.Geometry(ogr.wkbPolygon)
+        geom.AddGeometry(ring)
+        return geom
     
-    geom = ogr.Geometry(ogr.wkbPolygon)
-    geom.AddGeometry(ring)
+    if srs.IsGeographic() and coordinates['xmax'] < coordinates['xmin']:
+        geom1 = create_polygon(xmin=coordinates['xmin'], ymin=coordinates['ymin'],
+                               xmax=180, ymax=coordinates['ymax'])
+        geom2 = create_polygon(xmin=-180, ymin=coordinates['ymin'],
+                               xmax=coordinates['xmax'], ymax=coordinates['ymax'])
+        geom = ogr.Geometry(ogr.wkbMultiPolygon)
+        geom.AddGeometry(geom1)
+        geom.AddGeometry(geom2)
+    else:
+        geom = create_polygon(xmin=coordinates['xmin'], ymin=coordinates['ymin'],
+                              xmax=coordinates['xmax'], ymax=coordinates['ymax'])
     
     geom.FlattenTo2D()
     
-    bbox = Vector(driver='Memory')
-    bbox.addlayer('bbox', srs, geom.GetGeometryType())
-    bbox.addfield('area', ogr.OFTReal)
-    bbox.addfeature(geom, fields={'area': geom.Area()})
+    out = Vector(driver='Memory')
+    out.addlayer('bbox', srs, geom.GetGeometryType())
+    out.addfield('area', ogr.OFTReal)
+    out.addfeature(geom, fields={'area': geom.Area()})
     geom = None
     if outname is None:
-        return bbox
+        return out
     else:
-        bbox.write(outfile=outname, driver=driver, overwrite=overwrite)
+        out.write(outfile=outname, driver=driver, overwrite=overwrite)
 
 
 def boundary(vectorobject, expression=None, outname=None):
