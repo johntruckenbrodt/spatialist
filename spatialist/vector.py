@@ -132,7 +132,7 @@ class Vector(object):
             raise RuntimeError('multiple features are currently not supported')
         with self.clone() as tmp:
             tmp.reproject(4326)
-            out = tmp.getFeatureByIndex(0).ExportToJson(as_object=True)['geometry']
+            out = tmp.getFeatureByIndex(0).ExportToJson(as_object=True)
         return out
     
     @staticmethod
