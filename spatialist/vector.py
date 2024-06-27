@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 ################################################################
 # OGR wrapper for convenient vector data handling and processing
-# John Truckenbrodt 2015-2022
+# John Truckenbrodt 2015-2024
 ################################################################
 
 
@@ -117,6 +117,23 @@ class Vector(object):
                'coord. ref.   : {proj4}\n' \
                'data source   : {filename}'.format(**vals)
         return info
+    
+    @property
+    def __geo_interface__(self):
+        """
+        See https://gist.github.com/sgillies/2217756
+        
+        Returns
+        -------
+        dict
+            a GeoJSON dictionary
+        """
+        if self.nfeatures > 1:
+            raise RuntimeError('multiple features are currently not supported')
+        with self.clone() as tmp:
+            tmp.reproject(4326)
+            out = tmp.getFeatureByIndex(0).ExportToJson(as_object=True)
+        return out
     
     @staticmethod
     def __driver_autodetect(filename):
