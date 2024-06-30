@@ -189,15 +189,18 @@ class Vector(object):
         -------
 
         """
-        fieldDefn = ogr.FieldDefn(name, type)
+        type_name = ogr.GetFieldTypeName(type)
+        field_defn = ogr.FieldDefn(name, type)
         if type == ogr.OFTString:
-            fieldDefn.SetWidth(width)
-        self.layer.CreateField(fieldDefn)
+            field_defn.SetWidth(width)
+        self.layer.CreateField(field_defn)
         if values is not None:
             if len(values) != self.nfeatures:
                 raise RuntimeError('number of values does not match number of features')
             for i, feature in enumerate(self.layer):
-                feature.SetField(name, values[i])
+                index = feature.GetFieldIndex(name)
+                method = getattr(feature, f'SetField{type_name}')
+                method(index, values[i])
                 self.layer.SetFeature(feature)
     
     def addlayer(self, name, srs, geomType):
