@@ -25,6 +25,8 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Install package
         run: |
+          echo $(pwd)
+          echo $(which pip)
           pip install .
       - name: Test with pytest
         shell: bash -el {0}
