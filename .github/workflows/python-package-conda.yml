@@ -1,6 +1,6 @@
 name: conda build
 
-on: ["push", "pull_request"]
+on: [ "push"]
 
 jobs:
   linux:
@@ -33,8 +33,7 @@ jobs:
         shell: bash -el {0}
         run: |
           ls -lha
-          cat .coverage
       - name: Publish to coveralls.io
         uses: coverallsapp/github-action@v2.3.0
         with:
-          github-token: ${{ github.token }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
