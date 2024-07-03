@@ -29,8 +29,8 @@ jobs:
         run: |
           conda install pytest coverage
           coverage run -m pytest
-      - name: Publish to .coverage
+      - name: Publish to coveralls.io
         uses: coverallsapp/github-action@v2.3.0
         with:
-          path-to-lcov: coverage.xml
+          path-to-lcov: .coverage
           github-token: ${{ secrets.GITHUB_TOKEN }}
