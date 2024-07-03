@@ -1,6 +1,6 @@
 name: conda build
 
-on: [ "push"]
+on: [ "push" ]
 
 jobs:
   linux:
@@ -29,6 +29,8 @@ jobs:
         run: |
           conda install pytest coverage
           coverage run -m pytest
+          coverage report
+          coverage xml
       - name: list directory content
         shell: bash -el {0}
         run: |
@@ -36,4 +38,5 @@ jobs:
       - name: Publish to coveralls.io
         uses: coverallsapp/github-action@v2.3.0
         with:
+          path-to-lcov: ./coverage.xml
           github-token: ${{ secrets.GITHUB_TOKEN }}
