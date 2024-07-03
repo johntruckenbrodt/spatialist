@@ -29,12 +29,7 @@ jobs:
         run: |
           conda install pytest coverage
           coverage run -m pytest
-          coverage xml
-      - name: list directory content
-        shell: bash -el {0}
-        run: |
-          ls -lha
-      - name: Publish to coveralls.io
+      - name: Publish to .coverage
         uses: coverallsapp/github-action@v2.3.0
         with:
           path-to-lcov: coverage.xml
