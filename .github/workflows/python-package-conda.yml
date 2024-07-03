@@ -10,7 +10,6 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v3
         with:
           miniconda-version: "latest"
-          activate-environment: test
           python-version: '3.10'
           environment-file: environment.yml
       - name: Set paths and variables
@@ -27,8 +26,6 @@ jobs:
       - name: Install package
         shell: bash -el {0}
         run: |
-          echo $(pwd)
-          echo $(which pip)
           pip install .
       - name: Test with pytest
         shell: bash -el {0}
