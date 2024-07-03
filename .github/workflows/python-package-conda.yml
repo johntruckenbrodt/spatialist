@@ -6,7 +6,7 @@ jobs:
   linux:
     runs-on: "ubuntu-latest"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: conda-incubator/setup-miniconda@v3
         with:
           miniconda-version: "latest"
@@ -30,6 +30,6 @@ jobs:
           conda install pytest coverage
           coverage run -m pytest
       - name: Publish to coveralls.io
-        uses: coverallsapp/github-action@v2
+        uses: coverallsapp/github-action@v2.3.0
         with:
           github-token: ${{ github.token }}
