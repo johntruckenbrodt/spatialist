@@ -4,13 +4,13 @@ import pytest
 import platform
 import numpy as np
 from osgeo import ogr, gdal
-from spatialist import crsConvert, haversine, Raster, stack, ogr2ogr, gdal_translate, gdal_rasterize, bbox, rasterize, \
-    gdalwarp, utm_autodetect, coordinate_reproject, cmap_mpl2gdal
-from spatialist.raster import Dtype, png
-from spatialist.vector import feature2vector, dissolve, Vector, intersect
+from spatialist.raster import Dtype, png, Raster, stack, rasterize
+from spatialist.vector import feature2vector, dissolve, Vector, intersect, bbox
 from spatialist.envi import hdr, HDRobject
 from spatialist.sqlite_util import sqlite_setup, __Handler
 from spatialist.ancillary import parallel_apply_along_axis
+from spatialist.auxil import (crsConvert, haversine, ogr2ogr, gdal_translate, gdal_rasterize, gdalwarp,
+                              utm_autodetect, coordinate_reproject, cmap_mpl2gdal)
 
 import logging
 
