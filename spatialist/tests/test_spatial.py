@@ -426,3 +426,17 @@ def test_png(tmpdir, testdata):
     outname = os.path.join(str(tmpdir), 'test_rgb.png')
     with Raster(src) as ras:
         png(src=ras, dst=outname, percent=100, scale=(2, 98), worldfile=True)
+
+
+def test_addfield():
+    extent = {'xmin': 10, 'xmax': 11, 'ymin': 50, 'ymax': 51}
+    with bbox(coordinates=extent, crs=4326) as box:
+        box.addfield(name='test1', type=ogr.OFTString, values=['a'])
+        box.addfield(name='test2', type=ogr.OFTStringList, values=[['a', 'b']])
+        box.addfield(name='test3', type=ogr.OFTInteger, values=[1])
+        box.addfield(name='test4', type=ogr.OFTIntegerList, values=[[1, 2]])
+        box.addfield(name='test5', type=ogr.OFTInteger64, values=[1])
+        box.addfield(name='test6', type=ogr.OFTInteger64List, values=[[1, 2]])
+        box.addfield(name='test7', type=ogr.OFTReal, values=[1])
+        box.addfield(name='test8', type=ogr.OFTRealList, values=[[1., 2.]])
+        box.addfield(name='test9', type=ogr.OFTBinary, values=[b'1'])
