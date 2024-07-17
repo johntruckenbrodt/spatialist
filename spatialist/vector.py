@@ -957,7 +957,9 @@ def feature2vector(feature, ref, layername=None):
     fields = [feat_def.GetFieldDefn(x) for x in range(0, feat_def.GetFieldCount())]
     vec.layer.CreateFields(fields)
     for feat in features:
-        vec.layer.CreateFeature(feat)
+        feat2 = ogr.Feature(vec.layer.GetLayerDefn())
+        feat2.SetFrom(feat)
+        vec.layer.CreateFeature(feat2)
     vec.init_features()
     return vec
 
