@@ -194,12 +194,21 @@ class Vector(object):
         if type == ogr.OFTString:
             field_defn.SetWidth(width)
         self.layer.CreateField(field_defn)
+        if type_name in ['String', 'Integer', 'Real', 'Binary']:
+            method_name = 'SetField'
+        elif type_name in ['StringList', 'DoubleList', 'IntegerList',
+                           'Integer64', 'Integer64List']:
+            method_name = f'SetField{type_name}'
+        elif type_name == 'RealList':
+            method_name = 'SetFieldDoubleList'
+        else:
+            raise ValueError(f'Unsupported field type: {type_name}')
         if values is not None:
             if len(values) != self.nfeatures:
                 raise RuntimeError('number of values does not match number of features')
             for i, feature in enumerate(self.layer):
                 index = feature.GetFieldIndex(name)
-                method = getattr(feature, f'SetField{type_name}')
+                method = getattr(feature, method_name)
                 method(index, values[i])
                 self.layer.SetFeature(feature)
     
