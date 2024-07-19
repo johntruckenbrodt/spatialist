@@ -1051,44 +1051,51 @@ def intersect(obj1, obj2):
 
 def wkt2vector(wkt, srs, layername='wkt'):
     """
-    convert a well-known text string geometry to a Vector object
+    convert well-known text geometries to a Vector object.
 
     Parameters
     ----------
-    wkt: str
-        the well-known text description
-    srs: int, str
+    wkt: str or list[str]
+        the well-known text description(s). Each geometry will be placed in a separate feature.
+    srs: int or str
         the spatial reference system; see :func:`spatialist.auxil.crsConvert` for options.
     layername: str
-        the name of the internal :class:`osgeo.ogr.Layer` object
+        the name of the internal :class:`osgeo.ogr.Layer` object.
 
     Returns
     -------
     Vector
         the vector representation
-    
+
     Examples
     --------
     >>> from spatialist.vector import wkt2vector
-    >>> wkt = 'POLYGON ((0. 0., 0. 1., 1. 1., 1. 0., 0. 0.))'
-    >>> with wkt2vector(wkt, srs=4326) as vec:
+    >>> wkt1 = 'POLYGON ((0. 0., 0. 1., 1. 1., 1. 0., 0. 0.))'
+    >>> with wkt2vector(wkt1, srs=4326) as vec:
     >>>     print(vec.getArea())
     1.0
+    >>> wkt2 = 'POLYGON ((1. 1., 1. 2., 2. 2., 2. 1., 1. 1.))'
+    >>> with wkt2vector([wkt1, wkt2], srs=4326) as vec:
+    >>>     print(vec.getArea())
+    2.0
     """
-    geom = ogr.CreateGeometryFromWkt(wkt)
-    geom.FlattenTo2D()
-    
+    if isinstance(wkt, str):
+        wkt = [wkt]
     srs = crsConvert(srs, 'osr')
-    
     vec = Vector(driver='Memory')
-    vec.addlayer(layername, srs, geom.GetGeometryType())
-    if geom.GetGeometryName() != 'POINT':
-        vec.addfield('area', ogr.OFTReal)
-        fields = {'area': geom.Area()}
-    else:
-        fields = None
-    vec.addfeature(geom, fields=fields)
-    geom = None
+    area = []
+    for item in wkt:
+        geom = ogr.CreateGeometryFromWkt(item)
+        geom.FlattenTo2D()
+        if not hasattr(vec, 'layer'):
+            vec.addlayer(layername, srs, geom.GetGeometryType())
+        if geom.GetGeometryName() != 'POINT':
+            area.append(geom.Area())
+        else:
+            area.append(None)
+        vec.addfeature(geom)
+        geom = None
+    vec.addfield('area', ogr.OFTReal, values=area)
     return vec
 
 
