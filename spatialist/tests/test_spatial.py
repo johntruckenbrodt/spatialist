@@ -5,7 +5,7 @@ import platform
 import numpy as np
 from osgeo import ogr, gdal
 from spatialist.raster import Dtype, png, Raster, stack, rasterize
-from spatialist.vector import feature2vector, dissolve, Vector, intersect, bbox
+from spatialist.vector import feature2vector, dissolve, Vector, intersect, bbox, wkt2vector
 from spatialist.envi import hdr, HDRobject
 from spatialist.sqlite_util import sqlite_setup, __Handler
 from spatialist.ancillary import parallel_apply_along_axis
@@ -440,3 +440,12 @@ def test_addfield():
         box.addfield(name='test7', type=ogr.OFTReal, values=[1])
         box.addfield(name='test8', type=ogr.OFTRealList, values=[[1., 2.]])
         box.addfield(name='test9', type=ogr.OFTBinary, values=[b'1'])
+
+
+def test_wkt2vector():
+    wkt1 = 'POLYGON ((0. 0., 0. 1., 1. 1., 1. 0., 0. 0.))'
+    wkt2 = 'POLYGON ((1. 1., 1. 2., 2. 2., 2. 1., 1. 1.))'
+    with wkt2vector(wkt1, srs=4326) as vec:
+        assert vec.getArea() == 1.
+    with wkt2vector([wkt1, wkt2], srs=4326) as vec:
+        assert vec.getArea() == 2.
