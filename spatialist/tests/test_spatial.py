@@ -4,13 +4,13 @@ import pytest
 import platform
 import numpy as np
 from osgeo import ogr, gdal
-from spatialist import crsConvert, haversine, Raster, stack, ogr2ogr, gdal_translate, gdal_rasterize, bbox, rasterize, \
-    gdalwarp, utm_autodetect, coordinate_reproject, cmap_mpl2gdal
-from spatialist.raster import Dtype, png
-from spatialist.vector import feature2vector, dissolve, Vector, intersect
+from spatialist.raster import Dtype, png, Raster, stack, rasterize
+from spatialist.vector import feature2vector, dissolve, Vector, intersect, bbox, wkt2vector
 from spatialist.envi import hdr, HDRobject
 from spatialist.sqlite_util import sqlite_setup, __Handler
 from spatialist.ancillary import parallel_apply_along_axis
+from spatialist.auxil import (crsConvert, haversine, ogr2ogr, gdal_translate, gdal_rasterize, gdalwarp,
+                              utm_autodetect, coordinate_reproject, cmap_mpl2gdal)
 
 import logging
 
@@ -426,3 +426,26 @@ def test_png(tmpdir, testdata):
     outname = os.path.join(str(tmpdir), 'test_rgb.png')
     with Raster(src) as ras:
         png(src=ras, dst=outname, percent=100, scale=(2, 98), worldfile=True)
+
+
+def test_addfield():
+    extent = {'xmin': 10, 'xmax': 11, 'ymin': 50, 'ymax': 51}
+    with bbox(coordinates=extent, crs=4326) as box:
+        box.addfield(name='test1', type=ogr.OFTString, values=['a'])
+        box.addfield(name='test2', type=ogr.OFTStringList, values=[['a', 'b']])
+        box.addfield(name='test3', type=ogr.OFTInteger, values=[1])
+        box.addfield(name='test4', type=ogr.OFTIntegerList, values=[[1, 2]])
+        box.addfield(name='test5', type=ogr.OFTInteger64, values=[1])
+        box.addfield(name='test6', type=ogr.OFTInteger64List, values=[[1, 2]])
+        box.addfield(name='test7', type=ogr.OFTReal, values=[1])
+        box.addfield(name='test8', type=ogr.OFTRealList, values=[[1., 2.]])
+        box.addfield(name='test9', type=ogr.OFTBinary, values=[b'1'])
+
+
+def test_wkt2vector():
+    wkt1 = 'POLYGON ((0. 0., 0. 1., 1. 1., 1. 0., 0. 0.))'
+    wkt2 = 'POLYGON ((1. 1., 1. 2., 2. 2., 2. 1., 1. 1.))'
+    with wkt2vector(wkt1, srs=4326) as vec:
+        assert vec.getArea() == 1.
+    with wkt2vector([wkt1, wkt2], srs=4326) as vec:
+        assert vec.getArea() == 2.

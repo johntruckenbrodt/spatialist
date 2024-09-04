@@ -168,7 +168,7 @@ class Vector(object):
         feature = None
         self.init_features()
     
-    def addfield(self, name, type, width=10):
+    def addfield(self, name, type, width=10, values=None):
         """
         add a field to the vector layer
 
@@ -178,18 +178,39 @@ class Vector(object):
             the field name
         type: int
             the OGR Field Type (OFT), e.g. ogr.OFTString.
-            See `Module ogr <https://gdal.org/python/osgeo.ogr-module.html>`_.
+            See :class:`osgeo.ogr.FieldDefn`.
         width: int
             the width of the new field (only for ogr.OFTString fields)
+        values: list
+            an optional list with values for each feature to assign to the new field.
+            The length must be identical to the number of features.
 
         Returns
         -------
 
         """
-        fieldDefn = ogr.FieldDefn(name, type)
+        type_name = ogr.GetFieldTypeName(type)
+        field_defn = ogr.FieldDefn(name, type)
         if type == ogr.OFTString:
-            fieldDefn.SetWidth(width)
-        self.layer.CreateField(fieldDefn)
+            field_defn.SetWidth(width)
+        self.layer.CreateField(field_defn)
+        if type_name in ['String', 'Integer', 'Real', 'Binary']:
+            method_name = 'SetField'
+        elif type_name in ['StringList', 'DoubleList', 'IntegerList',
+                           'Integer64', 'Integer64List']:
+            method_name = f'SetField{type_name}'
+        elif type_name == 'RealList':
+            method_name = 'SetFieldDoubleList'
+        else:
+            raise ValueError(f'Unsupported field type: {type_name}')
+        if values is not None:
+            if len(values) != self.nfeatures:
+                raise RuntimeError('number of values does not match number of features')
+            for i, feature in enumerate(self.layer):
+                index = feature.GetFieldIndex(name)
+                method = getattr(feature, method_name)
+                method(index, values[i])
+                self.layer.SetFeature(feature)
     
     def addlayer(self, name, srs, geomType):
         """
@@ -936,7 +957,9 @@ def feature2vector(feature, ref, layername=None):
     fields = [feat_def.GetFieldDefn(x) for x in range(0, feat_def.GetFieldCount())]
     vec.layer.CreateFields(fields)
     for feat in features:
-        vec.layer.CreateFeature(feat)
+        feat2 = ogr.Feature(vec.layer.GetLayerDefn())
+        feat2.SetFrom(feat)
+        vec.layer.CreateFeature(feat2)
     vec.init_features()
     return vec
 
@@ -1028,44 +1051,51 @@ def intersect(obj1, obj2):
 
 def wkt2vector(wkt, srs, layername='wkt'):
     """
-    convert a well-known text string geometry to a Vector object
+    convert well-known text geometries to a Vector object.
 
     Parameters
     ----------
-    wkt: str
-        the well-known text description
-    srs: int, str
+    wkt: str or list[str]
+        the well-known text description(s). Each geometry will be placed in a separate feature.
+    srs: int or str
         the spatial reference system; see :func:`spatialist.auxil.crsConvert` for options.
     layername: str
-        the name of the internal :class:`osgeo.ogr.Layer` object
+        the name of the internal :class:`osgeo.ogr.Layer` object.
 
     Returns
     -------
     Vector
         the vector representation
-    
+
     Examples
     --------
     >>> from spatialist.vector import wkt2vector
-    >>> wkt = 'POLYGON ((0. 0., 0. 1., 1. 1., 1. 0., 0. 0.))'
-    >>> with wkt2vector(wkt, srs=4326) as vec:
+    >>> wkt1 = 'POLYGON ((0. 0., 0. 1., 1. 1., 1. 0., 0. 0.))'
+    >>> with wkt2vector(wkt1, srs=4326) as vec:
     >>>     print(vec.getArea())
     1.0
+    >>> wkt2 = 'POLYGON ((1. 1., 1. 2., 2. 2., 2. 1., 1. 1.))'
+    >>> with wkt2vector([wkt1, wkt2], srs=4326) as vec:
+    >>>     print(vec.getArea())
+    2.0
     """
-    geom = ogr.CreateGeometryFromWkt(wkt)
-    geom.FlattenTo2D()
-    
+    if isinstance(wkt, str):
+        wkt = [wkt]
     srs = crsConvert(srs, 'osr')
-    
     vec = Vector(driver='Memory')
-    vec.addlayer(layername, srs, geom.GetGeometryType())
-    if geom.GetGeometryName() != 'POINT':
-        vec.addfield('area', ogr.OFTReal)
-        fields = {'area': geom.Area()}
-    else:
-        fields = None
-    vec.addfeature(geom, fields=fields)
-    geom = None
+    area = []
+    for item in wkt:
+        geom = ogr.CreateGeometryFromWkt(item)
+        geom.FlattenTo2D()
+        if not hasattr(vec, 'layer'):
+            vec.addlayer(layername, srs, geom.GetGeometryType())
+        if geom.GetGeometryName() != 'POINT':
+            area.append(geom.Area())
+        else:
+            area.append(None)
+        vec.addfeature(geom)
+        geom = None
+    vec.addfield('area', ogr.OFTReal, values=area)
     return vec
 
 
