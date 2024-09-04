@@ -12,6 +12,7 @@ dependencies:
   - pyyaml
   - dill
   - gdal>=2.4
+  - libgdal
   - pip
   - sqlite
   - libspatialite
