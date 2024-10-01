@@ -189,3 +189,15 @@ Changelog
 -------------------
 
 - add progress bar to :func:`spatialist.ancillary.multicore` (non-Windows only)
+
+0.13.1 | 2024-04-11
+-------------------
+
+- :func:`spatialist.ancillary.multicore` bug fix
+
+0.14.0 | 2024-10-01
+-------------------
+
+- :func:`spatialist.vector.feature2vector`: bug fix
+- :meth:`spatialist.vector.Vector.addfield`: new argument `values`
+- :func:`spatialist.vector.wkt2vector`: enable passing multiple geometries as list
