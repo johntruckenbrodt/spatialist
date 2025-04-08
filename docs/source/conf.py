@@ -57,11 +57,14 @@ extensions = [
     'list_drivers'
 ]
 
-intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
-                       'matplotlib': ('https://matplotlib.org', None),
-                       'numpy': ('https://numpy.org/doc/stable', None),
-                       'pathos': ('https://pathos.readthedocs.io/en/latest', None),
-                       'osgeo': ('https://gdal.org', None)}
+intersphinx_mapping = {
+    'geopandas': ('https://geopandas.org/en/stable', None),
+    'matplotlib': ('https://matplotlib.org', None),
+    'numpy': ('https://numpy.org/doc/stable', None),
+    'osgeo': ('https://gdal.org', None),
+    'pathos': ('https://pathos.readthedocs.io/en/latest', None),
+    'python': ('https://docs.python.org/3', None)
+}
 
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
@@ -218,10 +221,10 @@ htmlhelp_basename = '{}doc'.format(project)
 latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
     # 'papersize': 'letterpaper',
-
+    
     # The font size ('10pt', '11pt' or '12pt').
     # 'pointsize': '10pt',
-
+    
     # Additional stuff for the LaTeX preamble.
     # 'preamble': '',
 }
