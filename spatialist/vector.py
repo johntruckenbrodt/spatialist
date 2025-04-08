@@ -830,6 +830,18 @@ def boundary(vectorobject, expression=None, outname=None):
 
 
 def centerdist(obj1, obj2):
+    """
+    Get the center distance between two vector objects.
+    
+    Parameters
+    ----------
+    obj1: Vector
+    obj2: Vector
+
+    Returns
+    -------
+    float
+    """
     if not isinstance(obj1, Vector) or isinstance(obj2, Vector):
         raise IOError('both objects must be of type Vector')
     
@@ -847,6 +859,7 @@ def centerdist(obj1, obj2):
 def dissolve(infile, outfile, field, layername=None):
     """
     dissolve the polygons of a vector file by an attribute field
+    
     Parameters
     ----------
     infile: str

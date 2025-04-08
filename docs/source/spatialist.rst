@@ -34,7 +34,7 @@ Vector Tools
 ------------
 
 .. automodule:: spatialist.vector
-    :members: bbox, boundary, feature2vector, intersect, vectorize, wkt2vector
+    :members: bbox, boundary, centerdist, dissolve, feature2vector, intersect, set_field, vectorize, wkt2vector
     :undoc-members:
     :show-inheritance:
 
@@ -43,8 +43,11 @@ Vector Tools
 
         bbox
         boundary
+        centerdist
+        dissolve
         feature2vector
         intersect
+        set_field
         vectorize
         wkt2vector
 
