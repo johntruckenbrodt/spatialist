@@ -153,17 +153,20 @@ class Vector(object):
         feature.SetGeometry(geometry)
         
         if fields is not None:
-            for fieldname, value in fields.items():
-                if fieldname not in self.fieldnames:
-                    raise IOError('field "{}" is missing'.format(fieldname))
+            for field_name, value in fields.items():
+                if field_name not in self.fieldnames:
+                    raise IOError('field "{}" is missing'.format(field_name))
+                field_index = self.fieldnames.index(field_name)
+                field_type = feature.GetFieldDefnRef(field_index).GetType()
+                field_type_name = feature.GetFieldDefnRef(field_index).GetTypeName()
                 try:
-                    feature.SetField(fieldname, value)
-                except NotImplementedError as e:
-                    fieldindex = self.fieldnames.index(fieldname)
-                    fieldtype = feature.GetFieldDefnRef(fieldindex).GetTypeName()
-                    message = str(e) + '\ntrying to set field {} (type {}) to value {} (type {})'
-                    message = message.format(fieldname, fieldtype, value, type(value))
-                    raise (NotImplementedError(message))
+                    set_field(target=feature, name=field_name,
+                              type=field_type, values=value)
+                except Exception as e:
+                    message = str(e) + (f'\ntrying to set field {field_name} '
+                                        f'(type {field_type_name}) to value '
+                                        f'{value} (type {type(value)})')
+                    raise RuntimeError(message) from e
         
         self.layer.CreateFeature(feature)
         feature = None
