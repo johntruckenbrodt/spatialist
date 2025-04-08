@@ -688,9 +688,8 @@ class Vector(object):
             
             .. list_drivers:: vector
             
-        driver: str
-            the output file format; needs to be defined if the format cannot
-            be auto-detected from the filename extension
+        driver: str or None
+            the output file format; default None: try to autodetect from the file name extension
         overwrite: bool
             overwrite an already existing file?
 
@@ -710,26 +709,9 @@ class Vector(object):
             else:
                 raise RuntimeError('target file already exists')
         
-        outdataset = driver.CreateDataSource(outfile)
-        outlayer = outdataset.CreateLayer(name=self.layername,
-                                          srs=self.srs,
-                                          geom_type=self.geomType)
-        outlayerdef = outlayer.GetLayerDefn()
-        
-        for fieldDef in self.fieldDefs:
-            outlayer.CreateField(fieldDef)
-        
-        self.layer.ResetReading()
-        for feature in self.layer:
-            outFeature = ogr.Feature(outlayerdef)
-            outFeature.SetGeometry(feature.GetGeometryRef())
-            for i in range(len(feature.keys())):
-                outFeature.SetField(i, feature.GetField(i))
-            # add the feature to the shapefile
-            outlayer.CreateFeature(outFeature)
-            outFeature = None
-        self.layer.ResetReading()
-        outdataset = None
+        ds_out = driver.CreateDataSource(outfile)
+        ds_out.CopyLayer(self.layer, self.layer.GetName())
+        ds_out = driver = None
 
 
 def bbox(coordinates, crs, outname=None, driver=None, overwrite=True):
