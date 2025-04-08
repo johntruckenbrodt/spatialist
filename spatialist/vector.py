@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 ################################################################
 # OGR wrapper for convenient vector data handling and processing
-# John Truckenbrodt 2015-2022
+# John Truckenbrodt 2015-2025
 ################################################################
 
 
@@ -12,6 +12,9 @@ from osgeo.gdalconst import GDT_Byte
 from .auxil import crsConvert
 from .ancillary import parse_literal
 from .sqlite_util import sqlite_setup
+
+import geopandas as gpd
+from shapely.wkb import loads as wkb_loads
 
 ogr.UseExceptions()
 osr.UseExceptions()
@@ -675,6 +678,26 @@ class Vector(object):
             the geometry's spatial reference system
         """
         return self.layer.GetSpatialRef()
+    
+    def to_geopandas(self):
+        """
+        Convert the object to a geopandas GeoDataFrame
+        
+        Returns
+        -------
+        geopandas.GeoDataFrame
+        """
+        features = []
+        self.layer.ResetReading()
+        for feature in self.layer:
+            geom = feature.GetGeometryRef()
+            geom_wkb = geom.ExportToWkb()
+            properties = feature.items()
+            properties["geometry"] = wkb_loads(bytes(geom_wkb))
+            features.append(properties)
+        self.layer.ResetReading()
+        gdf = gpd.GeoDataFrame(features, crs=self.srs.ExportToWkt())
+        return gdf
     
     def write(self, outfile, driver=None, overwrite=True):
         """

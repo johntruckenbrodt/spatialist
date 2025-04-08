@@ -16,3 +16,5 @@ dependencies:
   - pip
   - sqlite
   - libspatialite
+  - shapely
+  - geopandas

@@ -35,7 +35,7 @@ def test_haversine():
     assert haversine(50, 10, 51, 10) == 111194.92664455889
 
 
-def test_Vector(testdata):
+def test_Vector(tmpdir, testdata):
     scene = Raster(testdata['tif'])
     bbox1 = scene.bbox()
     assert bbox1.getArea() == 23262400.0
@@ -65,6 +65,10 @@ def test_Vector(testdata):
         select = bbox1.getFeatureByAttribute('foo', 'bar')
     with pytest.raises(OSError):
         vec = Vector(filename='foobar')
+    gdf_out = tmpdir / "test.gpkg"
+    gdf = bbox1.to_geopandas()
+    gdf.to_file(str(gdf_out))
+    assert gdf_out.exists()
     bbox1.close()
 
 
