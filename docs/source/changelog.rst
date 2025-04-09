@@ -201,3 +201,15 @@ Changelog
 - :func:`spatialist.vector.feature2vector`: bug fix
 - :meth:`spatialist.vector.Vector.addfield`: new argument `values`
 - :func:`spatialist.vector.wkt2vector`: enable passing multiple geometries as list
+
+0.15.0 | 2025-04-09
+-------------------
+
+- :meth:`spatialist.vector.Vector.write`: significantly reduced lines of code and removed
+  bugs by making use of :meth:`osgeo.gdal.Dataset.CopyLayer`
+- :meth:`spatialist.vector.Vector.to_geopandas`: new method
+- :func:`spatialist.vector.set_field`: new function
+
+  + code outsourced from :meth:`spatialist.vector.Vector.addfield`
+  + used by :meth:`spatialist.vector.Vector.addfeature`
+  + added support for `DateTime` fields
