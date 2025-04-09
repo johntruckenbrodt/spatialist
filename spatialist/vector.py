@@ -13,6 +13,7 @@ from .auxil import crsConvert
 from .ancillary import parse_literal
 from .sqlite_util import sqlite_setup
 
+import pandas as pd
 import geopandas as gpd
 from shapely.wkb import loads as wkb_loads
 
@@ -687,6 +688,7 @@ class Vector(object):
         -------
         geopandas.GeoDataFrame
         """
+        field_types = {x.GetName(): x.GetTypeName() for x in self.fieldDefs}
         features = []
         self.layer.ResetReading()
         for feature in self.layer:
@@ -697,6 +699,9 @@ class Vector(object):
             features.append(properties)
         self.layer.ResetReading()
         gdf = gpd.GeoDataFrame(features, crs=self.srs.ExportToWkt())
+        for field_name, field_type in field_types.items():
+            if field_type == "DateTime":
+                gdf[field_name] = pd.to_datetime(gdf[field_name])
         return gdf
     
     def write(self, outfile, driver=None, overwrite=True):
