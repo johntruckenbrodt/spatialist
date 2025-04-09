@@ -36,11 +36,12 @@ def test_haversine():
     assert haversine(50, 10, 51, 10) == 111194.92664455889
 
 
-def test_Vector(testdata):
+def test_Vector(tmpdir, testdata):
     scene = Raster(testdata['tif'])
     bbox1 = scene.bbox()
     assert bbox1.getArea() == 23262400.0
-    assert bbox1.extent == {'ymax': 4830114.70107, 'ymin': 4825774.70107, 'xmin': 620048.241204, 'xmax': 625408.241204}
+    assert bbox1.extent == {'ymax': 4830114.70107, 'ymin': 4825774.70107,
+                            'xmin': 620048.241204, 'xmax': 625408.241204}
     assert bbox1.nlayers == 1
     assert bbox1.getProjection('epsg') == 32631
     assert bbox1.proj4.strip() == '+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs'
@@ -67,6 +68,13 @@ def test_Vector(testdata):
     with pytest.raises(OSError):
         vec = Vector(filename='foobar')
     bbox1.close()
+    with scene.bbox() as bbox3:
+        bbox3.addfield(name='datetime', type=ogr.OFTDateTime,
+                       values=[datetime.now()])
+        gdf_out = tmpdir / "test.gpkg"
+        gdf = bbox3.to_geopandas()
+        gdf.to_file(str(gdf_out))
+        assert gdf_out.exists()
 
 
 def test_dissolve(tmpdir, travis, testdata):
@@ -99,7 +107,7 @@ def test_dissolve(tmpdir, travis, testdata):
 
 def test_Raster(tmpdir, testdata):
     with pytest.raises(RuntimeError):
-        ras =  Raster(1)
+        ras = Raster(1)
     with Raster(testdata['tif']) as ras:
         print(ras)
         assert ras.bands == 1

@@ -14,6 +14,10 @@ from .auxil import crsConvert
 from .ancillary import parse_literal
 from .sqlite_util import sqlite_setup
 
+import pandas as pd
+import geopandas as gpd
+from shapely.wkb import loads as wkb_loads
+
 ogr.UseExceptions()
 osr.UseExceptions()
 
@@ -658,6 +662,30 @@ class Vector(object):
             the geometry's spatial reference system
         """
         return self.layer.GetSpatialRef()
+    
+    def to_geopandas(self):
+        """
+        Convert the object to a geopandas GeoDataFrame
+        
+        Returns
+        -------
+        geopandas.GeoDataFrame
+        """
+        field_types = {x.GetName(): x.GetTypeName() for x in self.fieldDefs}
+        features = []
+        self.layer.ResetReading()
+        for feature in self.layer:
+            geom = feature.GetGeometryRef()
+            geom_wkb = geom.ExportToWkb()
+            properties = feature.items()
+            properties["geometry"] = wkb_loads(bytes(geom_wkb))
+            features.append(properties)
+        self.layer.ResetReading()
+        gdf = gpd.GeoDataFrame(features, crs=self.srs.ExportToWkt())
+        for field_name, field_type in field_types.items():
+            if field_type == "DateTime":
+                gdf[field_name] = pd.to_datetime(gdf[field_name])
+        return gdf
     
     def write(self, outfile, driver=None, overwrite=True):
         """

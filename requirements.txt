@@ -5,3 +5,6 @@ tblib
 pyyaml
 dill
 matplotlib
+shapely
+pandas
+geopandas
