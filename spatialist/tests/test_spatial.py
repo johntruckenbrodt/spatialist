@@ -3,9 +3,10 @@ import shutil
 import pytest
 import platform
 import numpy as np
+from datetime import datetime, timezone
 from osgeo import ogr, gdal
 from spatialist.raster import Dtype, png, Raster, stack, rasterize
-from spatialist.vector import feature2vector, dissolve, Vector, intersect, bbox, wkt2vector
+from spatialist.vector import feature2vector, dissolve, Vector, intersect, bbox, wkt2vector, set_field
 from spatialist.envi import hdr, HDRobject
 from spatialist.sqlite_util import sqlite_setup, __Handler
 from spatialist.ancillary import parallel_apply_along_axis
@@ -440,6 +441,25 @@ def test_addfield():
         box.addfield(name='test7', type=ogr.OFTReal, values=[1])
         box.addfield(name='test8', type=ogr.OFTRealList, values=[[1., 2.]])
         box.addfield(name='test9', type=ogr.OFTBinary, values=[b'1'])
+        now = datetime.now()  # timezone unaware
+        box.addfield(name='test10', type=ogr.OFTDateTime, values=[now])
+        now = now.astimezone()  # local timezone
+        box.addfield(name='test11', type=ogr.OFTDateTime, values=[now])
+        now = now.astimezone(timezone.utc)  # UTC timezone
+        box.addfield(name='test12', type=ogr.OFTDateTime, values=[now])
+        with pytest.raises(ValueError):
+            # Date and Time are not supported
+            box.addfield(name='test13', type=ogr.OFTDate, values=[now])
+            box.addfield(name='test14', type=ogr.OFTTime, values=[now])
+        with pytest.raises(TypeError):
+            # value must be a datetime object
+            box.addfield(name='test15', type=ogr.OFTDateTime, values=[1])
+        with pytest.raises(RuntimeError):
+            # one feature, two values
+            box.addfield(name='test16', type=ogr.OFTString, values=['a', 'b'])
+        with pytest.raises(TypeError):
+            # target must be Vector or ogr.Feature
+            set_field(target='x', name='test17', type=ogr.OFTString, values=['a'])
 
 
 def test_wkt2vector():
