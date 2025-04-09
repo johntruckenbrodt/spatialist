@@ -156,9 +156,9 @@ class Vector(object):
             for field_name, value in fields.items():
                 if field_name not in self.fieldnames:
                     raise IOError('field "{}" is missing'.format(field_name))
-                field_index = self.fieldnames.index(field_name)
-                field_type = feature.GetFieldDefnRef(field_index).GetType()
-                field_type_name = feature.GetFieldDefnRef(field_index).GetTypeName()
+                field_defn = feature.GetFieldDefnRef(field_name)
+                field_type = field_defn.GetType()
+                field_type_name = field_defn.GetTypeName()
                 try:
                     set_field(target=feature, name=field_name,
                               type=field_type, values=value)
