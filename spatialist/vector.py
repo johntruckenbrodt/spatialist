@@ -7,6 +7,7 @@
 
 import os
 import yaml
+from datetime import datetime, timezone
 from osgeo import ogr, osr, gdal
 from osgeo.gdalconst import GDT_Byte
 from .auxil import crsConvert
@@ -156,17 +157,20 @@ class Vector(object):
         feature.SetGeometry(geometry)
         
         if fields is not None:
-            for fieldname, value in fields.items():
-                if fieldname not in self.fieldnames:
-                    raise IOError('field "{}" is missing'.format(fieldname))
+            for field_name, value in fields.items():
+                if field_name not in self.fieldnames:
+                    raise IOError('field "{}" is missing'.format(field_name))
+                field_defn = feature.GetFieldDefnRef(field_name)
+                field_type = field_defn.GetType()
+                field_type_name = field_defn.GetTypeName()
                 try:
-                    feature.SetField(fieldname, value)
-                except NotImplementedError as e:
-                    fieldindex = self.fieldnames.index(fieldname)
-                    fieldtype = feature.GetFieldDefnRef(fieldindex).GetTypeName()
-                    message = str(e) + '\ntrying to set field {} (type {}) to value {} (type {})'
-                    message = message.format(fieldname, fieldtype, value, type(value))
-                    raise (NotImplementedError(message))
+                    set_field(target=feature, name=field_name,
+                              type=field_type, values=value)
+                except Exception as e:
+                    message = str(e) + (f'\ntrying to set field {field_name} '
+                                        f'(type {field_type_name}) to value '
+                                        f'{value} (type {type(value)})')
+                    raise RuntimeError(message) from e
         
         self.layer.CreateFeature(feature)
         feature = None
@@ -185,7 +189,7 @@ class Vector(object):
             See :class:`osgeo.ogr.FieldDefn`.
         width: int
             the width of the new field (only for ogr.OFTString fields)
-        values: list
+        values: List or None
             an optional list with values for each feature to assign to the new field.
             The length must be identical to the number of features.
 
@@ -193,28 +197,7 @@ class Vector(object):
         -------
 
         """
-        type_name = ogr.GetFieldTypeName(type)
-        field_defn = ogr.FieldDefn(name, type)
-        if type == ogr.OFTString:
-            field_defn.SetWidth(width)
-        self.layer.CreateField(field_defn)
-        if type_name in ['String', 'Integer', 'Real', 'Binary']:
-            method_name = 'SetField'
-        elif type_name in ['StringList', 'DoubleList', 'IntegerList',
-                           'Integer64', 'Integer64List']:
-            method_name = f'SetField{type_name}'
-        elif type_name == 'RealList':
-            method_name = 'SetFieldDoubleList'
-        else:
-            raise ValueError(f'Unsupported field type: {type_name}')
-        if values is not None:
-            if len(values) != self.nfeatures:
-                raise RuntimeError('number of values does not match number of features')
-            for i, feature in enumerate(self.layer):
-                index = feature.GetFieldIndex(name)
-                method = getattr(feature, method_name)
-                method(index, values[i])
-                self.layer.SetFeature(feature)
+        set_field(self, name, type, width=width, values=values)
     
     def addlayer(self, name, srs, geomType):
         """
@@ -878,6 +861,18 @@ def boundary(vectorobject, expression=None, outname=None):
 
 
 def centerdist(obj1, obj2):
+    """
+    Get the center distance between two vector objects.
+    
+    Parameters
+    ----------
+    obj1: Vector
+    obj2: Vector
+
+    Returns
+    -------
+    float
+    """
     if not isinstance(obj1, Vector) or isinstance(obj2, Vector):
         raise IOError('both objects must be of type Vector')
     
@@ -895,6 +890,7 @@ def centerdist(obj1, obj2):
 def dissolve(infile, outfile, field, layername=None):
     """
     dissolve the polygons of a vector file by an attribute field
+    
     Parameters
     ----------
     infile: str
@@ -1057,6 +1053,99 @@ def intersect(obj1, obj2):
                         intersection.addfeature(intersect, fields)
         intersect_base = None
         return intersection
+
+
+def set_field(target, name, type, width=10, values=None):
+    """
+    Wrapper for setting a field
+    
+    Parameters
+    ----------
+    target: Vector or osgeo.ogr.Feature
+        the object for which to set the field
+    name: str
+        the field name
+    type: int
+        the OGR Field Type (OFT), e.g. `ogr.OFTString`.
+        See :class:`osgeo.ogr.FieldDefn`.
+    width: int
+        the width of the new field (only for `ogr.OFTString` fields)
+    values: List or None
+        an optional list with values for each feature to assign to the new field.
+        If `target` is of type :class:`~spatialist.vector.Vector`, the length must
+        be identical to the number of features.
+
+    Returns
+    -------
+
+    """
+    type_name = ogr.GetFieldTypeName(type)
+    field_defn = ogr.FieldDefn(name, type)
+    if type == ogr.OFTString:
+        field_defn.SetWidth(width)
+    
+    if isinstance(target, Vector):
+        target.layer.CreateField(field_defn)
+    
+    if type_name in ['String', 'Integer', 'Real', 'Binary', 'DateTime']:
+        method_name = 'SetField'
+    elif type_name in ['StringList', 'IntegerList',
+                       'Integer64', 'Integer64List']:
+        method_name = f'SetField{type_name}'
+    elif type_name == 'RealList':
+        method_name = 'SetFieldDoubleList'
+    else:
+        raise ValueError(f'Unsupported field type: {type_name}')
+    
+    def setter(feature, value, field_name, method_name, type_name):
+        
+        def tz_to_nTZFlag(dt):
+            """
+            Determine OGR nTZFlag from a timezone-aware datetime.
+            """
+            if dt.tzinfo is None:
+                return 0  # unknown
+            offset = dt.utcoffset()
+            if offset == timezone.utc.utcoffset(None):
+                return 100  # UTC
+            return 1  # assume local (non-UTC, but known)
+        
+        index = feature.GetFieldIndex(field_name)
+        method = getattr(feature, method_name)
+        if type_name == 'DateTime':
+            if isinstance(value, datetime):
+                value = [
+                    value.year,
+                    value.month,
+                    value.day,
+                    value.hour,
+                    value.minute,
+                    value.second + value.microsecond / 1000000,
+                    tz_to_nTZFlag(value)
+                ]
+            else:
+                raise TypeError("If 'type' is 'DateTime', the value "
+                                "must be a datetime.datetime object")
+            method(index, *value)
+        else:
+            method(index, value)
+    
+    if values is not None:
+        if isinstance(target, Vector):
+            if len(values) != target.nfeatures:
+                raise RuntimeError('number of values does not match number of features')
+            target.layer.ResetReading()
+            for i, feature in enumerate(target.layer):
+                setter(feature=feature, value=values[i], field_name=name,
+                       method_name=method_name, type_name=type_name)
+                target.layer.SetFeature(feature)
+            target.layer.ResetReading()
+        elif isinstance(target, ogr.Feature):
+            setter(feature=target, value=values, field_name=name,
+                   method_name=method_name, type_name=type_name)
+        else:
+            raise TypeError("'target' must be of type spatialist.vector.Vector "
+                            "or osgeo.ogr.Feature")
 
 
 def wkt2vector(wkt, srs, layername='wkt'):
