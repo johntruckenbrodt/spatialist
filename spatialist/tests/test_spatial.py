@@ -99,8 +99,7 @@ def test_dissolve(tmpdir, travis, testdata):
 
 def test_Raster(tmpdir, testdata):
     with pytest.raises(RuntimeError):
-        with Raster(1) as ras:
-            print(ras)
+        ras =  Raster(1)
     with Raster(testdata['tif']) as ras:
         print(ras)
         assert ras.bands == 1
@@ -186,8 +185,7 @@ def test_Raster_extract(testdata):
 
 def test_Raster_filestack(testdata):
     with pytest.raises(RuntimeError):
-        with Raster([testdata['tif']]) as ras:
-            print(ras)
+        ras = Raster([testdata['tif']])
     with Raster([testdata['tif'], testdata['tif2']]) as ras:
         assert ras.bands == 2
         arr = ras.array()
@@ -448,8 +446,10 @@ def test_addfield():
         now = now.astimezone(timezone.utc)  # UTC timezone
         box.addfield(name='test12', type=ogr.OFTDateTime, values=[now])
         with pytest.raises(ValueError):
-            # Date and Time are not supported
+            # Date type is not supported
             box.addfield(name='test13', type=ogr.OFTDate, values=[now])
+        with pytest.raises(ValueError):
+            # Time type is not supported
             box.addfield(name='test14', type=ogr.OFTTime, values=[now])
         with pytest.raises(TypeError):
             # value must be a datetime object
