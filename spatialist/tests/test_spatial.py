@@ -67,12 +67,14 @@ def test_Vector(tmpdir, testdata):
         select = bbox1.getFeatureByAttribute('foo', 'bar')
     with pytest.raises(OSError):
         vec = Vector(filename='foobar')
-    bbox1.addfield('datetime', ogr.OFTDateTime, values=[datetime.now()])
-    gdf_out = tmpdir / "test.gpkg"
-    gdf = bbox1.to_geopandas()
-    gdf.to_file(str(gdf_out))
-    assert gdf_out.exists()
     bbox1.close()
+    with scene.bbox() as bbox3:
+        bbox3.addfield(name='datetime', type=ogr.OFTDateTime,
+                       values=[datetime.now()])
+        gdf_out = tmpdir / "test.gpkg"
+        gdf = bbox3.to_geopandas()
+        gdf.to_file(str(gdf_out))
+        assert gdf_out.exists()
 
 
 def test_dissolve(tmpdir, travis, testdata):
@@ -105,7 +107,7 @@ def test_dissolve(tmpdir, travis, testdata):
 
 def test_Raster(tmpdir, testdata):
     with pytest.raises(RuntimeError):
-        ras =  Raster(1)
+        ras = Raster(1)
     with Raster(testdata['tif']) as ras:
         print(ras)
         assert ras.bands == 1
