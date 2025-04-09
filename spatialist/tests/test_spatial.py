@@ -3,6 +3,7 @@ import shutil
 import pytest
 import platform
 import numpy as np
+from datetime import datetime
 from osgeo import ogr, gdal
 from spatialist.raster import Dtype, png, Raster, stack, rasterize
 from spatialist.vector import feature2vector, dissolve, Vector, intersect, bbox, wkt2vector
@@ -39,7 +40,8 @@ def test_Vector(tmpdir, testdata):
     scene = Raster(testdata['tif'])
     bbox1 = scene.bbox()
     assert bbox1.getArea() == 23262400.0
-    assert bbox1.extent == {'ymax': 4830114.70107, 'ymin': 4825774.70107, 'xmin': 620048.241204, 'xmax': 625408.241204}
+    assert bbox1.extent == {'ymax': 4830114.70107, 'ymin': 4825774.70107,
+                            'xmin': 620048.241204, 'xmax': 625408.241204}
     assert bbox1.nlayers == 1
     assert bbox1.getProjection('epsg') == 32631
     assert bbox1.proj4.strip() == '+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs'
@@ -65,6 +67,7 @@ def test_Vector(tmpdir, testdata):
         select = bbox1.getFeatureByAttribute('foo', 'bar')
     with pytest.raises(OSError):
         vec = Vector(filename='foobar')
+    bbox1.addfield('datetime', ogr.OFTDateTime, values=[datetime.now()])
     gdf_out = tmpdir / "test.gpkg"
     gdf = bbox1.to_geopandas()
     gdf.to_file(str(gdf_out))
