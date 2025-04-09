@@ -1061,7 +1061,7 @@ def set_field(target, name, type, width=10, values=None):
     
     if type_name in ['String', 'Integer', 'Real', 'Binary', 'DateTime']:
         method_name = 'SetField'
-    elif type_name in ['StringList', 'DoubleList', 'IntegerList',
+    elif type_name in ['StringList', 'IntegerList',
                        'Integer64', 'Integer64List']:
         method_name = f'SetField{type_name}'
     elif type_name == 'RealList':
