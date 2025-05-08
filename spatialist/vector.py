@@ -11,10 +11,9 @@ from datetime import datetime, timezone
 from osgeo import ogr, osr, gdal
 from osgeo.gdalconst import GDT_Byte
 from .auxil import crsConvert
-from .ancillary import parse_literal
+from .ancillary import parse_literal, ogr_datetime_to_pandas
 from .sqlite_util import sqlite_setup
 
-import pandas as pd
 import geopandas as gpd
 from shapely.wkb import loads as wkb_loads
 
@@ -678,13 +677,15 @@ class Vector(object):
             geom = feature.GetGeometryRef()
             geom_wkb = geom.ExportToWkb()
             properties = feature.items()
+            for field_name, field_type in field_types.items():
+                if field_type == "DateTime":
+                    fid = feature.GetFieldIndex(field_name)
+                    raw_value = feature.GetFieldAsDateTime(fid)
+                    properties[field_name] = ogr_datetime_to_pandas(raw_value)
             properties["geometry"] = wkb_loads(bytes(geom_wkb))
             features.append(properties)
         self.layer.ResetReading()
         gdf = gpd.GeoDataFrame(features, crs=self.srs.ExportToWkt())
-        for field_name, field_type in field_types.items():
-            if field_type == "DateTime":
-                gdf[field_name] = pd.to_datetime(gdf[field_name])
         return gdf
     
     def write(self, outfile, driver=None, overwrite=True):
