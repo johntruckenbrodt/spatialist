@@ -85,7 +85,7 @@ Ancillary Functions
 -------------------
 
 .. automodule:: spatialist.ancillary
-    :members: dissolve, finder, HiddenPrints, multicore, parse_literal, run, sampler, which, parallel_apply_along_axis
+    :members: dissolve, finder, HiddenPrints, multicore, ogr_datetime_to_pandas, parse_literal, run, sampler, which, parallel_apply_along_axis
     :undoc-members:
     :show-inheritance:
 
