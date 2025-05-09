@@ -25,7 +25,6 @@ import tarfile as tf
 import zipfile as zf
 from typing import Iterable, List
 import numpy as np
-import pandas as pd
 import progressbar as pb
 
 try:
@@ -795,53 +794,3 @@ def sampler(mask, samples=None, dim=1, replace=False, seed=42):
         return out
     else:
         raise ValueError("'dim' must either be 1 or 2")
-
-
-def ogr_datetime_to_pandas(ogr_dt):
-    """
-    Convert an OGR DateTime tuple to a pandas Timestamp.
-
-    Parameters
-    ----------
-    ogr_dt : tuple
-        A 7-element tuple in the format (year, month, day, hour, minute,
-        second, tz_flag) as returned by :meth:`osgeo.ogr.Feature.GetFieldAsDateTime`.
-
-    Returns
-    -------
-    pandas.Timestamp
-        A pandas Timestamp object representing the input datetime.
-
-    Notes
-    -----
-    The `tz_flag` is interpreted as follows:
-    
-    - 0: Unknown timezone (returns naive timestamp).
-    - 1: Local time (returns naive timestamp).
-    - 100: UTC.
-    - >100: Offset from UTC in minutes (applied to UTC).
-
-    Examples
-    --------
-    >>> ogr_datetime_to_pandas((2024, 9, 1, 11, 16, 2, 100))
-    Timestamp('2024-09-01 11:16:02+0000', tz='UTC')
-    
-    Raises
-    ------
-    RuntimeError
-    """
-    
-    year, month, day, hour, minute, second, tz_flag = ogr_dt
-    
-    try:
-        dt = pd.Timestamp(year, month, day, hour, minute, int(second))
-        if tz_flag == 100:
-            return dt.tz_localize('UTC')
-        elif tz_flag > 100:
-            offset_min = tz_flag - 100
-            offset = pd.Timedelta(minutes=offset_min)
-            return dt.tz_localize('UTC') + offset
-        else:
-            return dt
-    except Exception:
-        raise RuntimeError('Failed to convert datetime to pandas Timestamp')
