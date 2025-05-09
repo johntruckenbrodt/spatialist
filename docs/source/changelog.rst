@@ -213,3 +213,8 @@ Changelog
   + code outsourced from :meth:`spatialist.vector.Vector.addfield`
   + used by :meth:`spatialist.vector.Vector.addfeature`
   + added support for `DateTime` fields
+
+0.15.1 | 2025-05-09
+-------------------
+
+- :meth:`spatialist.vector.Vector.to_geopandas`: fixed bug in `DateTime` field parsing
