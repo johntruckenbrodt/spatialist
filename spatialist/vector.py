@@ -760,9 +760,9 @@ def bbox(coordinates, crs, outname=None, driver=None, overwrite=True):
     ring = ogr.Geometry(ogr.wkbLinearRing)
     
     ring.AddPoint(coordinates['xmin'], coordinates['ymin'])
-    ring.AddPoint(coordinates['xmin'], coordinates['ymax'])
-    ring.AddPoint(coordinates['xmax'], coordinates['ymax'])
     ring.AddPoint(coordinates['xmax'], coordinates['ymin'])
+    ring.AddPoint(coordinates['xmax'], coordinates['ymax'])
+    ring.AddPoint(coordinates['xmin'], coordinates['ymax'])
     ring.CloseRings()
     
     geom = ogr.Geometry(ogr.wkbPolygon)
