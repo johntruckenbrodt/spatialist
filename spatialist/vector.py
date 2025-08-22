@@ -732,7 +732,8 @@ class Vector(object):
         ds_out = driver = None
 
 
-def bbox(coordinates, crs, outname=None, driver=None, overwrite=True):
+def bbox(coordinates, crs, outname=None, driver=None, overwrite=True,
+         buffer=None):
     """
     create a bounding box vector object or file.
     The CRS can be in either WKT, EPSG or PROJ4 format
@@ -740,22 +741,39 @@ def bbox(coordinates, crs, outname=None, driver=None, overwrite=True):
     Parameters
     ----------
     coordinates: dict
-        a dictionary containing numerical variables with keys `xmin`, `xmax`, `ymin` and `ymax`
+        a dictionary containing numerical variables with keys
+        `xmin`, `xmax`, `ymin` and `ymax`.
     crs: int or str or osgeo.osr.SpatialReference
-        the coordinate reference system of the `coordinates`. See :func:`~spatialist.auxil.crsConvert` for options.
+        the coordinate reference system of the `coordinates`.
+        See :func:`~spatialist.auxil.crsConvert` for options.
     outname: str
-        the file to write to. If `None`, the bounding box is returned as :class:`~spatialist.vector.Vector` object
+        the file to write to. If `None`, the bounding box is returned
+        as :class:`~spatialist.vector.Vector` object.
     driver: str
-        the output file format; needs to be defined if the format cannot
-            be auto-detected from the filename extension
+        the output file format; needs to be defined if the format
+        cannot be auto-detected from the filename extension.
     overwrite: bool
         overwrite an existing file?
+    buffer: None or int or float or tuple[int or float]
+        a buffer to add around `coordinates`. Default None: do not add
+        a buffer. A tuple is interpreted as (x buffer, y buffer).
     
     Returns
     -------
     Vector or None
         the bounding box Vector object
     """
+    if buffer is not None:
+        coordinates = coordinates.copy()
+        if isinstance(buffer, tuple):
+            xbuffer, ybuffer = buffer
+        else:
+            xbuffer = ybuffer = buffer
+        coordinates['xmin'] -= xbuffer
+        coordinates['xmax'] += xbuffer
+        coordinates['ymin'] -= ybuffer
+        coordinates['ymax'] += ybuffer
+    
     srs = crsConvert(crs, 'osr')
     ring = ogr.Geometry(ogr.wkbLinearRing)
     
