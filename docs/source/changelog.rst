@@ -218,3 +218,11 @@ Changelog
 -------------------
 
 - :meth:`spatialist.vector.Vector.to_geopandas`: fixed bug in `DateTime` field parsing
+
+0.16.0 | 2025-08-22
+-------------------
+
+- :func:`spatialist.vector.bbox`:
+
+  + new argument `buffer`
+  + change order of coordinates to counter-clockwise
