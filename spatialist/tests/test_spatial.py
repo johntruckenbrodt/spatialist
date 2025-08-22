@@ -75,6 +75,13 @@ def test_Vector(tmpdir, testdata):
         gdf = bbox3.to_geopandas()
         gdf.to_file(str(gdf_out))
         assert gdf_out.exists()
+    coords = {'xmin': 10, 'ymin': 20, 'xmax': 50, 'ymax': 51}
+    with bbox(coordinates=coords, crs=4326, buffer=None) as bbox4:
+        assert bbox4.getArea() == 1240.0
+    with bbox(coordinates=coords, crs=4326, buffer=1) as bbox4:
+        assert bbox4.getArea() == 1386.0
+    with bbox(coordinates=coords, crs=4326, buffer=(1, 2)) as bbox4:
+        assert bbox4.getArea() == 1470.0
 
 
 def test_dissolve(tmpdir, travis, testdata):
