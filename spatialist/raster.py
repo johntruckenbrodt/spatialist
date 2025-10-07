@@ -1777,24 +1777,10 @@ class Dtype(object):
         """
         if not hasattr(self, '__numpy2gdalint'):
             tmap = {}
-            for dtype in [
-                np.int8,
-                np.int16,
-                np.int32,
-                np.int64,
-                np.uint8,
-                np.uint16,
-                np.uint32,
-                np.uint64,
-                np.float16,
-                np.float32,
-                np.float64,
-                np.complex64,
-                np.complex128,
-                ]:
-                code = gdal_array.NumericTypeCodeToGDALTypeCode(dtype)
+            for k, v in np.sctypeDict.items():
+                code = gdal_array.NumericTypeCodeToGDALTypeCode(v)
                 if code is not None:
-                    tmap[dtype().dtype.name] = code
+                    tmap[k] = code
             self.__numpy2gdalint = tmap
         return self.__numpy2gdalint
     
