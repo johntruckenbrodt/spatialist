@@ -824,14 +824,14 @@ class Raster(object):
                     
                     # check whether point lies within ellipse: if ((dx ** 2) / xlim ** 2) + ((dy ** 2) / ylim ** 2) <= 1
                     weight = sqrt(dx ** 2 + dy ** 2)
-                    sum += val * weight
+                    sum += float(val) * weight
                     weightsum += weight
                     counter += 1
         
         array = None
         
         if counter > 0:
-            return sum / weightsum
+            return float(sum) / float(weightsum)
         else:
             return nodata
     
@@ -1777,12 +1777,24 @@ class Dtype(object):
         """
         if not hasattr(self, '__numpy2gdalint'):
             tmap = {}
-            
-            for group in ['int', 'uint', 'float', 'complex']:
-                for dtype in np.sctypes[group]:
-                    code = gdal_array.NumericTypeCodeToGDALTypeCode(dtype)
-                    if code is not None:
-                        tmap[dtype().dtype.name] = code
+            for dtype in [
+                np.int8,
+                np.int16,
+                np.int32,
+                np.int64,
+                np.uint8,
+                np.uint16,
+                np.uint32,
+                np.uint64,
+                np.float16,
+                np.float32,
+                np.float64,
+                np.complex64,
+                np.complex128,
+                ]:
+                code = gdal_array.NumericTypeCodeToGDALTypeCode(dtype)
+                if code is not None:
+                    tmap[dtype().dtype.name] = code
             self.__numpy2gdalint = tmap
         return self.__numpy2gdalint
     
