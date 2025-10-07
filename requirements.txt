@@ -2,12 +2,12 @@ astropy>=6.1.7
 dill
 geopandas
 matplotlib
-numpy>=2.0
+numpy
 pandas
 pathos>=0.2
 progressbar2
 pyarrow>=21.0
 pyyaml
-pyyrige>=1.7.2
+PyKrige>=1.7.2
 shapely
 tblib
