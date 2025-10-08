@@ -226,3 +226,8 @@ Changelog
 
   + new argument `buffer`
   + change order of coordinates to counter-clockwise
+
+0.16.1 | 2025-10-08
+-------------------
+
+- support for numpy>=2.0
