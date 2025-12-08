@@ -1,6 +1,6 @@
 ##############################################################
 # core routines for software spatialist
-# John Truckenbrodt 2014-2020,2024
+# John Truckenbrodt 2014-2025
 ##############################################################
 """
 This script gathers central functions and classes for general applications

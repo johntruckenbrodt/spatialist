@@ -189,3 +189,45 @@ Changelog
 -------------------
 
 - add progress bar to :func:`spatialist.ancillary.multicore` (non-Windows only)
+
+0.13.1 | 2024-04-11
+-------------------
+
+- :func:`spatialist.ancillary.multicore` bug fix
+
+0.14.0 | 2024-10-01
+-------------------
+
+- :func:`spatialist.vector.feature2vector`: bug fix
+- :meth:`spatialist.vector.Vector.addfield`: new argument `values`
+- :func:`spatialist.vector.wkt2vector`: enable passing multiple geometries as list
+
+0.15.0 | 2025-04-09
+-------------------
+
+- :meth:`spatialist.vector.Vector.write`: significantly reduced lines of code and removed
+  bugs by making use of :meth:`osgeo.gdal.Dataset.CopyLayer`
+- :meth:`spatialist.vector.Vector.to_geopandas`: new method
+- :func:`spatialist.vector.set_field`: new function
+
+  + code outsourced from :meth:`spatialist.vector.Vector.addfield`
+  + used by :meth:`spatialist.vector.Vector.addfeature`
+  + added support for `DateTime` fields
+
+0.15.1 | 2025-05-09
+-------------------
+
+- :meth:`spatialist.vector.Vector.to_geopandas`: fixed bug in `DateTime` field parsing
+
+0.16.0 | 2025-08-22
+-------------------
+
+- :func:`spatialist.vector.bbox`:
+
+  + new argument `buffer`
+  + change order of coordinates to counter-clockwise
+
+0.16.1 | 2025-10-08
+-------------------
+
+- support for numpy>=2.0

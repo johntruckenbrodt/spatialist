@@ -6,6 +6,7 @@ Welcome to spatialist's documentation!
 
     installation
     spatialist
+    examples
     changelog
 
 
