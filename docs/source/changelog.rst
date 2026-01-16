@@ -231,3 +231,9 @@ Changelog
 -------------------
 
 - support for numpy>=2.0
+
+0.16.2 | 2026-01-16
+-------------------
+
+- moved tests folder to top directory (so it is not included in distributions)
+- :func:`spatialist.vector.set_field`: round DateTime fields to milliseconds
