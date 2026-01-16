@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 ################################################################
 # OGR wrapper for convenient vector data handling and processing
-# John Truckenbrodt 2015-2025
+# John Truckenbrodt 2015-2026
 ################################################################
 
 
 import os
 import yaml
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from osgeo import ogr, osr, gdal
 from osgeo.gdalconst import GDT_Byte
 from .auxil import crsConvert
@@ -1082,7 +1082,7 @@ def intersect(obj1, obj2):
 
 def set_field(target, name, type, width=10, values=None):
     """
-    Wrapper for setting a field
+    Wrapper for setting a field. DateTime fields are rounded to milliseconds.
     
     Parameters
     ----------
@@ -1139,13 +1139,16 @@ def set_field(target, name, type, width=10, values=None):
         method = getattr(feature, method_name)
         if type_name == 'DateTime':
             if isinstance(value, datetime):
+                # Round to milliseconds and normalize
+                value = value + timedelta(microseconds=500)  # for rounding, not truncation
+                value = value.replace(microsecond=(value.microsecond // 1000) * 1000)
                 value = [
                     value.year,
                     value.month,
                     value.day,
                     value.hour,
                     value.minute,
-                    value.second + value.microsecond / 1000000,
+                    value.second + value.microsecond / 1_000_000,
                     tz_to_nTZFlag(value)
                 ]
             else:
