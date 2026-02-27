@@ -30,6 +30,8 @@ log = logging.getLogger(__name__)
 os.environ['GDAL_PAM_PROXY_DIR'] = tempfile.gettempdir()
 
 gdal.UseExceptions()
+gdal_array.UseExceptions()
+osr.UseExceptions()
 
 subset_tolerance = 0  # percent
 """
@@ -1417,6 +1419,7 @@ def rasterize(vectorobject, reference, outname=None, burn_values=1, expressions=
         vectorobject.layer.SetAttributeFilter(expression)
         gdal.RasterizeLayer(target_ds, [1], vectorobject.layer, burn_values=[value])
     vectorobject.layer.SetAttributeFilter('')
+    target_ds.FlushCache()
     if outname is None:
         return Raster(target_ds)
     else:
@@ -1743,6 +1746,7 @@ class Dtype(object):
     >>> print(Dtype('Byte').numpystr)
     'uint8'
     """
+    
     def __init__(self, dtype):
         if isinstance(dtype, int):
             if dtype in self.numpy2gdalint.values():

@@ -20,6 +20,7 @@ from shapely.wkb import loads as wkb_loads
 
 ogr.UseExceptions()
 osr.UseExceptions()
+gdal.UseExceptions()
 
 
 class Vector(object):
