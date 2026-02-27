@@ -237,3 +237,11 @@ Changelog
 
 - moved tests folder to top directory (so it is not included in distributions)
 - :func:`spatialist.vector.set_field`: round DateTime fields to milliseconds
+
+0.16.3 | 2026-02-27
+-------------------
+
+- use `importlib` instead of legacy `pkg_resources`
+- call `UseExceptions()` on all imported `osgeo` submodules
+- :func:`spatialist.raster.rasterize`: call :meth:`osgeo.gdal.Dataset.FlushCache` to avoid running into suppressed
+  errors when closing the dataset with `target_ds = None`
