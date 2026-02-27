@@ -1419,6 +1419,7 @@ def rasterize(vectorobject, reference, outname=None, burn_values=1, expressions=
         vectorobject.layer.SetAttributeFilter(expression)
         gdal.RasterizeLayer(target_ds, [1], vectorobject.layer, burn_values=[value])
     vectorobject.layer.SetAttributeFilter('')
+    target_ds.FlushCache()
     if outname is None:
         return Raster(target_ds)
     else:
