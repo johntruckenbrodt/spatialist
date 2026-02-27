@@ -15,7 +15,7 @@
 import sys
 import os
 import datetime
-from pkg_resources import get_distribution
+from importlib.metadata import version, PackageNotFoundError
 
 project = 'spatialist'
 authors = 'John Truckenbrodt, Ismail Baris, Felix Cremer, Marco Wolsza, Tyler Anderson'
@@ -35,7 +35,10 @@ sys.path.insert(0, os.path.join(os.path.abspath('.'), '_extensions'))
 # release = get_distribution('spatialist').version
 # The short X.Y version.
 # version = '.'.join(release.split('.')[:2])
-version = get_distribution(project).version
+try:
+    version_str = version(project)
+except PackageNotFoundError:
+    version_str = None
 
 # -- General configuration ------------------------------------------------
 autodoc_mock_imports = ['osgeo', 'matplotlib', 'mpl_toolkits', 'IPython', 'ipywidgets', 'sqlite3']
