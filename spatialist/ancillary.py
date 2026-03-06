@@ -507,10 +507,10 @@ def run(
         void: bool = True,
         errorpass: bool = False,
         env: dict[str, Any] | None = None
-) -> tuple[str, str] | None:
+) -> tuple[int, str, str] | None:
     """
-    | wrapper for subprocess execution including logfile writing and command prompt piping
-    | this is a convenience wrapper around the :mod:`subprocess` module and calls
+    | Wrapper for subprocess execution including logfile writing and command prompt piping.
+    | This is a convenience wrapper around the :mod:`subprocess` module and calls
       its class :class:`~subprocess.Popen` internally.
     
     Parameters
@@ -532,7 +532,7 @@ def run(
 
     Returns
     -------
-        a tuple of (stdout, stderr) if `void=False` otherwise `None`
+        a tuple of (returncode, stdout, stderr) if `void=False` otherwise `None`
     """
     cmd = [str(x) for x in dissolve(cmd)]
     if outdir is None:
@@ -542,15 +542,15 @@ def run(
                     cwd=outdir, env=env, text=True, encoding='utf-8')
     instream = None if inlist is None \
         else ''.join([str(x) + '\n' for x in inlist]).encode('utf-8')
-    out, err = proc.communicate(instream)
+    out, err = proc.communicate(input=instream)
     if not errorpass and proc.returncode != 0:
-        raise sp.CalledProcessError(proc.returncode, cmd, err)
+        raise sp.CalledProcessError(returncode=proc.returncode, cmd=cmd, output=err)
     # add line for separating log entries of repeated function calls
     if logfile:
         log.write('#' * 70 + '\n')
         log.close()
     if not void:
-        return out, err
+        return proc.returncode, out, err
 
 
 class Stack(object):
