@@ -27,8 +27,8 @@ def test_parse_literal():
 
 def test_run(tmpdir, testdata):
     log = os.path.join(str(tmpdir), 'test_run.log')
-    out, err = anc.run(cmd=['gdalinfo', testdata['tif']],
-                       logfile=log, void=False)
+    returncode, out, err = anc.run(cmd=['gdalinfo', testdata['tif']],
+                                   logfile=log, void=False)
     with pytest.raises(OSError):
         anc.run(['foobar'])
     with pytest.raises(sp.CalledProcessError):
@@ -74,11 +74,11 @@ def test_finder(tmpdir, testdata):
     assert len(anc.finder(dir, ['test*'], foldermode=1)) == 4
     assert len(anc.finder(dir, ['test*'], foldermode=2)) == 2
     assert len(anc.finder([dir_sub1, dir_sub2], ['test*'])) == 2
-
+    
     assert len(anc.finder(testdata['zip'], ['file*'])) == 3
     assert len(anc.finder(testdata['zip'], ['*'], foldermode=1)) == 5
     assert len(anc.finder(testdata['zip'], ['[a-z]{1}'], foldermode=2, regex=True)) == 2
-
+    
     assert len(anc.finder(testdata['zip_noimplicit'], ['*'], foldermode=1)) == 5
     
     assert len(anc.finder(testdata['tar'], ['file*'])) == 3
