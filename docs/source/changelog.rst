@@ -245,3 +245,8 @@ Changelog
 - call `UseExceptions()` on all imported `osgeo` submodules
 - :func:`spatialist.raster.rasterize`: call :meth:`osgeo.gdal.Dataset.FlushCache` to avoid running into suppressed
   errors when closing the dataset with `target_ds = None`
+
+0.17.0 | 2026-03-06
+-------------------
+
+- :func:`spatialist.ancillary.run`: also return the return code of the subprocess
