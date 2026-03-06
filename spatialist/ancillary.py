@@ -23,7 +23,7 @@ import os
 import subprocess as sp
 import tarfile as tf
 import zipfile as zf
-from typing import Iterable, List
+from typing import Iterable, List, Any
 import numpy as np
 import progressbar as pb
 
@@ -525,7 +525,15 @@ def rescale(inlist, newrange=(0, 1)):
     return result
 
 
-def run(cmd, outdir=None, logfile=None, inlist=None, void=True, errorpass=False, env=None):
+def run(
+        cmd: list[Any],
+        outdir: str | None = None,
+        logfile: str | None = None,
+        inlist: list[Any] | None = None,
+        void: bool = True,
+        errorpass: bool = False,
+        env: dict[str, Any] | None = None
+) -> tuple[str, str] | None:
     """
     | wrapper for subprocess execution including logfile writing and command prompt piping
     | this is a convenience wrapper around the :mod:`subprocess` module and calls
@@ -533,25 +541,24 @@ def run(cmd, outdir=None, logfile=None, inlist=None, void=True, errorpass=False,
     
     Parameters
     ----------
-    cmd: list
+    cmd:
         the command arguments
-    outdir: str or None
+    outdir:
         the directory to execute the command in
-    logfile: str or None
+    logfile:
         a file to write stdout to
-    inlist: list or None
-        a list of arguments passed to stdin, i.e. arguments passed to interactive input of the program
-    void: bool
+    inlist:
+        a list of arguments passed to stdin, i.e., arguments passed to interactive input of the program
+    void:
         return stdout and stderr?
-    errorpass: bool
+    errorpass:
         if False, a :class:`subprocess.CalledProcessError` is raised if the command fails
-    env: dict or None
+    env:
         the environment to be passed to the subprocess
 
     Returns
     -------
-    None or Tuple
-        a tuple of (stdout, stderr) if `void` is False otherwise None
+        a tuple of (stdout, stderr) if `void=False` otherwise `None`
     """
     cmd = [str(x) for x in dissolve(cmd)]
     if outdir is None:
