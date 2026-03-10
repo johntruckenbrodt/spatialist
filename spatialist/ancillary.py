@@ -538,17 +538,20 @@ def run(
     if outdir is None:
         outdir = os.getcwd()
     log = sp.PIPE if logfile is None else open(logfile, 'a')
-    proc = sp.Popen(args=cmd, stdin=sp.PIPE, stdout=log, stderr=sp.PIPE,
-                    cwd=outdir, env=env, text=True, encoding='utf-8')
-    instream = None if inlist is None else ''.join([str(x) + '\n' for x in inlist])
-    out, err = proc.communicate(input=instream)
-    if not errorpass and proc.returncode != 0:
-        raise sp.CalledProcessError(returncode=proc.returncode,
-                                    cmd=cmd, output=out, stderr=err)
-    # add line for separating log entries of repeated function calls
-    if logfile:
-        log.write('#' * 70 + '\n')
-        log.close()
+    try:
+        proc = sp.Popen(args=cmd, stdin=sp.PIPE, stdout=log, stderr=sp.PIPE,
+                        cwd=outdir, env=env, text=True, encoding='utf-8')
+        instream = None if inlist is None else ''.join(str(x) + '\n' for x in inlist)
+        out, err = proc.communicate(input=instream)
+        if not errorpass and proc.returncode != 0:
+            raise sp.CalledProcessError(returncode=proc.returncode,
+                                        cmd=cmd, output=out, stderr=err)
+        # add line for separating log entries of repeated function calls
+        if logfile:
+            log.write('#' * 70 + '\n')
+    finally:
+        if logfile is not None:
+            log.close()
     # normalize None to '' and return
     if not void:
         out = '' if out is None else out
