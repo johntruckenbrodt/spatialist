@@ -250,3 +250,13 @@ Changelog
 -------------------
 
 - :func:`spatialist.ancillary.run`: also return the return code of the subprocess
+
+0.17.1 | 2026-03-10
+-------------------
+
+- :func:`spatialist.ancillary.run`: bug fixes
+
+  + do not encode `inlist` to `bytes`
+  + make sure the function may not return `None`
+  + pas right arguments to `sp.CalledProcessError`
+  + use `with` context manager for the logfile to make sure it is closed
