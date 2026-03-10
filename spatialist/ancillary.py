@@ -544,7 +544,8 @@ def run(
         else ''.join([str(x) + '\n' for x in inlist]).encode('utf-8')
     out, err = proc.communicate(input=instream)
     if not errorpass and proc.returncode != 0:
-        raise sp.CalledProcessError(returncode=proc.returncode, cmd=cmd, output=err)
+        raise sp.CalledProcessError(returncode=proc.returncode,
+                                    cmd=cmd, output=out, stderr=err)
     # add line for separating log entries of repeated function calls
     if logfile:
         log.write('#' * 70 + '\n')
