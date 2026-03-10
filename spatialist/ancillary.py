@@ -557,8 +557,7 @@ def run(
         out = '' if out is None else out
         err = '' if err is None else err
         return proc.returncode, out, err
-    else:
-        return None
+    return None
 
 
 class Stack(object):
