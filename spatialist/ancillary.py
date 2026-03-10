@@ -549,8 +549,13 @@ def run(
     if logfile:
         log.write('#' * 70 + '\n')
         log.close()
+    # normalize None to '' and return
     if not void:
+        out = '' if out is None else out
+        err = '' if err is None else err
         return proc.returncode, out, err
+    else:
+        return None
 
 
 class Stack(object):
