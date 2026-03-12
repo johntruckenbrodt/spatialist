@@ -1,12 +1,11 @@
 ##############################################################
 # core routines for software spatialist
-# John Truckenbrodt 2014-2025
+# John Truckenbrodt 2014-2026
 ##############################################################
 """
 This script gathers central functions and classes for general applications
 """
 import dill
-import string
 import shutil
 import tempfile
 import platform
@@ -23,7 +22,7 @@ import os
 import subprocess as sp
 import tarfile as tf
 import zipfile as zf
-from typing import Iterable, List
+from typing import Iterable, List, Any
 import numpy as np
 import progressbar as pb
 
@@ -51,31 +50,6 @@ class HiddenPrints:
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         sys.stdout = self._original_stdout
-
-
-def decode_filter(text, encoding='utf-8'):
-    """
-    decode a binary object to str and filter out non-printable characters
-    
-    Parameters
-    ----------
-    text: bytes
-        the binary object to be decoded
-    encoding: str
-        the encoding to be used
-
-    Returns
-    -------
-    str
-        the decoded and filtered string
-    """
-    if text is not None:
-        text = text.decode(encoding, errors='ignore')
-        printable = set(string.printable)
-        text = filter(lambda x: x in printable, text)
-        return ''.join(list(text))
-    else:
-        return None
 
 
 def dictmerge(x, y):
@@ -525,52 +499,65 @@ def rescale(inlist, newrange=(0, 1)):
     return result
 
 
-def run(cmd, outdir=None, logfile=None, inlist=None, void=True, errorpass=False, env=None):
+def run(
+        cmd: list[Any],
+        outdir: str | None = None,
+        logfile: str | None = None,
+        inlist: list[Any] | None = None,
+        void: bool = True,
+        errorpass: bool = False,
+        env: dict[str, Any] | None = None
+) -> tuple[int, str, str] | None:
     """
-    | wrapper for subprocess execution including logfile writing and command prompt piping
-    | this is a convenience wrapper around the :mod:`subprocess` module and calls
+    | Wrapper for subprocess execution including logfile writing and command prompt piping.
+    | This is a convenience wrapper around the :mod:`subprocess` module and calls
       its class :class:`~subprocess.Popen` internally.
     
     Parameters
     ----------
-    cmd: list
+    cmd:
         the command arguments
-    outdir: str or None
+    outdir:
         the directory to execute the command in
-    logfile: str or None
+    logfile:
         a file to write stdout to
-    inlist: list or None
-        a list of arguments passed to stdin, i.e. arguments passed to interactive input of the program
-    void: bool
+    inlist:
+        a list of arguments passed to stdin, i.e., arguments passed to interactive input of the program
+    void:
         return stdout and stderr?
-    errorpass: bool
+    errorpass:
         if False, a :class:`subprocess.CalledProcessError` is raised if the command fails
-    env: dict or None
+    env:
         the environment to be passed to the subprocess
 
     Returns
     -------
-    None or Tuple
-        a tuple of (stdout, stderr) if `void` is False otherwise None
+        a tuple of (returncode, stdout, stderr) if `void=False` otherwise `None`
     """
     cmd = [str(x) for x in dissolve(cmd)]
     if outdir is None:
         outdir = os.getcwd()
     log = sp.PIPE if logfile is None else open(logfile, 'a')
-    proc = sp.Popen(cmd, stdin=sp.PIPE, stdout=log, stderr=sp.PIPE, cwd=outdir, env=env)
-    instream = None if inlist is None \
-        else ''.join([str(x) + '\n' for x in inlist]).encode('utf-8')
-    out, err = proc.communicate(instream)
-    out = decode_filter(out)
-    err = decode_filter(err)
-    if not errorpass and proc.returncode != 0:
-        raise sp.CalledProcessError(proc.returncode, cmd, err)
-    # add line for separating log entries of repeated function calls
-    if logfile:
-        log.write('#####################################################################\n')
-        log.close()
+    try:
+        proc = sp.Popen(args=cmd, stdin=sp.PIPE, stdout=log, stderr=sp.PIPE,
+                        cwd=outdir, env=env, text=True, encoding='utf-8')
+        instream = None if inlist is None else ''.join(str(x) + '\n' for x in inlist)
+        out, err = proc.communicate(input=instream)
+        if not errorpass and proc.returncode != 0:
+            raise sp.CalledProcessError(returncode=proc.returncode,
+                                        cmd=cmd, output=out, stderr=err)
+        # add line for separating log entries of repeated function calls
+        if logfile:
+            log.write('#' * 70 + '\n')
+    finally:
+        if logfile is not None:
+            log.close()
+    # normalize None to '' and return
     if not void:
-        return out, err
+        out = '' if out is None else out
+        err = '' if err is None else err
+        return proc.returncode, out, err
+    return None
 
 
 class Stack(object):
