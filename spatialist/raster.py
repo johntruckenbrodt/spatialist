@@ -72,21 +72,21 @@ class Raster(object):
         driver name or a list of driver names tried to read the raster file
     """
     
-    def __init__(self, filename, list_separate=True, timestamps=None,driver=None):
+    def __init__(self, filename, list_separate=True, timestamps=None, driver=None):
         if isinstance(filename, gdal.Dataset):
             self.raster = filename
             self.filename = self.files[0] if self.files is not None else None
         elif isinstance(filename, str):
             self.filename = filename if os.path.isabs(filename) else os.path.join(os.getcwd(), filename)
             filename = self.__prependVSIdirective(filename)
-            if driver is None :
+            if driver is None:
                 self.raster = gdal.Open(filename, GA_ReadOnly)
-            else :
-                if isinstance(driver,str) :
+            else:
+                if isinstance(driver, str):
                     allowed_drivers = [driver]
-                elif isinstance(driver,list) :
+                elif isinstance(driver, list):
                     allowed_drivers = driver
-                else :
+                else:
                     raise RuntimeError('"driver" must be of type str or list; is: {}'.format(type(driver)))
                 self.raster = gdal.OpenEx(filename, gdal.OF_RASTER, allowed_drivers=allowed_drivers)
         elif isinstance(filename, list):

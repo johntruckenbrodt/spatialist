@@ -260,3 +260,9 @@ Changelog
   + make sure the function may not return `None`
   + pas right arguments to `sp.CalledProcessError`
   + use `with` context manager for the logfile to make sure it is closed
+
+0.18.0 | 2026-03-12
+-------------------
+
+- class :class:`spatialist.raster.Raster`: new argument `driver`
+- replaced usage of deprecated `Memory` driver with `MEM`
