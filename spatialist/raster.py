@@ -1044,16 +1044,17 @@ class Raster(object):
         return dict([(x[0], None) if len(x) == 1 else tuple(x) for x in args])
     
     @property
-    def res(self):
+    def res(self) -> tuple[float, float]:
         """
-        the raster resolution in x and y direction
+        The raster resolution in x and y dimension.
+        Contrary to GDAL conventions, both values are positive.
+        Values are converted to float.
 
         Returns
         -------
-        tuple
             (xres, yres)
         """
-        return (abs(float(self.geo['xres'])), abs(float(self.geo['yres'])))
+        return abs(float(self.geo['xres'])), abs(float(self.geo['yres']))
     
     def rescale(self, fun):
         """
