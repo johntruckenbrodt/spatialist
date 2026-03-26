@@ -491,30 +491,39 @@ class Raster(object):
             statcollect.append(stats)
         return statcollect
     
-    def array(self):
+    def array(self, mask_nan: bool = True) -> np.ndarray:
         """
-        read all raster bands into a numpy ndarray
+        Read all raster bands into a numpy ndarray.
+        If 3D, the `bands` dimension is transposed from the
+        first (GDAL default) to the last dimension.
+        Axes of length 1 are removed using :func:`numpy.squeeze`.
+
+        Parameters
+        ----------
+        mask_nan:
+            convert nodata values to :obj:`numpy.nan`? As :obj:`numpy.nan`
+            requires at least float values, any integer array is cast to
+            float32.
 
         Returns
         -------
-        numpy.ndarray
             the array containing all raster data
         """
         # determine whether the current data type can hold np.nan
-        if not np.can_cast('float32', Dtype(self.dtype).numpystr):
+        buf_type = Dtype(self.dtype).gdalint
+        if mask_nan and not np.can_cast('float32', Dtype(self.dtype).numpystr):
             buf_type = gdal.GDT_Float32
-        else:
-            buf_type = Dtype(self.dtype).gdalint
         
         if self.bands == 1:
-            return self.matrix()
+            return self.matrix(mask_nan=mask_nan)
         else:
             arr = self.raster.ReadAsArray(buf_type=buf_type).transpose(1, 2, 0)
-            if isinstance(self.nodata, list):
-                for i in range(0, self.bands):
-                    arr[:, :, i][arr[:, :, i] == self.nodata[i]] = np.nan
-            else:
-                arr[arr == self.nodata] = np.nan
+            if mask_nan:
+                if isinstance(self.nodata, list):
+                    for i in range(0, self.bands):
+                        arr[:, :, i][arr[:, :, i] == self.nodata[i]] = np.nan
+                else:
+                    arr[arr == self.nodata] = np.nan
             return np.squeeze(arr)
     
     def assign(self, array, band):
@@ -1035,16 +1044,17 @@ class Raster(object):
         return dict([(x[0], None) if len(x) == 1 else tuple(x) for x in args])
     
     @property
-    def res(self):
+    def res(self) -> tuple[float, float]:
         """
-        the raster resolution in x and y direction
+        The raster resolution in x and y dimension.
+        Contrary to GDAL conventions, both values are positive.
+        Values are converted to float.
 
         Returns
         -------
-        tuple
             (xres, yres)
         """
-        return (abs(float(self.geo['xres'])), abs(float(self.geo['yres'])))
+        return abs(float(self.geo['xres'])), abs(float(self.geo['yres']))
     
     def rescale(self, fun):
         """
