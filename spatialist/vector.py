@@ -20,6 +20,7 @@ from shapely.wkb import loads as wkb_loads
 
 ogr.UseExceptions()
 osr.UseExceptions()
+gdal.UseExceptions()
 
 
 class Vector(object):
@@ -31,7 +32,7 @@ class Vector(object):
     ----------
     filename: str or None
         the vector file to read; if filename is `None`, a new in-memory Vector object is created.
-        In this case `driver` is overridden and set to 'Memory'. The following file extensions are auto-detected:
+        In this case `driver` is overridden and set to 'MEM'. The following file extensions are auto-detected:
         
         .. list_drivers:: vector
         
@@ -42,7 +43,7 @@ class Vector(object):
     def __init__(self, filename=None, driver=None):
         
         if filename is None:
-            driver = 'Memory'
+            driver = 'MEM'
         elif isinstance(filename, str):
             if not os.path.isfile(filename):
                 raise OSError('file does not exist')
@@ -55,7 +56,7 @@ class Vector(object):
         
         self.driver = ogr.GetDriverByName(driver)
         
-        self.vector = self.driver.CreateDataSource('out') if driver == 'Memory' else self.driver.Open(filename)
+        self.vector = self.driver.CreateDataSource('out') if driver == 'MEM' else self.driver.Open(filename)
         
         nlayers = self.vector.GetLayerCount()
         if nlayers > 1:
@@ -788,7 +789,7 @@ def bbox(coordinates, crs, outname=None, driver=None, overwrite=True,
     
     geom.FlattenTo2D()
     
-    bbox = Vector(driver='Memory')
+    bbox = Vector()
     bbox.addlayer('bbox', srs, geom.GetGeometryType())
     bbox.addfield('area', ogr.OFTReal)
     bbox.addfeature(geom, fields={'area': geom.Area()})
@@ -861,7 +862,7 @@ def boundary(vectorobject, expression=None, outname=None):
     poly = ogr.Geometry(ogr.wkbPolygon)
     poly.AddGeometry(ring)
     
-    vec_out = Vector(driver='Memory')
+    vec_out = Vector()
     vec_out.addlayer('layer',
                      vectorobject.layer.GetSpatialRef(),
                      poly.GetGeometryType())
@@ -953,7 +954,7 @@ def dissolve(infile, outfile, field, layername=None):
     conn.execute('CREATE VIRTUAL TABLE merge USING VirtualOGR("{}");'.format(infile))
     select = conn.execute('SELECT {0},asText(ST_Union(geometry)) as geometry FROM merge GROUP BY {0};'.format(field))
     fetch = select.fetchall()
-    with Vector(driver='Memory') as merge:
+    with Vector() as merge:
         merge.addlayer(layername, srs, ogr.wkbPolygon)
         merge.addfield(field, type=type, width=width)
         for i in range(len(fetch)):
@@ -982,7 +983,7 @@ def feature2vector(feature, ref, layername=None):
     """
     features = feature if isinstance(feature, list) else [feature]
     layername = layername if layername is not None else ref.layername
-    vec = Vector(driver='Memory')
+    vec = Vector()
     vec.addlayer(layername, ref.srs, ref.geomType)
     feat_def = features[0].GetDefnRef()
     fields = [feat_def.GetFieldDefn(x) for x in range(0, feat_def.GetFieldCount())]
@@ -1048,7 +1049,7 @@ def intersect(obj1, obj2):
     #######################################################
     # compute detailed per-geometry overlaps
     if intersect_base.GetArea() > 0:
-        intersection = Vector(driver='Memory')
+        intersection = Vector()
         intersection.addlayer('intersect', obj1.srs, ogr.wkbPolygon)
         fieldmap = []
         for index, fielddef in enumerate([obj1.fieldDefs, obj2.fieldDefs]):
@@ -1209,7 +1210,7 @@ def wkt2vector(wkt, srs, layername='wkt'):
     if isinstance(wkt, str):
         wkt = [wkt]
     srs = crsConvert(srs, 'osr')
-    vec = Vector(driver='Memory')
+    vec = Vector()
     area = []
     for item in wkt:
         geom = ogr.CreateGeometryFromWkt(item)
@@ -1265,7 +1266,7 @@ def vectorize(target, reference, outname=None, layername='layer', fieldname='val
     outband.WriteArray(target, 0, 0)
     
     try:
-        with Vector(driver='Memory') as vec:
+        with Vector() as vec:
             vec.addlayer(name=layername, srs=proj,
                          geomType=ogr.wkbPolygon)
             vec.addfield(fieldname, ogr.OFTInteger)
