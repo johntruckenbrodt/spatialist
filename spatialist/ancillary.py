@@ -63,17 +63,18 @@ def dictmerge(x: dict, y: dict) -> dict:
 
 
 # todo consider using itertools.chain like in function finder
-def dissolve(inlist: list[Any]) -> list[Any]:
+def dissolve(inlist: list[Any] | tuple[Any, ...]) -> list[Any]:
     """
     list and tuple flattening
     
     Parameters
     ----------
-    inlist:
+    inlist
         the list with sub-lists or tuples to be flattened
     
     Returns
     -------
+    out
         the flattened result
     
     Examples
@@ -91,39 +92,41 @@ def dissolve(inlist: list[Any]) -> list[Any]:
     return out
 
 
-def parent_dirs(path: str) -> Iterable[str]:
+def parent_dirs(path: str) -> Iterator[str]:
     """
     generator that yields parent directories of a zipfile path
 
     Parameters
     ----------
-    path:
+    path
         a path to get parent directories from
 
     Yields
     -------
-        generator of parent directories
+    dir_name
+        parent directory names with trailing "/"
     """
     parent = os.path.dirname(path)
     if parent:
-        parent_dirs(parent)
+        yield from parent_dirs(parent)
         yield parent + "/"
 
 
 def namelist_with_implicit_dirs(root: zf.ZipFile) -> list[str]:
     """
-    returns a list of files in a zipfile archive, including implicit directories
+    returns a list of files in zipfile archive, including implicit directories
 
     Parameters
     ----------
-    root:
+    root
         zipfile archive get namelist from
 
     Returns
     -------
+    names
         list of zipfile folders and files in the archive
     """
-    complete_namelist = set()
+    complete_namelist: set[str] = set()
     for file_name in root.namelist():
         complete_namelist.update(set(parent_dirs(file_name)))
         complete_namelist.add(file_name)
@@ -143,22 +146,23 @@ def finder(
 
     Parameters
     ----------
-    target:
+    target
         a directory, zip- or tar-archive or a list of them to be searched
-    matchlist:
+    matchlist
         a list of search patterns
-    foldermode:
+    foldermode
         * 0: only files
         * 1: files and folders
         * 2: only folders
-    regex:
+    regex
         are the search patterns in matchlist regular expressions or unix shell standard (default)?
-    recursive:
+    recursive
         search target recursively into all subdirectories or only in the top level?
         This is currently only implemented for parameter `target` being a directory.
 
     Returns
     -------
+    paths
         the absolute names of files/folders matching the patterns
     """
     if foldermode not in [0, 1, 2]:
