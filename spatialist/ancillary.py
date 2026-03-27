@@ -467,30 +467,6 @@ def parse_literal(x: str | list[str]) -> int | float | str | list[int | float | 
         raise TypeError('input must be a string or a list of strings')
 
 
-class Queue(object):
-    """
-    classical queue implementation
-    """
-    
-    def __init__(self, inlist: list | None = None):
-        self.stack = [] if inlist is None else inlist
-    
-    def empty(self):
-        return len(self.stack) == 0
-    
-    def length(self):
-        return len(self.stack)
-    
-    def push(self, x):
-        self.stack.append(x)
-    
-    def pop(self):
-        if not self.empty():
-            val = self.stack[0]
-            del self.stack[0]
-            return val
-
-
 def rescale(
         inlist: list[int | float],
         newrange: tuple[int | float, int | float] = (0, 1)
@@ -571,58 +547,6 @@ def run(
     return None
 
 
-class Stack(object):
-    """
-    classical stack implementation
-    input can be a list, a single value or None (i.e. Stack())
-    """
-    
-    def __init__(self, inlist=None):
-        if isinstance(inlist, list):
-            self.stack = inlist
-        elif inlist is None:
-            self.stack = []
-        else:
-            self.stack = [inlist]
-    
-    def empty(self):
-        """
-        check whether stack is empty
-        """
-        return len(self.stack) == 0
-    
-    def flush(self):
-        """
-        empty the stack
-        """
-        self.stack = []
-    
-    def length(self):
-        """
-        get the length of the stack
-        """
-        return len(self.stack)
-    
-    def push(self, x):
-        """
-        append items to the stack; input can be a single value or a list
-        """
-        if isinstance(x, list):
-            for item in x:
-                self.stack.append(item)
-        else:
-            self.stack.append(x)
-    
-    def pop(self):
-        """
-        return the last stack element and delete it from the list
-        """
-        if not self.empty():
-            val = self.stack[-1]
-            del self.stack[-1]
-            return val
-
-
 def union(a: list[Any], b: list[Any]) -> list[Any]:
     """
     union of two lists
@@ -638,7 +562,7 @@ def urlQueryParser(url: str, querydict: dict[str, str]) -> str:
     return str(urlunparse(address_parse._replace(query=urlencode(querydict))))
 
 
-def which(program:str, mode:int=os.F_OK | os.X_OK) -> str | None:
+def which(program: str, mode: int = os.F_OK | os.X_OK) -> str | None:
     """
     | mimics UNIX's which
     | taken from this post: http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
@@ -678,8 +602,8 @@ def which(program:str, mode:int=os.F_OK | os.X_OK) -> str | None:
 def parallel_apply_along_axis(
         func1d: Callable[..., Any],
         axis: int,
-        arr:np.ndarray,
-        cores:int=4,
+        arr: np.ndarray,
+        cores: int = 4,
         *args,
         **kwargs
 ) -> np.ndarray:
@@ -737,10 +661,10 @@ def parallel_apply_along_axis(
 
 def sampler(
         mask: np.ndarray,
-        samples:int|None=None,
-        dim:int=1,
-        replace:bool=False,
-        seed:int=42
+        samples: int | None = None,
+        dim: int = 1,
+        replace: bool = False,
+        seed: int = 42
 ) -> np.ndarray:
     """
     General function to select random sample indexes from arrays.

@@ -104,26 +104,6 @@ def test_rescale():
         anc.rescale([1000, 1000])
 
 
-def test_Queue():
-    st = anc.Queue()
-    st.push('a')
-    assert st.pop() == 'a'
-    assert st.length() == 0
-
-
-def test_Stack():
-    st = anc.Stack()
-    assert st.empty() is True
-    st = anc.Stack(['a', 'b'])
-    assert st.length() == 2
-    st = anc.Stack('a')
-    st.push('b')
-    st.push(['c', 'd'])
-    assert st.pop() == 'd'
-    st.flush()
-    assert st.empty() is True
-
-
 def test_urlQueryParser():
     assert anc.urlQueryParser('www.somepage.foo', {'foo': 'bar', 'page': 1}) in ['www.somepage.foo?foo=bar&page=1',
                                                                                  'www.somepage.foo?page=1&foo=bar']
