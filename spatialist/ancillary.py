@@ -566,43 +566,6 @@ def urlQueryParser(url: str, querydict: dict[str, str]) -> str:
     return str(urlunparse(address_parse._replace(query=urlencode(querydict))))
 
 
-def which(program: str, mode: int = os.F_OK | os.X_OK) -> str | None:
-    """
-    | mimics UNIX's which
-    | taken from this post: http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
-    | can be replaced by :func:`shutil.which()` starting from Python 3.3
-    
-    Parameters
-    ----------
-    program:
-        the program to be found
-    mode: os.F_OK or os.X_OK
-        the mode of the found file, i.e. file exists or file  is executable; see :func:`os.access`
-
-    Returns
-    -------
-        the full path and name of the command
-    """
-    if sys.version_info >= (3, 3):
-        return shutil.which(cmd=program, mode=mode)
-    else:
-        def is_exe(fpath, mode):
-            return os.path.isfile(fpath) and os.access(fpath, mode)
-        
-        fpath, fname = os.path.split(program)
-        if fpath:
-            if is_exe(program, mode):
-                return program
-        else:
-            for path in os.environ['PATH'].split(os.path.pathsep):
-                path = path.strip('"')
-                exe_files = [os.path.join(path, program), os.path.join(path, program + '.exe')]
-                for exe_file in exe_files:
-                    if is_exe(exe_file, mode):
-                        return exe_file
-        return None
-
-
 def parallel_apply_along_axis(
         func1d: Callable[..., Any],
         axis: int,

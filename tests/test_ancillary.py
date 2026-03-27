@@ -35,16 +35,6 @@ def test_run(tmpdir, testdata):
         anc.run(['gdalinfo', 'foobar'])
 
 
-def test_which():
-    env = os.environ['PATH']
-    os.environ['PATH'] = '{}{}{}'.format(os.environ['PATH'], os.path.pathsep, os.path.dirname(os.__file__))
-    program = anc.which(os.__file__, os.F_OK)
-    assert os.path.isfile(program)
-    assert anc.which(program, os.F_OK) == program
-    assert anc.which('foobar') is None
-    os.environ['PATH'] = env
-
-
 def test_multicore():
     assert anc.multicore(anc.add, cores=2, multiargs={'x': [1, 2]}, y=5, z=9) == [15, 16]
     assert anc.multicore(anc.add, cores=2, multiargs={'x': [1, 2], 'y': [5, 6]}, z=9) == [15, 17]
