@@ -16,4 +16,3 @@ Ancillary Functions
         parse_literal
         run
         sampler
-        which
