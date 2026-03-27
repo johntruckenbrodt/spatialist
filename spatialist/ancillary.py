@@ -6,11 +6,11 @@
 This script gathers central functions and classes for general applications
 """
 import dill
-import shutil
 import tempfile
 import platform
 import tblib.pickling_support
 from io import StringIO
+from types import TracebackType
 from urllib.parse import urlparse, urlunparse, urlencode
 from builtins import str
 import re
@@ -22,15 +22,19 @@ import os
 import subprocess as sp
 import tarfile as tf
 import zipfile as zf
-from typing import Iterable, List, Any
-from collections.abc import Iterable, Callable
+from collections.abc import Callable, Iterator
+from typing import Any, Literal, TextIO, Self
 import numpy as np
+from numpy.typing import NDArray
 import progressbar as pb
 
 try:
     import pathos.multiprocessing as mp
 except ImportError:
     pass
+
+# typing
+ParsedLiteral = int | float | str | bytes
 
 
 class HiddenPrints:
@@ -45,11 +49,19 @@ class HiddenPrints:
     >>> print('foobar')
     """
     
-    def __enter__(self):
+    _original_stdout: TextIO
+    
+    def __enter__(self) -> Self:
         self._original_stdout = sys.stdout
         sys.stdout = StringIO()
+        return self
     
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc_val: BaseException | None,
+            exc_tb: TracebackType | None
+    ) -> None:
         sys.stdout = self._original_stdout
 
 
@@ -245,28 +257,29 @@ def multicore(
         cores: int,
         multiargs: dict[str, Any],
         pbar: bool = False,
-        **singleargs
+        **singleargs: Any
 ) -> list[Any] | None:
     """
     wrapper for multicore process execution
 
     Parameters
     ----------
-    function:
+    function
         individual function to be applied to each process item
-    cores:
+    cores
         the number of subprocesses started/CPUs used;
         this value is reduced in case the number of subprocesses is smaller
-    multiargs:
+    multiargs
         a dictionary containing sub-function argument names as keys and lists of arguments to be
         distributed among the processes as values
-    pbar:
+    pbar
         add a progress bar? Does not yet work on Windows.
-    singleargs:
-        all remaining arguments, which are invariant among the subprocesses
+    singleargs
+        all remaining arguments which are invariant among the subprocesses
 
     Returns
     -------
+    out
         the return of the function for all subprocesses
 
     Notes
@@ -414,36 +427,39 @@ def add(x: int, y: int, z: int):
 
 class ExceptionWrapper(object):
     """
-    | class for enabling traceback pickling in function :func:`multicore`.
+    | class for enabling traceback pickling in function multiprocess
     | https://stackoverflow.com/questions/6126007/python-getting-a-traceback-from-a-multiprocessing-process
     | https://stackoverflow.com/questions/34463087/valid-syntax-in-both-python-2-x-and-3-x-for-raising-exception
     """
     
-    def __init__(self, ee):
+    ee: BaseException
+    tb: TracebackType | None
+    
+    def __init__(self, ee: BaseException) -> None:
         self.ee = ee
         __, __, self.tb = sys.exc_info()
     
-    def re_raise(self):
-        if sys.version_info[0] == 3:
-            def reraise(tp, value, tb=None):
-                raise tp.with_traceback(tb)
-        else:
-            exec("def reraise(tp, value, tb=None):\n    raise tp, value, tb\n")
+    def re_raise(self) -> None:
+        def reraise(tp, value, tb=None):
+            raise tp.with_traceback(tb)
+        
         reraise(self.ee, None, self.tb)
 
 
-def parse_literal(x: str | list[str]) -> int | float | str | list[int | float | str]:
+def parse_literal(
+        x: str | bytes | list[str | bytes]
+) -> ParsedLiteral | list[ParsedLiteral]:
     """
     return the smallest possible data type for a string or list of strings
 
     Parameters
     ----------
-    x:
-        the string(s) to be parsed
+    x
+        a string to be parsed
 
     Returns
     -------
-    int, float or str
+    out
         the parsing result
     
     Examples
@@ -468,13 +484,13 @@ def parse_literal(x: str | list[str]) -> int | float | str | list[int | float | 
             except ValueError:
                 return x
     else:
-        raise TypeError('input must be a string or a list of strings')
+        raise TypeError(f'expected str|bytes, got {type(x)}')
 
 
 def rescale(
         inlist: list[int | float],
         newrange: tuple[int | float, int | float] = (0, 1)
-) -> list[int | float]:
+) -> list[float]:
     """
     rescale the values in a list between the values in newrange (a tuple with the new minimum and maximum)
     """
@@ -569,11 +585,11 @@ def urlQueryParser(url: str, querydict: dict[str, str]) -> str:
 def parallel_apply_along_axis(
         func1d: Callable[..., Any],
         axis: int,
-        arr: np.ndarray,
+        arr: NDArray[Any],
         cores: int = 4,
-        *args,
-        **kwargs
-) -> np.ndarray:
+        *args: Any,
+        **kwargs: Any
+) -> NDArray[Any]:
     """
     Like :func:`numpy.apply_along_axis()` but using multiple threads.
     Adapted from `here <https://stackoverflow.com/questions/45526700/
@@ -581,22 +597,22 @@ def parallel_apply_along_axis(
 
     Parameters
     ----------
-    func1d:
+    func1d
         the function to be applied
-    axis:
+    axis
         the axis along which to apply `func1d`
-    arr:
+    arr
         the input array
-    cores:
+    cores
         the number of parallel cores
-    args:
+    args
         Additional arguments to `func1d`.
-    kwargs:
+    kwargs
         Additional named arguments to `func1d`.
 
     Returns
     -------
-        the output array
+    out
     """
     # Effective axis where apply_along_axis() will be applied by each
     # worker (any non-zero axis number would work, so as to allow the use
@@ -627,36 +643,37 @@ def parallel_apply_along_axis(
 
 
 def sampler(
-        mask: np.ndarray,
+        mask: NDArray[np.bool_],
         samples: int | None = None,
-        dim: int = 1,
+        dim: Literal[1, 2] = 1,
         replace: bool = False,
         seed: int = 42
-) -> np.ndarray:
+) -> NDArray[np.integer[Any]]: # any kind of integer array
     """
     General function to select random sample indexes from arrays.
     Adapted from package `S1_ARD <https://github.com/johntruckenbrodt/S1_ARD>`_.
 
     Parameters
     ----------
-    mask:
+    mask
         A 2D boolean mask to limit the sample selection.
-    samples:
+    samples
         The number of samples to select. If None, the positions of all matching values are returned.
         If there are fewer values than required samples, the positions of all values are returned.
-    dim:
+    dim
         The dimensions of the output array and its indexes. If 1, the returned array has one
         dimension and the indexes refer to the one-dimensional (i.e., flattened) representation
         of the input mask. If 2, the output array is of shape `(2, samples)` with two separate
         2D arrays for y (index 0) and x respectively, which reference positions in the original
         2D shape of the input array.
-    replace: bool
+    replace
         Draw samples with or without replacement?
-    seed:
+    seed
         Seed used to initialize the pseudo-random number generator.
     
     Returns
     -------
+    idx
         The index positions of the generated random samples as 1D or 2D array.
     
     Examples
