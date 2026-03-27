@@ -19,3 +19,4 @@ dependencies:
   - pandas
   - geopandas
   - sphinx
+  - sphinx-autodoc-typehints

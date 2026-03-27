@@ -23,7 +23,7 @@ documentation = "https://spatialist.readthedocs.io/en/latest/"
 
 [project.optional-dependencies]
 test = ["pytest"]
-docs = ["sphinx"]
+docs = ["sphinx", "sphinx-autodoc-typehints"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
