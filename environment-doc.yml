@@ -2,7 +2,7 @@ name: sp_test
 channels:
   - conda-forge
 dependencies:
-  - python>=3.9
+  - python>=3.11
   - progressbar2
   - pathos>=0.2
   - numpy
@@ -19,3 +19,4 @@ dependencies:
   - pandas
   - geopandas
   - sphinx
+  - sphinx-autodoc-typehints

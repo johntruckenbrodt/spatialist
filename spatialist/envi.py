@@ -1,43 +1,43 @@
 ##############################################################
 # ENVI header file management
-# John Truckenbrodt 2015-2019
+# John Truckenbrodt 2015-2026
 ##############################################################
 """
 This module offers functionality for editing ENVI header files
 """
+from __future__ import annotations
+
 import re
 import zipfile as zf
+from types import TracebackType
+from typing import Any
+
 from .ancillary import parse_literal
 
 
-def hdr(data, filename):
+def hdr(data: str | dict[str, Any] | HDRobject, filename: str) -> None:
     """
     write ENVI header files
 
     Parameters
     ----------
-    data: str or dict
+    data
         the file or dictionary to get the info from
-    filename: str
+    filename
         the HDR file to write
-
-    Returns
-    -------
-
     """
     hdrobj = data if isinstance(data, HDRobject) else HDRobject(data)
     hdrobj.write(filename)
 
 
-class HDRobject(object):
+class HDRobject:
     """
     ENVI HDR info handler
 
     Parameters
     ----------
-    data: str, dict or None
-        the file or dictionary to get the info from; If None (default), an object with default values for an empty
-        raster file is returned
+        The file or dictionary to get the info from. If None (default), an
+        object with default values for an empty raster file is returned.
 
     Examples
     --------
@@ -49,7 +49,9 @@ class HDRobject(object):
     >>>     hdr.write()
     """
     
-    def __init__(self, data=None):
+    filename: str | None
+
+    def __init__(self, data: str | dict[str, Any] | None = None):
         self.filename = data if isinstance(data, str) else None
         if isinstance(data, str):
             if re.search('.hdr$', data):
@@ -75,13 +77,18 @@ class HDRobject(object):
         for arg in args:
             setattr(self, arg, args[arg])
     
-    def __enter__(self):
+    def __enter__(self) -> HDRobject:
         return self
     
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        return
+    def __exit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc_val: BaseException | None,
+            exc_tb: TracebackType | None
+    ) -> None:
+        return None
     
-    def __str__(self):
+    def __str__(self) -> str:
         lines = ['ENVI']
         for item in ['description', 'acquisition_time', 'samples', 'lines', 'bands', 'header_offset', 'file_type',
                      'data_type', 'data_ignore_value', 'interleave', 'sensor_type', 'byte_order', 'map_info',
@@ -96,13 +103,13 @@ class HDRobject(object):
                     lines.append(item.replace('_', ' ') + ' = ' + str(value) + '')
         return '\n'.join(lines)
     
-    def __hdr2dict(self):
+    def __hdr2dict(self) -> dict[str, Any]:
         """
-        read a HDR file into a dictionary
+        Read a HDR file into a dictionary.
         https://gis.stackexchange.com/questions/48618/how-to-read-write-envi-metadata-using-gdal
+        
         Returns
         -------
-        dict
             the hdr file metadata attributes
         """
         if '.zip' in self.filename:
@@ -131,10 +138,10 @@ class HDRobject(object):
                 out[key] = parse_literal(val)
             i += 1
         if 'band_names' in out.keys() and not isinstance(out['band_names'], list):
-            out['band_names'] = [out['band_names']]
+             out['band_names'] = [out['band_names']]
         return out
     
-    def write(self, filename='same'):
+    def write(self, filename: str = 'same') -> None:
         """
         write object to an ENVI header file
         """

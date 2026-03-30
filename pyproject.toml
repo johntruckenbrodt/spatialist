@@ -4,7 +4,7 @@ requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2", "wheel"]
 [project]
 name = "spatialist"
 description = "a Python module for spatial data handling"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = { file = "LICENSE.txt" }
 maintainers = [
     { name = "John Truckenbrodt", email = "john.truckenbrodt@dlr.de" }
@@ -23,7 +23,7 @@ documentation = "https://spatialist.readthedocs.io/en/latest/"
 
 [project.optional-dependencies]
 test = ["pytest"]
-docs = ["sphinx"]
+docs = ["sphinx", "sphinx-autodoc-typehints"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }

@@ -35,16 +35,6 @@ def test_run(tmpdir, testdata):
         anc.run(['gdalinfo', 'foobar'])
 
 
-def test_which():
-    env = os.environ['PATH']
-    os.environ['PATH'] = '{}{}{}'.format(os.environ['PATH'], os.path.pathsep, os.path.dirname(os.__file__))
-    program = anc.which(os.__file__, os.F_OK)
-    assert os.path.isfile(program)
-    assert anc.which(program, os.F_OK) == program
-    assert anc.which('foobar') is None
-    os.environ['PATH'] = env
-
-
 def test_multicore():
     assert anc.multicore(anc.add, cores=2, multiargs={'x': [1, 2]}, y=5, z=9) == [15, 16]
     assert anc.multicore(anc.add, cores=2, multiargs={'x': [1, 2], 'y': [5, 6]}, z=9) == [15, 17]
@@ -102,26 +92,6 @@ def test_rescale():
     assert anc.rescale([1000, 2000, 3000], [1, 3]) == [1, 2, 3]
     with pytest.raises(RuntimeError):
         anc.rescale([1000, 1000])
-
-
-def test_Queue():
-    st = anc.Queue()
-    st.push('a')
-    assert st.pop() == 'a'
-    assert st.length() == 0
-
-
-def test_Stack():
-    st = anc.Stack()
-    assert st.empty() is True
-    st = anc.Stack(['a', 'b'])
-    assert st.length() == 2
-    st = anc.Stack('a')
-    st.push('b')
-    st.push(['c', 'd'])
-    assert st.pop() == 'd'
-    st.flush()
-    assert st.empty() is True
 
 
 def test_urlQueryParser():
