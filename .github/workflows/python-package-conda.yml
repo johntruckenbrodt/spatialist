@@ -18,7 +18,7 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v3
         with:
           miniconda-version: latest
-          python-version: "3.10"
+          python-version: "3.11"
           environment-file: environment.yml
       - name: Lint with flake8
         shell: bash -el {0}
