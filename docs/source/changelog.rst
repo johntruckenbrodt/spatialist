@@ -266,3 +266,10 @@ Changelog
 
 - class :class:`spatialist.raster.Raster`: new argument `driver`
 - replaced usage of deprecated `Memory` driver with `MEM`
+
+0.19.0 | 2026-04-02
+-------------------
+
+- method :meth:`spatialist.raster.Raster.array`: new argument `mask_nan`
+- :mod:`spatialist.ancillary`: removed classes :class:`~spatialist.ancillary.Stack` and :class:`~spatialist.ancillary.Queue`, which are no longer needed
+- added typing
