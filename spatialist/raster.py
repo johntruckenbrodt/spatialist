@@ -1130,10 +1130,12 @@ class Raster:
         dtype
             the data type of the written file;
             data type notations of GDAL (e.g. `Float32`) and numpy (e.g. `int8`) are supported.
+            Default `'default'`: use the data type of the raster object.
         format
             the file format; e.g. 'GTiff'
         nodata
-            the nodata value to write to the file
+            the nodata value to write to the file.
+            Default `'default'`: use the nodata value of the raster object.
         overwrite
             overwrite an already existing file? Only applies if `update` is `False`.
         cmap
@@ -1820,7 +1822,8 @@ class Dtype:
                 self.gdalint = self.numpy2gdalint[self.numpystr]
                 self.gdalstr = self.gdalint2gdalstr[self.gdalint]
         else:
-            raise TypeError('data type identifier must be of type int or str')
+            raise TypeError(f'data type identifier must be of type int or str, '
+                            f'was {type(dtype)}')
         
         required = ['gdalint', 'gdalstr', 'numpystr']
         if sum([x in dir(self) for x in required]) != len(required):
