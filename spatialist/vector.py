@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 ################################################################
 # OGR wrapper for convenient vector data handling and processing
-# John Truckenbrodt 2015-2025
+# John Truckenbrodt 2015-2026
 ################################################################
-
+from __future__ import annotations
 
 import os
 import yaml
@@ -245,28 +245,40 @@ class Vector(object):
         self.init_features()
         vec.layer.ResetReading()
     
-    def bbox(self, outname=None, driver=None, overwrite=True):
+    def bbox(
+            self,
+            outname: str | None = None,
+            driver: str | None = None,
+            overwrite: bool = True,
+            split_antimeridian: bool = False,
+    ) -> Vector | None:
         """
         create a bounding box from the extent of the Vector object
 
         Parameters
         ----------
-        outname: str or None
+        outname
             the name of the vector file to be written; if None, a Vector object is returned
-        driver: str
-            the name of the file format to write
-        overwrite: bool
-            overwrite an already existing file?
+        driver
+            the name of the file format to write. Ignored if `outname=None`.
+        overwrite
+            overwrite an already existing file? Ignored if `outname=None`.
+        split_antimeridian
+            split polygons into multipolygons if they're crossing the antimeridian?
+            It is assumed that `xmax` < `xmin` as check for antimeridian crossing.
+            Only applied to geographic CRSs.
 
         Returns
         -------
-        Vector or None
             if outname is None, the bounding box Vector object
         """
         if outname is None:
-            return bbox(self.extent, self.srs)
+            return bbox(coordinates=self.extent, crs=self.srs,
+                        split_antimeridian=split_antimeridian)
         else:
-            bbox(self.extent, self.srs, outname=outname, driver=driver, overwrite=overwrite)
+            bbox(coordinates=self.extent, crs=self.srs, outname=outname,
+                 driver=driver, overwrite=overwrite,
+                 split_antimeridian=split_antimeridian)
     
     def clone(self):
         return feature2vector(self.getfeatures(), ref=self)
