@@ -741,7 +741,8 @@ def bbox(
         outname: str | None = None,
         driver: str | None = None,
         overwrite: bool = True,
-        buffer: int | float | tuple[int | float, int | float] | None = None
+        buffer: int | float | tuple[int | float, int | float] | None = None,
+        split_antimeridian: bool = False
 ) -> Vector | None:
     """
     create a bounding box vector object or file.
@@ -766,6 +767,10 @@ def bbox(
     buffer
         a buffer to add around `coordinates`. Default None: do not add
         a buffer. A tuple is interpreted as (x buffer, y buffer).
+    split_antimeridian
+        split polygons into multipolygons if they're crossing the antimeridian?
+        It is assumed that `xmax` < `xmin` as check for antimeridian crossing.
+        Only applied to geographic CRSs.
     
     Returns
     -------
@@ -795,7 +800,7 @@ def bbox(
         geom.AddGeometry(ring)
         return geom
     
-    if srs.IsGeographic() and coordinates['xmax'] < coordinates['xmin']:
+    if split_antimeridian and srs.IsGeographic() and coordinates['xmax'] < coordinates['xmin']:
         geom1 = create_polygon(xmin=coordinates['xmin'], ymin=coordinates['ymin'],
                                xmax=180, ymax=coordinates['ymax'])
         geom2 = create_polygon(xmin=-180, ymin=coordinates['ymin'],
