@@ -10,7 +10,7 @@ from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .raster import Raster
-    from.vector import Vector
+    from .vector import Vector
 
 from osgeo import osr, gdal, ogr
 import progressbar as pb
@@ -190,7 +190,7 @@ def gdalbuildvrt(
     dst
         the output data set
     void
-        just write the results and don't return anything? If not, the spatial object is returned
+        just write the results and don't return anything? If not, the spatial object is returned.
     **kwargs
         additional parameters passed to :func:`osgeo.gdal.BuildVRT`; see :func:`osgeo.gdal.BuildVRTOptions`
     """
@@ -208,11 +208,15 @@ def gdalbuildvrt(
     out.FlushCache()
     if void:
         out = None
-    else:
-        return out
+    return out
 
 
-def gdal_translate(src: GDS, dst: str, **kwargs: Any) -> None:
+def gdal_translate(
+        src: GDS,
+        dst: str,
+        void: bool = True,
+        **kwargs: Any
+) -> None:
     """
     a simple wrapper for :func:`osgeo.gdal.Translate`
 
@@ -222,12 +226,17 @@ def gdal_translate(src: GDS, dst: str, **kwargs: Any) -> None:
         the input data set
     dst
         the output data set
+    void
+        just write the results and don't return anything? If not, the spatial object is returned.
     **kwargs
         additional parameters passed to :func:`osgeo.gdal.Translate`;
         see :func:`osgeo.gdal.TranslateOptions`
     """
     out = gdal.Translate(dst, src, options=gdal.TranslateOptions(**kwargs))
-    out = None
+    out.FlushCache()
+    if void:
+        out = None
+    return out
 
 
 def ogr2ogr(src: GDS, dst: str, **kwargs: Any) -> None:
