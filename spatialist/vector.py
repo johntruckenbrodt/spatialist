@@ -21,6 +21,10 @@ from shapely.wkb import loads as wkb_loads
 ogr.UseExceptions()
 osr.UseExceptions()
 
+# typing
+CRS = int | str | osr.SpatialReference
+EXT = dict[str, int | float]
+
 
 class Vector(object):
     """
@@ -732,35 +736,39 @@ class Vector(object):
         ds_out = driver = None
 
 
-def bbox(coordinates, crs, outname=None, driver=None, overwrite=True,
-         buffer=None):
+def bbox(
+        coordinates: EXT, crs: CRS,
+        outname: str | None = None,
+        driver: str | None = None,
+        overwrite: bool = True,
+        buffer: int | float | tuple[int | float, int | float] | None = None
+) -> Vector | None:
     """
     create a bounding box vector object or file.
     The CRS can be in either WKT, EPSG or PROJ4 format
     
     Parameters
     ----------
-    coordinates: dict
+    coordinates
         a dictionary containing numerical variables with keys
         `xmin`, `xmax`, `ymin` and `ymax`.
-    crs: int or str or osgeo.osr.SpatialReference
+    crs
         the coordinate reference system of the `coordinates`.
         See :func:`~spatialist.auxil.crsConvert` for options.
-    outname: str
+    outname
         the file to write to. If `None`, the bounding box is returned
         as :class:`~spatialist.vector.Vector` object.
-    driver: str
+    driver
         the output file format; needs to be defined if the format
         cannot be auto-detected from the filename extension.
-    overwrite: bool
+    overwrite
         overwrite an existing file?
-    buffer: None or int or float or tuple[int or float]
+    buffer
         a buffer to add around `coordinates`. Default None: do not add
         a buffer. A tuple is interpreted as (x buffer, y buffer).
     
     Returns
     -------
-    Vector or None
         the bounding box Vector object
     """
     if buffer is not None:
