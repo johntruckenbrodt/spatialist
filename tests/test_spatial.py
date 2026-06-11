@@ -156,6 +156,13 @@ def test_Raster(tmpdir, testdata):
         ras.write(os.path.join(str(tmpdir), 'test'), format='GTiff')
         with pytest.raises(RuntimeError):
             ras.write(os.path.join(str(tmpdir), 'test.tif'), format='GTiff')
+    with Raster(testdata['tif'],driver='GTiff') as ras:
+        print(ras," with GTiff driver")
+        assert ras.bands == 1
+
+    with Raster(testdata['tif'],driver=['ENVI','GTiff']) as ras:
+        print(ras," with ['ENVI','GTiff'] driver list")
+        assert ras.bands == 1
 
 
 def test_Raster_subset(testdata):

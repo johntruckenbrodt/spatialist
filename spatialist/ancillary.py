@@ -1,17 +1,16 @@
 ##############################################################
 # core routines for software spatialist
-# John Truckenbrodt 2014-2025
+# John Truckenbrodt 2014-2026
 ##############################################################
 """
 This script gathers central functions and classes for general applications
 """
 import dill
-import string
-import shutil
 import tempfile
 import platform
 import tblib.pickling_support
 from io import StringIO
+from types import TracebackType
 from urllib.parse import urlparse, urlunparse, urlencode
 from builtins import str
 import re
@@ -23,14 +22,19 @@ import os
 import subprocess as sp
 import tarfile as tf
 import zipfile as zf
-from typing import Iterable, List
+from collections.abc import Callable, Iterator
+from typing import Any, Literal, TextIO, Self
 import numpy as np
+from numpy.typing import NDArray
 import progressbar as pb
 
 try:
     import pathos.multiprocessing as mp
 except ImportError:
     pass
+
+# typing
+ParsedLiteral = int | float | str | bytes
 
 
 class HiddenPrints:
@@ -45,40 +49,23 @@ class HiddenPrints:
     >>> print('foobar')
     """
     
-    def __enter__(self):
+    _original_stdout: TextIO
+    
+    def __enter__(self) -> Self:
         self._original_stdout = sys.stdout
         sys.stdout = StringIO()
+        return self
     
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc_val: BaseException | None,
+            exc_tb: TracebackType | None
+    ) -> None:
         sys.stdout = self._original_stdout
 
 
-def decode_filter(text, encoding='utf-8'):
-    """
-    decode a binary object to str and filter out non-printable characters
-    
-    Parameters
-    ----------
-    text: bytes
-        the binary object to be decoded
-    encoding: str
-        the encoding to be used
-
-    Returns
-    -------
-    str
-        the decoded and filtered string
-    """
-    if text is not None:
-        text = text.decode(encoding, errors='ignore')
-        printable = set(string.printable)
-        text = filter(lambda x: x in printable, text)
-        return ''.join(list(text))
-    else:
-        return None
-
-
-def dictmerge(x, y):
+def dictmerge(x: dict, y: dict) -> dict:
     """
     merge two dictionaries
     """
@@ -88,18 +75,18 @@ def dictmerge(x, y):
 
 
 # todo consider using itertools.chain like in function finder
-def dissolve(inlist):
+def dissolve(inlist: list[Any] | tuple[Any, ...]) -> list[Any]:
     """
     list and tuple flattening
     
     Parameters
     ----------
-    inlist: list
+    inlist
         the list with sub-lists or tuples to be flattened
     
     Returns
     -------
-    list
+    out
         the flattened result
     
     Examples
@@ -117,41 +104,41 @@ def dissolve(inlist):
     return out
 
 
-def parent_dirs(path: str) -> Iterable[str]:
+def parent_dirs(path: str) -> Iterator[str]:
     """
     generator that yields parent directories of a zipfile path
 
     Parameters
     ----------
-    path: str
+    path
         a path to get parent directories from
 
     Yields
     -------
-    Iterable[str]
-        generator of parent directories
+    dir_name
+        parent directory names with trailing "/"
     """
     parent = os.path.dirname(path)
     if parent:
-        parent_dirs(parent)
+        yield from parent_dirs(parent)
         yield parent + "/"
 
 
-def namelist_with_implicit_dirs(root: zf.ZipFile) -> List[str]:
+def namelist_with_implicit_dirs(root: zf.ZipFile) -> list[str]:
     """
     returns a list of files in zipfile archive, including implicit directories
 
     Parameters
     ----------
-    root: ZipFile
+    root
         zipfile archive get namelist from
 
     Returns
     -------
-    List[str]
+    names
         list of zipfile folders and files in the archive
     """
-    complete_namelist = set()
+    complete_namelist: set[str] = set()
     for file_name in root.namelist():
         complete_namelist.update(set(parent_dirs(file_name)))
         complete_namelist.add(file_name)
@@ -159,29 +146,35 @@ def namelist_with_implicit_dirs(root: zf.ZipFile) -> List[str]:
     return list(complete_namelist)
 
 
-def finder(target, matchlist, foldermode=0, regex=False, recursive=True):
+def finder(
+        target: str | list[str],
+        matchlist: list[str],
+        foldermode: int = 0,
+        regex: bool = False,
+        recursive: bool = True
+) -> list[str]:
     """
     function for finding files/folders in folders and their subdirectories
 
     Parameters
     ----------
-    target: str or list[str]
+    target
         a directory, zip- or tar-archive or a list of them to be searched
-    matchlist: list[str]
+    matchlist
         a list of search patterns
-    foldermode: int
+    foldermode
         * 0: only files
         * 1: files and folders
         * 2: only folders
-    regex: bool
+    regex
         are the search patterns in matchlist regular expressions or unix shell standard (default)?
-    recursive: bool
+    recursive
         search target recursively into all subdirectories or only in the top level?
         This is currently only implemented for parameter `target` being a directory.
 
     Returns
     -------
-    list[str]
+    paths
         the absolute names of files/folders matching the patterns
     """
     if foldermode not in [0, 1, 2]:
@@ -259,7 +252,13 @@ def finder(target, matchlist, foldermode=0, regex=False, recursive=True):
         raise TypeError("parameter 'target' must be of type str or list")
 
 
-def multicore(function, cores, multiargs, pbar=False, **singleargs):
+def multicore(
+        function: Callable[..., Any],
+        cores: int,
+        multiargs: dict[str, Any],
+        pbar: bool = False,
+        **singleargs: Any
+) -> list[Any] | None:
     """
     wrapper for multicore process execution
 
@@ -267,20 +266,20 @@ def multicore(function, cores, multiargs, pbar=False, **singleargs):
     ----------
     function
         individual function to be applied to each process item
-    cores: int
+    cores
         the number of subprocesses started/CPUs used;
         this value is reduced in case the number of subprocesses is smaller
-    multiargs: dict
+    multiargs
         a dictionary containing sub-function argument names as keys and lists of arguments to be
         distributed among the processes as values
-    pbar: bool
+    pbar
         add a progress bar? Does not yet work on Windows.
     singleargs
         all remaining arguments which are invariant among the subprocesses
 
     Returns
     -------
-    None or list
+    out
         the return of the function for all subprocesses
 
     Notes
@@ -417,7 +416,7 @@ def multicore(function, cores, multiargs, pbar=False, **singleargs):
             return out
 
 
-def add(x, y, z):
+def add(x: int, y: int, z: int):
     """
     only a dummy function for testing the multicore function
     defining it in the test script is not possible since it cannot be serialized
@@ -433,31 +432,34 @@ class ExceptionWrapper(object):
     | https://stackoverflow.com/questions/34463087/valid-syntax-in-both-python-2-x-and-3-x-for-raising-exception
     """
     
-    def __init__(self, ee):
+    ee: BaseException
+    tb: TracebackType | None
+    
+    def __init__(self, ee: BaseException) -> None:
         self.ee = ee
         __, __, self.tb = sys.exc_info()
     
-    def re_raise(self):
-        if sys.version_info[0] == 3:
-            def reraise(tp, value, tb=None):
-                raise tp.with_traceback(tb)
-        else:
-            exec("def reraise(tp, value, tb=None):\n    raise tp, value, tb\n")
+    def re_raise(self) -> None:
+        def reraise(tp, value, tb=None):
+            raise tp.with_traceback(tb)
+        
         reraise(self.ee, None, self.tb)
 
 
-def parse_literal(x):
+def parse_literal(
+        x: str | bytes | list[str | bytes]
+) -> ParsedLiteral | list[ParsedLiteral]:
     """
     return the smallest possible data type for a string or list of strings
 
     Parameters
     ----------
-    x: str or list
+    x
         a string to be parsed
 
     Returns
     -------
-    int, float or str
+    out
         the parsing result
     
     Examples
@@ -482,34 +484,13 @@ def parse_literal(x):
             except ValueError:
                 return x
     else:
-        raise TypeError('input must be a string or a list of strings')
+        raise TypeError(f'expected str|bytes, got {type(x)}')
 
 
-class Queue(object):
-    """
-    classical queue implementation
-    """
-    
-    def __init__(self, inlist=None):
-        self.stack = [] if inlist is None else inlist
-    
-    def empty(self):
-        return len(self.stack) == 0
-    
-    def length(self):
-        return len(self.stack)
-    
-    def push(self, x):
-        self.stack.append(x)
-    
-    def pop(self):
-        if not self.empty():
-            val = self.stack[0]
-            del self.stack[0]
-            return val
-
-
-def rescale(inlist, newrange=(0, 1)):
+def rescale(
+        inlist: list[int | float],
+        newrange: tuple[int | float, int | float] = (0, 1)
+) -> list[float]:
     """
     rescale the values in a list between the values in newrange (a tuple with the new minimum and maximum)
     """
@@ -525,160 +506,90 @@ def rescale(inlist, newrange=(0, 1)):
     return result
 
 
-def run(cmd, outdir=None, logfile=None, inlist=None, void=True, errorpass=False, env=None):
+def run(
+        cmd: list[Any],
+        outdir: str | None = None,
+        logfile: str | None = None,
+        inlist: list[Any] | None = None,
+        void: bool = True,
+        errorpass: bool = False,
+        env: dict[str, Any] | None = None
+) -> tuple[int, str, str] | None:
     """
-    | wrapper for subprocess execution including logfile writing and command prompt piping
-    | this is a convenience wrapper around the :mod:`subprocess` module and calls
+    | Wrapper for subprocess execution including logfile writing and command prompt piping.
+    | This is a convenience wrapper around the :mod:`subprocess` module and calls
       its class :class:`~subprocess.Popen` internally.
     
     Parameters
     ----------
-    cmd: list
+    cmd:
         the command arguments
-    outdir: str or None
+    outdir:
         the directory to execute the command in
-    logfile: str or None
+    logfile:
         a file to write stdout to
-    inlist: list or None
-        a list of arguments passed to stdin, i.e. arguments passed to interactive input of the program
-    void: bool
+    inlist:
+        a list of arguments passed to stdin, i.e., arguments passed to interactive input of the program
+    void:
         return stdout and stderr?
-    errorpass: bool
+    errorpass:
         if False, a :class:`subprocess.CalledProcessError` is raised if the command fails
-    env: dict or None
+    env:
         the environment to be passed to the subprocess
 
     Returns
     -------
-    None or Tuple
-        a tuple of (stdout, stderr) if `void` is False otherwise None
+        a tuple of (returncode, stdout, stderr) if `void=False` otherwise `None`
     """
     cmd = [str(x) for x in dissolve(cmd)]
     if outdir is None:
         outdir = os.getcwd()
     log = sp.PIPE if logfile is None else open(logfile, 'a')
-    proc = sp.Popen(cmd, stdin=sp.PIPE, stdout=log, stderr=sp.PIPE, cwd=outdir, env=env)
-    instream = None if inlist is None \
-        else ''.join([str(x) + '\n' for x in inlist]).encode('utf-8')
-    out, err = proc.communicate(instream)
-    out = decode_filter(out)
-    err = decode_filter(err)
-    if not errorpass and proc.returncode != 0:
-        raise sp.CalledProcessError(proc.returncode, cmd, err)
-    # add line for separating log entries of repeated function calls
-    if logfile:
-        log.write('#####################################################################\n')
-        log.close()
+    try:
+        proc = sp.Popen(args=cmd, stdin=sp.PIPE, stdout=log, stderr=sp.PIPE,
+                        cwd=outdir, env=env, text=True, encoding='utf-8')
+        instream = None if inlist is None else ''.join(str(x) + '\n' for x in inlist)
+        out, err = proc.communicate(input=instream)
+        if not errorpass and proc.returncode != 0:
+            raise sp.CalledProcessError(returncode=proc.returncode,
+                                        cmd=cmd, output=out, stderr=err)
+        # add line for separating log entries of repeated function calls
+        if logfile:
+            log.write('#' * 70 + '\n')
+    finally:
+        if logfile is not None:
+            log.close()
+    # normalize None to '' and return
     if not void:
-        return out, err
+        out = '' if out is None else out
+        err = '' if err is None else err
+        return proc.returncode, out, err
+    return None
 
 
-class Stack(object):
-    """
-    classical stack implementation
-    input can be a list, a single value or None (i.e. Stack())
-    """
-    
-    def __init__(self, inlist=None):
-        if isinstance(inlist, list):
-            self.stack = inlist
-        elif inlist is None:
-            self.stack = []
-        else:
-            self.stack = [inlist]
-    
-    def empty(self):
-        """
-        check whether stack is empty
-        """
-        return len(self.stack) == 0
-    
-    def flush(self):
-        """
-        empty the stack
-        """
-        self.stack = []
-    
-    def length(self):
-        """
-        get the length of the stack
-        """
-        return len(self.stack)
-    
-    def push(self, x):
-        """
-        append items to the stack; input can be a single value or a list
-        """
-        if isinstance(x, list):
-            for item in x:
-                self.stack.append(item)
-        else:
-            self.stack.append(x)
-    
-    def pop(self):
-        """
-        return the last stack element and delete it from the list
-        """
-        if not self.empty():
-            val = self.stack[-1]
-            del self.stack[-1]
-            return val
-
-
-def union(a, b):
+def union(a: list[Any], b: list[Any]) -> list[Any]:
     """
     union of two lists
     """
     return list(set(a) & set(b))
 
 
-def urlQueryParser(url, querydict):
+def urlQueryParser(url: str, querydict: dict[str, str]) -> str:
     """
     parse a url query
     """
     address_parse = urlparse(url)
-    return urlunparse(address_parse._replace(query=urlencode(querydict)))
+    return str(urlunparse(address_parse._replace(query=urlencode(querydict))))
 
 
-def which(program, mode=os.F_OK | os.X_OK):
-    """
-    | mimics UNIX's which
-    | taken from this post: http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
-    | can be replaced by :func:`shutil.which()` starting from Python 3.3
-    
-    Parameters
-    ----------
-    program: str
-        the program to be found
-    mode: os.F_OK or os.X_OK
-        the mode of the found file, i.e. file exists or file  is executable; see :func:`os.access`
-
-    Returns
-    -------
-    str or None
-        the full path and name of the command
-    """
-    if sys.version_info >= (3, 3):
-        return shutil.which(program, mode=mode)
-    else:
-        def is_exe(fpath, mode):
-            return os.path.isfile(fpath) and os.access(fpath, mode)
-        
-        fpath, fname = os.path.split(program)
-        if fpath:
-            if is_exe(program, mode):
-                return program
-        else:
-            for path in os.environ['PATH'].split(os.path.pathsep):
-                path = path.strip('"')
-                exe_files = [os.path.join(path, program), os.path.join(path, program + '.exe')]
-                for exe_file in exe_files:
-                    if is_exe(exe_file, mode):
-                        return exe_file
-        return None
-
-
-def parallel_apply_along_axis(func1d, axis, arr, cores=4, *args, **kwargs):
+def parallel_apply_along_axis(
+        func1d: Callable[..., Any],
+        axis: int,
+        arr: NDArray[Any],
+        cores: int = 4,
+        *args: Any,
+        **kwargs: Any
+) -> NDArray[Any]:
     """
     Like :func:`numpy.apply_along_axis()` but using multiple threads.
     Adapted from `here <https://stackoverflow.com/questions/45526700/
@@ -686,22 +597,22 @@ def parallel_apply_along_axis(func1d, axis, arr, cores=4, *args, **kwargs):
 
     Parameters
     ----------
-    func1d: function
+    func1d
         the function to be applied
-    axis: int
+    axis
         the axis along which to apply `func1d`
-    arr: numpy.ndarray
+    arr
         the input array
-    cores: int
+    cores
         the number of parallel cores
-    args: any
+    args
         Additional arguments to `func1d`.
-    kwargs: any
+    kwargs
         Additional named arguments to `func1d`.
 
     Returns
     -------
-    numpy.ndarray
+    out
     """
     # Effective axis where apply_along_axis() will be applied by each
     # worker (any non-zero axis number would work, so as to allow the use
@@ -731,32 +642,38 @@ def parallel_apply_along_axis(func1d, axis, arr, cores=4, *args, **kwargs):
         return np.concatenate(individual_results)
 
 
-def sampler(mask, samples=None, dim=1, replace=False, seed=42):
+def sampler(
+        mask: NDArray[np.bool_],
+        samples: int | None = None,
+        dim: Literal[1, 2] = 1,
+        replace: bool = False,
+        seed: int = 42
+) -> NDArray[np.integer[Any]]: # any kind of integer array
     """
     General function to select random sample indexes from arrays.
     Adapted from package `S1_ARD <https://github.com/johntruckenbrodt/S1_ARD>`_.
 
     Parameters
     ----------
-    mask: numpy.ndarray
+    mask
         A 2D boolean mask to limit the sample selection.
-    samples: int or None
+    samples
         The number of samples to select. If None, the positions of all matching values are returned.
         If there are fewer values than required samples, the positions of all values are returned.
-    dim: int
+    dim
         The dimensions of the output array and its indexes. If 1, the returned array has one
         dimension and the indexes refer to the one-dimensional (i.e., flattened) representation
         of the input mask. If 2, the output array is of shape `(2, samples)` with two separate
         2D arrays for y (index 0) and x respectively, which reference positions in the original
         2D shape of the input array.
-    replace: bool
+    replace
         Draw samples with or without replacement?
-    seed: int
+    seed
         Seed used to initialize the pseudo-random number generator.
     
     Returns
     -------
-    numpy.ndarray
+    idx
         The index positions of the generated random samples as 1D or 2D array.
     
     Examples

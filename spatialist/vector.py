@@ -7,9 +7,17 @@ from __future__ import annotations
 
 import os
 import yaml
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from osgeo import ogr, osr, gdal
 from osgeo.gdalconst import GDT_Byte
+from types import TracebackType
+from typing import Any, TYPE_CHECKING
+from numpy.typing import NDArray
+from packaging.version import Version
+
+if TYPE_CHECKING:
+    from .raster import Raster
+
 from .auxil import crsConvert
 from .ancillary import parse_literal
 from .sqlite_util import sqlite_setup
@@ -20,33 +28,39 @@ from shapely.wkb import loads as wkb_loads
 
 ogr.UseExceptions()
 osr.UseExceptions()
+gdal.UseExceptions()
 
 # typing
 CRS = int | str | osr.SpatialReference
 EXT = dict[str, int | float]
 
 
-class Vector(object):
+
+class Vector:
     """
     This is intended as a vector meta information handler with options for reading and writing vector data in a
     convenient manner by simplifying the numerous options provided by the OGR python binding.
 
     Parameters
     ----------
-    filename: str or None
+    filename
         the vector file to read; if filename is `None`, a new in-memory Vector object is created.
-        In this case `driver` is overridden and set to 'Memory'. The following file extensions are auto-detected:
+        In this case `driver` is overridden and set to 'MEM'. The following file extensions are auto-detected:
         
         .. list_drivers:: vector
         
-    driver: str
+    driver
         the vector file format; needs to be defined if the format cannot be auto-detected from the filename extension
     """
     
-    def __init__(self, filename=None, driver=None):
+    filename: str | None
+    
+    def __init__(self, filename: str | None = None, driver: str | None = None) -> None:
+        
+        memory_driver_name = 'MEM' if Version(gdal.__version__) >= Version('3.11') else 'Memory'
         
         if filename is None:
-            driver = 'Memory'
+            driver = memory_driver_name
         elif isinstance(filename, str):
             if not os.path.isfile(filename):
                 raise OSError('file does not exist')
@@ -59,7 +73,10 @@ class Vector(object):
         
         self.driver = ogr.GetDriverByName(driver)
         
-        self.vector = self.driver.CreateDataSource('out') if driver == 'Memory' else self.driver.Open(filename)
+        if driver == memory_driver_name:
+            self.vector = self.driver.CreateDataSource('out')
+        else:
+            self.vector = self.driver.Open(filename)
         
         nlayers = self.vector.GetLayerCount()
         if nlayers > 1:
@@ -67,19 +84,19 @@ class Vector(object):
         elif nlayers == 1:
             self.init_layer()
     
-    def __getitem__(self, expression):
+    def __getitem__(self, expression: int | str) -> Vector | None:
         """
         subset the vector object by index or attribute.
 
         Parameters
         ----------
-        expression: int or str
+        expression
             the key or expression to be used for subsetting.
             See :meth:`osgeo.ogr.Layer.SetAttributeFilter` for details on the expression syntax.
 
         Returns
         -------
-        Vector
+        out
             a vector object matching the specified criteria
         
         Examples
@@ -107,13 +124,18 @@ class Vector(object):
         else:
             return feature2vector(feat, ref=self)
     
-    def __enter__(self):
+    def __enter__(self) -> Vector:
         return self
     
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc_val: BaseException | None,
+            exc_tb: TracebackType | None
+    ) -> None:
         self.close()
     
-    def __str__(self):
+    def __str__(self) -> str:
         vals = dict()
         vals['proj4'] = self.proj4
         vals.update(self.extent)
@@ -128,7 +150,7 @@ class Vector(object):
         return info
     
     @staticmethod
-    def __driver_autodetect(filename):
+    def __driver_autodetect(filename: str) -> str:
         path = os.path.dirname(os.path.realpath(__file__))
         drivers = yaml.safe_load(open(os.path.join(path, 'drivers_vector.yml')))
         extension = os.path.splitext(filename)[1][1:]
@@ -141,20 +163,16 @@ class Vector(object):
         else:
             return drivers[extension]
     
-    def addfeature(self, geometry, fields=None):
+    def addfeature(self, geometry: ogr.Geometry, fields: dict[str, Any] | None = None) -> None:
         """
         add a feature to the vector object from a geometry
 
         Parameters
         ----------
-        geometry: osgeo.ogr.Geometry
+        geometry
             the geometry to add as a feature
-        fields: dict or None
+        fields
             the field names and values to assign to the new feature
-
-        Returns
-        -------
-
         """
         
         feature = ogr.Feature(self.layerdef)
@@ -180,64 +198,52 @@ class Vector(object):
         feature = None
         self.init_features()
     
-    def addfield(self, name, type, width=10, values=None):
+    def addfield(self, name: str, type: int, width: int = 10, values: list[Any] | None = None) -> None:
         """
         add a field to the vector layer
 
         Parameters
         ----------
-        name: str
+        name
             the field name
-        type: int
+        type
             the OGR Field Type (OFT), e.g. ogr.OFTString.
             See :class:`osgeo.ogr.FieldDefn`.
-        width: int
+        width
             the width of the new field (only for ogr.OFTString fields)
-        values: List or None
+        values
             an optional list with values for each feature to assign to the new field.
             The length must be identical to the number of features.
-
-        Returns
-        -------
-
         """
         set_field(self, name, type, width=width, values=values)
     
-    def addlayer(self, name, srs, geomType):
+    def addlayer(self, name: str, srs: CRS, geomType: int) -> None:
         """
         add a layer to the vector layer
 
         Parameters
         ----------
-        name: str
+        name
             the layer name
-        srs: int or str or osgeo.osr.SpatialReference
+        srs
             the spatial reference system. See :func:`spatialist.auxil.crsConvert` for options.
-        geomType: int
+        geomType
             an OGR well-known binary data type.
             See `Module ogr <https://gdal.org/python/osgeo.ogr-module.html>`_.
-
-        Returns
-        -------
-
         """
         self.vector.CreateLayer(name, crsConvert(srs, 'osr'), geomType)
         self.init_layer()
     
-    def addvector(self, vec):
+    def addvector(self, vec: Vector) -> None:
         """
         add a vector object to the layer of the current Vector object
 
         Parameters
         ----------
-        vec: Vector
+        vec
             the vector object to add
         merge: bool
             merge overlapping polygons?
-
-        Returns
-        -------
-
         """
         vec.layer.ResetReading()
         for feature in vec.layer:
@@ -280,34 +286,26 @@ class Vector(object):
                  driver=driver, overwrite=overwrite,
                  split_antimeridian=split_antimeridian)
     
-    def clone(self):
+    def clone(self) -> Vector:
         return feature2vector(self.getfeatures(), ref=self)
     
-    def close(self):
+    def close(self) -> None:
         """
         closes the OGR vector file connection
-
-        Returns
-        -------
-
         """
         self.vector = None
         for feature in self.__features:
             if feature is not None:
                 feature = None
     
-    def convert2wkt(self, set3D=True):
+    def convert2wkt(self, set3D: bool = True) -> list[str]:
         """
         export the geometry of each feature as a wkt string
 
         Parameters
         ----------
-        set3D: bool
+        set3D
             keep the third (height) dimension?
-
-        Returns
-        -------
-
         """
         features = self.getfeatures()
         for feature in features:
@@ -320,85 +318,82 @@ class Vector(object):
         return [feature.geometry().ExportToWkt() for feature in features]
     
     @property
-    def extent(self):
+    def extent(self) -> dict[str, float]:
         """
         the extent of the vector object
 
         Returns
         -------
-        dict
             a dictionary with keys `xmin`, `xmax`, `ymin`, `ymax`
         """
         return dict(zip(['xmin', 'xmax', 'ymin', 'ymax'], self.layer.GetExtent()))
     
     @property
-    def fieldDefs(self):
+    def fieldDefs(self) -> list[ogr.FieldDefn]:
         """
 
         Returns
         -------
-        list[osgeo.ogr.FieldDefn]
             the field definition for each field of the Vector object
         """
         return [self.layerdef.GetFieldDefn(x) for x in range(0, self.nfields)]
     
     @property
-    def fieldnames(self):
+    def fieldnames(self) -> list[str]:
         """
 
         Returns
         -------
-        list of str
             the names of the fields
         """
         return sorted([field.GetName() for field in self.fieldDefs])
     
     @property
-    def geomType(self):
+    def geomType(self) -> int:
         """
 
         Returns
         -------
-        int
             the layer geometry type
         """
         return self.layerdef.GetGeomType()
     
     @property
-    def geomTypes(self):
+    def geomTypes(self) -> list[str]:
         """
 
         Returns
         -------
-        list
             the geometry type of each feature
         """
         return [feat.GetGeometryRef().GetGeometryName() for feat in self.getfeatures()]
     
-    def getArea(self):
+    def getArea(self) -> float:
         """
 
         Returns
         -------
-        float
             the area of the vector geometries
         """
         return sum([x.GetGeometryRef().GetArea() for x in self.getfeatures()])
     
-    def getFeatureByAttribute(self, fieldname, attribute):
+    def getFeatureByAttribute(
+            self,
+            fieldname: str,
+            attribute: int | str
+    ) -> ogr.Feature | list[ogr.Feature] | None:
         """
         get features by field attribute
 
         Parameters
         ----------
-        fieldname: str
+        fieldname
             the name of the queried field
-        attribute: int or str
+        attribute
             the field value of interest
 
         Returns
         -------
-        list[osgeo.ogr.Feature] or osgeo.ogr.Feature
             the feature(s) matching the search query
         """
         attr = attribute.strip() if isinstance(attribute, str) else attribute
@@ -419,18 +414,17 @@ class Vector(object):
         else:
             return out
     
-    def getFeatureByIndex(self, index):
+    def getFeatureByIndex(self, index: int) -> ogr.Feature | None:
         """
         get features by numerical (positional) index
 
         Parameters
         ----------
-        index: int
+        index
             the queried index
 
         Returns
         -------
-        osgeo.ogr.Feature
             the requested feature
         """
         feature = self.layer[index]
@@ -438,12 +432,11 @@ class Vector(object):
             feature = self.getfeatures()[index]
         return feature
     
-    def getfeatures(self):
+    def getfeatures(self) -> list[ogr.Feature]:
         """
 
         Returns
         -------
-        list[osgeo.ogr.Feature]
             a list of cloned features
         """
         self.layer.ResetReading()
@@ -451,33 +444,31 @@ class Vector(object):
         self.layer.ResetReading()
         return features
     
-    def getProjection(self, type):
+    def getProjection(self, type: str) -> CRS:
         """
         get the CRS of the Vector object. See :func:`spatialist.auxil.crsConvert`.
 
         Parameters
         ----------
-        type: str
+        type
             the type of projection required.
 
         Returns
         -------
-        int or str or osgeo.osr.SpatialReference
             the output CRS
         """
         return crsConvert(self.layer.GetSpatialRef(), type)
     
-    def getUniqueAttributes(self, fieldname):
+    def getUniqueAttributes(self, fieldname: str) -> list[int | str]:
         """
 
         Parameters
         ----------
-        fieldname: str
+        fieldname
             the name of the field of interest
 
         Returns
         -------
-        list of str or int
             the unique attributes of the field
         """
         self.layer.ResetReading()
@@ -485,57 +476,43 @@ class Vector(object):
         self.layer.ResetReading()
         return sorted(attributes)
     
-    def init_features(self):
+    def init_features(self) -> None:
         """
         delete all in-memory features
-
-        Returns
-        -------
-
         """
         del self.__features
         self.__features = [None] * self.nfeatures
     
-    def init_layer(self):
+    def init_layer(self) -> None:
         """
         initialize a layer object
-
-        Returns
-        -------
-
         """
         self.layer = self.vector.GetLayer()
         self.__features = [None] * self.nfeatures
     
     @property
-    def layerdef(self):
+    def layerdef(self) -> ogr.FeatureDefn:
         """
 
         Returns
         -------
-        osgeo.ogr.FeatureDefn
             the layer's feature definition
         """
         return self.layer.GetLayerDefn()
     
     @property
-    def layername(self):
+    def layername(self) -> str:
         """
 
         Returns
         -------
-        str
             the name of the layer
         """
         return self.layer.GetName()
     
-    def load(self):
+    def load(self) -> None:
         """
         load all feature into memory
-
-        Returns
-        -------
-
         """
         self.layer.ResetReading()
         for i in range(self.nfeatures):
@@ -543,61 +520,53 @@ class Vector(object):
                 self.__features[i] = self.layer[i]
     
     @property
-    def nfeatures(self):
+    def nfeatures(self) -> int:
         """
 
         Returns
         -------
-        int
             the number of features
         """
         return len(self.layer)
     
     @property
-    def nfields(self):
+    def nfields(self) -> int:
         """
 
         Returns
         -------
-        int
             the number of fields
         """
         return self.layerdef.GetFieldCount()
     
     @property
-    def nlayers(self):
+    def nlayers(self) -> int:
         """
 
         Returns
         -------
-        int
             the number of layers
         """
         return self.vector.GetLayerCount()
     
     @property
-    def proj4(self):
+    def proj4(self) -> str:
         """
 
         Returns
         -------
-        str
             the CRS in PRO4 format
         """
         return self.srs.ExportToProj4().strip()
     
-    def reproject(self, projection):
+    def reproject(self, projection: CRS) -> None:
         """
         in-memory reprojection
 
         Parameters
         ----------
-        projection: int or str or osgeo.osr.SpatialReference
+        projection
             the target CRS. See :func:`spatialist.auxil.crsConvert`.
-
-        Returns
-        -------
-
         """
         srs_out = crsConvert(projection, 'osr')
         
@@ -627,18 +596,15 @@ class Vector(object):
                 newfeature = None
             self.init_features()
     
-    def setCRS(self, crs):
+    def setCRS(self, crs: CRS) -> None:
         """
         directly reset the spatial reference system of the vector object.
         This is not going to reproject the Vector object, see :meth:`reproject` instead.
 
         Parameters
         ----------
-        crs: int or str or osgeo.osr.SpatialReference
+        crs
             the input CRS
-
-        Returns
-        -------
 
         Example
         -------
@@ -669,17 +635,16 @@ class Vector(object):
         self.init_features()
     
     @property
-    def srs(self):
+    def srs(self) -> osr.SpatialReference:
         """
 
         Returns
         -------
-        osgeo.osr.SpatialReference
             the geometry's spatial reference system
         """
         return self.layer.GetSpatialRef()
     
-    def to_geopandas(self):
+    def to_geopandas(self) -> gpd.GeoDataFrame:
         """
         Convert the object to a geopandas GeoDataFrame.
         `DateTime` fields are converted to :class:`pandas.Timestamp`
@@ -687,7 +652,7 @@ class Vector(object):
         
         Returns
         -------
-        geopandas.GeoDataFrame
+            the dataframe object
         
         See Also
         --------
@@ -710,26 +675,22 @@ class Vector(object):
                                                  format='ISO8601')
         return gdf
     
-    def write(self, outfile, driver=None, overwrite=True):
+    def write(self, outfile: str, driver: str | None = None, overwrite: bool = True) -> None:
         """
         write the Vector object to a file
 
         Parameters
         ----------
-        outfile:
+        outfile
             the name of the file to write; the following extensions are automatically detected
             for determining the format driver:
             
             .. list_drivers:: vector
             
-        driver: str or None
+        driver
             the output file format; default None: try to autodetect from the file name extension
-        overwrite: bool
+        overwrite
             overwrite an already existing file?
-
-        Returns
-        -------
-
         """
         
         if driver is None:
@@ -749,7 +710,8 @@ class Vector(object):
 
 
 def bbox(
-        coordinates: EXT, crs: CRS,
+        coordinates: EXT,
+        crs: CRS,
         outname: str | None = None,
         driver: str | None = None,
         overwrite: bool = True,
@@ -826,7 +788,7 @@ def bbox(
     
     geom.FlattenTo2D()
     
-    out = Vector(driver='Memory')
+    out = Vector()
     out.addlayer('bbox', srs, geom.GetGeometryType())
     out.addfield('area', ogr.OFTReal)
     out.addfeature(geom, fields={'area': geom.Area()})
@@ -837,7 +799,11 @@ def bbox(
         out.write(outfile=outname, driver=driver, overwrite=overwrite)
 
 
-def boundary(vectorobject, expression=None, outname=None):
+def boundary(
+        vectorobject: Vector,
+        expression: str | None = None,
+        outname: str | None = None
+) -> Vector | None:
     """
     Get the boundary of the largest geometry as new vector object. The following steps are performed:
     
@@ -850,16 +816,15 @@ def boundary(vectorobject, expression=None, outname=None):
 
     Parameters
     ----------
-    vectorobject: Vector
+    vectorobject
         the vector object containing multiple polygon geometries, e.g. all geometries with a certain value in one field.
-    expression: str or None
+    expression
         the SQL expression to select the candidates for the largest geometry.
-    outname: str or None
+    outname
         the name of the output vector file; if None, an in-memory object of type :class:`Vector` is returned.
 
     Returns
     -------
-    Vector or None
         if `outname` is `None`, a vector object pointing to an in-memory dataset else `None`
     """
     largest = None
@@ -899,7 +864,7 @@ def boundary(vectorobject, expression=None, outname=None):
     poly = ogr.Geometry(ogr.wkbPolygon)
     poly.AddGeometry(ring)
     
-    vec_out = Vector(driver='Memory')
+    vec_out = Vector()
     vec_out.addlayer('layer',
                      vectorobject.layer.GetSpatialRef(),
                      poly.GetGeometryType())
@@ -923,18 +888,18 @@ def boundary(vectorobject, expression=None, outname=None):
         return vec_out
 
 
-def centerdist(obj1, obj2):
+def centerdist(obj1: Vector, obj2: Vector) -> float:
     """
     Get the center distance between two vector objects.
     
     Parameters
     ----------
-    obj1: Vector
-    obj2: Vector
+    obj1
+    obj2
 
     Returns
     -------
-    float
+        the distance in units of the source object's CRS
     """
     if not isinstance(obj1, Vector) or isinstance(obj2, Vector):
         raise IOError('both objects must be of type Vector')
@@ -950,25 +915,21 @@ def centerdist(obj1, obj2):
     return center1.Distance(center2)
 
 
-def dissolve(infile, outfile, field, layername=None):
+def dissolve(infile: str, outfile: str, field: str, layername: str | None = None) -> None:
     """
     dissolve the polygons of a vector file by an attribute field
     
     Parameters
     ----------
-    infile: str
+    infile
         the input vector file
-    outfile: str
+    outfile
         the output shapefile
-    field: str
+    field
         the field name to merge the polygons by
-    layername: str
+    layername
         the name of the output vector layer;
         If set to None the layername will be the basename of infile without extension
-
-    Returns
-    -------
-
     """
     with Vector(infile) as vec:
         srs = vec.srs
@@ -991,7 +952,7 @@ def dissolve(infile, outfile, field, layername=None):
     conn.execute('CREATE VIRTUAL TABLE merge USING VirtualOGR("{}");'.format(infile))
     select = conn.execute('SELECT {0},asText(ST_Union(geometry)) as geometry FROM merge GROUP BY {0};'.format(field))
     fetch = select.fetchall()
-    with Vector(driver='Memory') as merge:
+    with Vector() as merge:
         merge.addlayer(layername, srs, ogr.wkbPolygon)
         merge.addfield(field, type=type, width=width)
         for i in range(len(fetch)):
@@ -1000,27 +961,30 @@ def dissolve(infile, outfile, field, layername=None):
     conn.close()
 
 
-def feature2vector(feature, ref, layername=None):
+def feature2vector(
+        feature: ogr.Feature | list[ogr.Feature],
+        ref: Vector,
+        layername: str | None = None
+) -> Vector:
     """
     create a Vector object from ogr features
 
     Parameters
     ----------
-    feature: list[osgeo.ogr.Feature] or osgeo.ogr.Feature
+    feature
         a single feature or a list of features
-    ref: Vector
+    ref
         a reference Vector object to retrieve geo information from
-    layername: str or None
+    layername
         the name of the output layer; retrieved from `ref` if `None`
 
     Returns
     -------
-    Vector
         the new Vector object
     """
     features = feature if isinstance(feature, list) else [feature]
     layername = layername if layername is not None else ref.layername
-    vec = Vector(driver='Memory')
+    vec = Vector()
     vec.addlayer(layername, ref.srs, ref.geomType)
     feat_def = features[0].GetDefnRef()
     fields = [feat_def.GetFieldDefn(x) for x in range(0, feat_def.GetFieldCount())]
@@ -1033,20 +997,19 @@ def feature2vector(feature, ref, layername=None):
     return vec
 
 
-def intersect(obj1, obj2):
+def intersect(obj1: Vector, obj2: Vector) -> Vector | None:
     """
     intersect two Vector objects
 
     Parameters
     ----------
-    obj1: Vector
+    obj1
         the first vector object; this object is reprojected to the CRS of obj2 if necessary
-    obj2: Vector
+    obj2
         the second vector object
 
     Returns
     -------
-    Vector or None
         the intersection of obj1 and obj2 if both intersect and None otherwise
     """
     if not isinstance(obj1, Vector) or not isinstance(obj2, Vector):
@@ -1060,7 +1023,7 @@ def intersect(obj1, obj2):
     #######################################################
     # create basic overlap
     
-    def union(vector):
+    def union(vector: Vector) -> ogr.Geometry:
         out = ogr.Geometry(ogr.wkbMultiPolygon)
         for feat in vector.layer:
             geom = feat.GetGeometryRef()
@@ -1086,7 +1049,7 @@ def intersect(obj1, obj2):
     #######################################################
     # compute detailed per-geometry overlaps
     if intersect_base.GetArea() > 0:
-        intersection = Vector(driver='Memory')
+        intersection = Vector()
         intersection.addlayer('intersect', obj1.srs, ogr.wkbPolygon)
         fieldmap = []
         for index, fielddef in enumerate([obj1.fieldDefs, obj2.fieldDefs]):
@@ -1118,29 +1081,31 @@ def intersect(obj1, obj2):
         return intersection
 
 
-def set_field(target, name, type, width=10, values=None):
+def set_field(
+        target: Vector | ogr.Feature,
+        name: str,
+        type: int,
+        width: int = 10,
+        values: Any = None
+) -> None:
     """
-    Wrapper for setting a field
+    Wrapper for setting a field. DateTime fields are rounded to milliseconds.
     
     Parameters
     ----------
-    target: Vector or osgeo.ogr.Feature
+    target
         the object for which to set the field
-    name: str
+    name
         the field name
-    type: int
+    type
         the OGR Field Type (OFT), e.g. `ogr.OFTString`.
         See :class:`osgeo.ogr.FieldDefn`.
-    width: int
+    width
         the width of the new field (only for `ogr.OFTString` fields)
-    values: List or None
+    values
         an optional list with values for each feature to assign to the new field.
         If `target` is of type :class:`~spatialist.vector.Vector`, the length must
         be identical to the number of features.
-
-    Returns
-    -------
-
     """
     type_name = ogr.GetFieldTypeName(type)
     field_defn = ogr.FieldDefn(name, type)
@@ -1160,9 +1125,9 @@ def set_field(target, name, type, width=10, values=None):
     else:
         raise ValueError(f'Unsupported field type: {type_name}')
     
-    def setter(feature, value, field_name, method_name, type_name):
+    def setter(feature: ogr.Feature, value: Any, field_name: str, method_name: str, type_name: str) -> None:
         
-        def tz_to_nTZFlag(dt):
+        def tz_to_nTZFlag(dt: datetime) -> int:
             """
             Determine OGR nTZFlag from a timezone-aware datetime.
             """
@@ -1177,13 +1142,16 @@ def set_field(target, name, type, width=10, values=None):
         method = getattr(feature, method_name)
         if type_name == 'DateTime':
             if isinstance(value, datetime):
+                # Round to milliseconds and normalize
+                value = value + timedelta(microseconds=500)  # for rounding, not truncation
+                value = value.replace(microsecond=(value.microsecond // 1000) * 1000)
                 value = [
                     value.year,
                     value.month,
                     value.day,
                     value.hour,
                     value.minute,
-                    value.second + value.microsecond / 1000000,
+                    value.second + value.microsecond / 1_000_000,
                     tz_to_nTZFlag(value)
                 ]
             else:
@@ -1211,22 +1179,21 @@ def set_field(target, name, type, width=10, values=None):
                             "or osgeo.ogr.Feature")
 
 
-def wkt2vector(wkt, srs, layername='wkt'):
+def wkt2vector(wkt: str | list[str], srs: CRS, layername: str = 'wkt') -> Vector:
     """
     convert well-known text geometries to a Vector object.
 
     Parameters
     ----------
-    wkt: str or list[str]
+    wkt
         the well-known text description(s). Each geometry will be placed in a separate feature.
-    srs: int or str
+    srs
         the spatial reference system; see :func:`spatialist.auxil.crsConvert` for options.
-    layername: str
+    layername
         the name of the internal :class:`osgeo.ogr.Layer` object.
 
     Returns
     -------
-    Vector
         the vector representation
 
     Examples
@@ -1244,7 +1211,7 @@ def wkt2vector(wkt, srs, layername='wkt'):
     if isinstance(wkt, str):
         wkt = [wkt]
     srs = crsConvert(srs, 'osr')
-    vec = Vector(driver='Memory')
+    vec = Vector()
     area = []
     for item in wkt:
         geom = ogr.CreateGeometryFromWkt(item)
@@ -1261,29 +1228,32 @@ def wkt2vector(wkt, srs, layername='wkt'):
     return vec
 
 
-def vectorize(target, reference, outname=None, layername='layer', fieldname='value', driver=None):
+def vectorize(
+        target: NDArray[Any],
+        reference: Raster,
+        outname: str | None = None,
+        layername: str = 'layer',
+        fieldname: str = 'value',
+        driver: str | None = None
+) -> Vector | None:
     """
     Vectorization of an array using :func:`osgeo.gdal.Polygonize`.
     
     Parameters
     ----------
-    target: numpy.ndarray
+    target
         the input array. Each identified object of pixels with the same value will be converted into a vector feature.
-    outname: str or None
-        the name of the vector file. If `None` a vector object is returned.
-    reference: Raster
+    reference
         a reference Raster object to retrieve geo information and extent from.
-    layername: str
+    outname
+        the name of the vector file. If `None` a vector object is returned.
+    layername
         the name of the vector object layer.
-    fieldname: str
+    fieldname
         the name of the field to contain the raster value for the respective vector feature.
-    driver: str or None
+    driver
         the vector file type of `outname`. Several extensions are read automatically (see :meth:`Vector.write`).
         Is ignored if ``outname=None``.
-
-    Returns
-    -------
-
     """
     cols = reference.cols
     rows = reference.rows
@@ -1300,7 +1270,7 @@ def vectorize(target, reference, outname=None, layername='layer', fieldname='val
     outband.WriteArray(target, 0, 0)
     
     try:
-        with Vector(driver='Memory') as vec:
+        with Vector() as vec:
             vec.addlayer(name=layername, srs=proj,
                          geomType=ogr.wkbPolygon)
             vec.addfield(fieldname, ogr.OFTInteger)
