@@ -15,6 +15,7 @@ from osgeo.gdalconst import GDT_Byte
 from types import TracebackType
 from typing import Any, TYPE_CHECKING
 from numpy.typing import NDArray
+from packaging.version import Version
 
 if TYPE_CHECKING:
     from .raster import Raster
@@ -55,8 +56,10 @@ class Vector:
     
     def __init__(self, filename: str | None = None, driver: str | None = None) -> None:
         
+        memory_driver_name = 'MEM' if Version(gdal.__version__) >= Version('3.11') else 'Memory'
+        
         if filename is None:
-            driver = 'MEM'
+            driver = memory_driver_name
         elif isinstance(filename, str):
             if not os.path.isfile(filename):
                 raise OSError('file does not exist')
@@ -69,7 +72,10 @@ class Vector:
         
         self.driver = ogr.GetDriverByName(driver)
         
-        self.vector = self.driver.CreateDataSource('out') if driver == 'MEM' else self.driver.Open(filename)
+        if driver == memory_driver_name:
+            self.vector = self.driver.CreateDataSource('out')
+        else:
+            self.vector = self.driver.Open(filename)
         
         nlayers = self.vector.GetLayerCount()
         if nlayers > 1:
