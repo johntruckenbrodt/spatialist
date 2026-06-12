@@ -216,7 +216,7 @@ def gdal_translate(
         dst: str,
         void: bool = True,
         **kwargs: Any
-) -> None:
+) -> gdal.Dataset | None:
     """
     a simple wrapper for :func:`osgeo.gdal.Translate`
 
@@ -239,7 +239,12 @@ def gdal_translate(
     return out
 
 
-def ogr2ogr(src: GDS, dst: str, **kwargs: Any) -> None:
+def ogr2ogr(
+        src: GDS,
+        dst: str,
+        void: bool = True,
+        **kwargs: Any
+) -> gdal.Dataset | None:
     """
     a simple wrapper for :func:`osgeo.gdal.VectorTranslate` aka `ogr2ogr <https://www.gdal.org/ogr2ogr.html>`_
 
@@ -249,12 +254,18 @@ def ogr2ogr(src: GDS, dst: str, **kwargs: Any) -> None:
         the input data set
     dst
         the output data set
+    void
+        just write the results and don't return anything? If not, the spatial object is returned.
     **kwargs
         additional parameters passed to :func:`osgeo.gdal.VectorTranslate`;
         see :func:`osgeo.gdal.VectorTranslateOptions`
     """
-    out = gdal.VectorTranslate(dst, src, options=gdal.VectorTranslateOptions(**kwargs))
-    out = None
+    out = gdal.VectorTranslate(destNameOrDestDS=dst, srcDS=src,
+                               options=gdal.VectorTranslateOptions(**kwargs))
+    out.FlushCache()
+    if void:
+        out = None
+    return out
 
 
 def gdal_rasterize(src: GDS, dst: str, **kwargs: Any) -> None:
