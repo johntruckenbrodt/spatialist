@@ -35,7 +35,6 @@ CRS = int | str | osr.SpatialReference
 EXT = dict[str, int | float]
 
 
-
 class Vector:
     """
     This is intended as a vector meta information handler with options for reading and writing vector data in a
@@ -318,7 +317,7 @@ class Vector:
         return [feature.geometry().ExportToWkt() for feature in features]
     
     @property
-    def extent(self) -> dict[str, float]:
+    def extent(self) -> EXT:
         """
         the extent of the vector object
 
@@ -327,6 +326,90 @@ class Vector:
             a dictionary with keys `xmin`, `xmax`, `ymin`, `ymax`
         """
         return dict(zip(['xmin', 'xmax', 'ymin', 'ymax'], self.layer.GetExtent()))
+    
+    def get_extent(self, split_antimeridian: bool = False) -> EXT:
+        """
+        Get the extent of the vector object.
+        Optionally splits along the antimeridian.
+        
+        Parameters
+        ----------
+        split_antimeridian
+            split the extent along the antimeridian?
+
+        Returns
+        -------
+            a dictionary with keys `xmin`, `xmax`, `ymin`, `ymax`
+        
+        Example
+        -------
+        >>> from spatialist.vector import bbox
+        >>> extent = {'xmin': 178, 'xmax': -178, 'ymin': 50, 'ymax': 51}
+        >>> box = bbox(coordinates=extent, crs=4326)
+        >>> print(box.get_extent())
+        {'xmin': -180.0, 'xmax': 180.0, 'ymin': 50.0, 'ymax': 51.0}
+        >>> print(box.get_extent(split_antimeridian=True))
+        {'xmin': 178.0, 'xmax': -178.0, 'ymin': 50.0, 'ymax': 51.0}
+        >>> box.close()
+        """
+        extent_plain = dict(zip(
+            ['xmin', 'xmax', 'ymin', 'ymax'],
+            self.layer.GetExtent()
+        ))
+        if not split_antimeridian:
+            return extent_plain
+        else:
+            if self.layer.GetSpatialRef().IsGeographic():
+                extent_parts = self.get_extent_parts()
+                xmin = [part['xmin'] for part in extent_parts]
+                xmax = [part['xmax'] for part in extent_parts]
+                ymin = [part['ymin'] for part in extent_parts]
+                ymax = [part['ymax'] for part in extent_parts]
+                if 180 in xmax and -180 in xmin:
+                    return {'xmin': max(xmin), 'xmax': min(xmax),
+                            'ymin': min(ymin), 'ymax': max(ymax)}
+                else:
+                    return extent_plain
+            else:
+                return extent_plain
+    
+    def get_extent_parts(self) -> list[EXT]:
+        """
+        Get extents for individual geometry parts of all features.
+        Multipolygons are split into polygon parts.
+        """
+        
+        def iter_geometry_parts(geom):
+            """Yield polygon parts; for MultiPolygon yields each Polygon."""
+            if geom is None or geom.IsEmpty():
+                return
+            
+            gtype = ogr.GT_Flatten(geom.GetGeometryType())
+            
+            if gtype == ogr.wkbMultiPolygon:
+                for i in range(geom.GetGeometryCount()):
+                    yield geom.GetGeometryRef(i)
+            
+            elif gtype == ogr.wkbPolygon:
+                yield geom
+            
+            else:
+                yield geom
+        
+        self.layer.ResetReading()
+        
+        extent_parts = []
+        
+        for feat in self.layer:
+            geom = feat.GetGeometryRef()
+            if geom is None:
+                continue
+            
+            keys = ['xmin', 'xmax', 'ymin', 'ymax']
+            for i, part in enumerate(iter_geometry_parts(geom)):
+                extent_parts.append(dict(zip(keys, part.GetEnvelope())))
+        self.layer.ResetReading()
+        return extent_parts
     
     @property
     def fieldDefs(self) -> list[ogr.FieldDefn]:

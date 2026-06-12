@@ -491,3 +491,13 @@ def test_wkt2vector():
         assert vec.getArea() == 1.
     with wkt2vector([wkt1, wkt2], srs=4326) as vec:
         assert vec.getArea() == 2.
+
+def test_bbox_antimeridian():
+    extent = {'xmin': 178, 'xmax': -178, 'ymin': 50, 'ymax': 51}
+    with bbox(coordinates=extent, crs=4326, split_antimeridian=False) as vec:
+        assert vec.geomType == ogr.wkbPolygon
+        assert vec.get_extent() == {'xmin': -178, 'xmax': 178, 'ymin': 50, 'ymax': 51}
+    with bbox(coordinates=extent, crs=4326, split_antimeridian=True) as vec:
+        assert vec.geomType == ogr.wkbMultiPolygon
+        assert vec.get_extent() == {'xmin': -180, 'xmax': 180, 'ymin': 50, 'ymax': 51}
+        assert vec.get_extent(split_antimeridian=True) == extent
