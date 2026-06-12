@@ -18,7 +18,7 @@ from packaging.version import Version
 if TYPE_CHECKING:
     from .raster import Raster
 
-from .auxil import crsConvert
+from .auxil import crsConvert, ogr2ogr
 from .ancillary import parse_literal
 from .sqlite_util import sqlite_setup
 
@@ -644,7 +644,7 @@ class Vector:
     
     def reproject(self, projection: CRS) -> None:
         """
-        in-memory reprojection
+        In-memory reprojection. Antimeridian splitting is performed automatically.
 
         Parameters
         ----------
@@ -653,31 +653,19 @@ class Vector:
         """
         srs_out = crsConvert(projection, 'osr')
         
-        # the following check was found to not work in GDAL 3.0.1; likely a bug
-        # if self.srs.IsSame(srs_out) == 0:
         if self.getProjection('epsg') != crsConvert(projection, 'epsg'):
-            
-            # create the CoordinateTransformation
-            coordTrans = osr.CoordinateTransformation(self.srs, srs_out)
-            
-            layername = self.layername
-            geomType = self.geomType
-            features = self.getfeatures()
-            feat_def = features[0].GetDefnRef()
-            fields = [feat_def.GetFieldDefn(x) for x in range(0, feat_def.GetFieldCount())]
-            
+            ds = ogr2ogr(
+                src=self.vector,
+                dst='',
+                format='MEM',
+                dstSRS=srs_out,
+                reproject=True,
+                geometryType='PROMOTE_TO_MULTI',
+                void=False
+            )
             self.__init__()
-            self.addlayer(layername, srs_out, geomType)
-            self.layer.CreateFields(fields)
-            
-            for feature in features:
-                geom = feature.GetGeometryRef()
-                geom.Transform(coordTrans)
-                newfeature = feature.Clone()
-                newfeature.SetGeometry(geom)
-                self.layer.CreateFeature(newfeature)
-                newfeature = None
-            self.init_features()
+            self.vector = ds
+            self.init_layer()
     
     def setCRS(self, crs: CRS) -> None:
         """

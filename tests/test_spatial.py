@@ -501,3 +501,12 @@ def test_bbox_antimeridian():
         assert vec.geomType == ogr.wkbMultiPolygon
         assert vec.get_extent() == {'xmin': -180, 'xmax': 180, 'ymin': 50, 'ymax': 51}
         assert vec.get_extent(split_antimeridian=True) == extent
+    
+    crs = 32660
+    extent_utm = {'xmin': 600000, 'xmax': 709800, 'ymin': 5790240, 'ymax': 5900040}
+    
+    with bbox(coordinates=extent_utm, crs=crs) as vec:
+        vec.reproject2(4326)
+        extent_4326 = vec.get_extent(split_antimeridian=True)
+        extent_4326_int = {k: int(v) for k, v in extent_4326.items()}
+        assert extent_4326_int == {'xmax': -179, 'xmin': 178, 'ymax': 53, 'ymin': 52}
