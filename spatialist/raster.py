@@ -3,16 +3,20 @@
 # John Truckenbrodt 2015-2022
 # Marco Wolsza 2021-2022
 #################################################################
-from __future__ import division
+from __future__ import division, annotations
 import os
 import re
 import platform
 import warnings
 import tempfile
 from datetime import datetime
+from types import TracebackType
 from math import sqrt, floor, ceil
 from time import gmtime, strftime
+from collections.abc import Callable
+from typing import Any
 import numpy as np
+from numpy.typing import NDArray
 
 from . import envi
 from .auxil import gdalwarp, gdalbuildvrt, gdal_translate
@@ -30,6 +34,8 @@ log = logging.getLogger(__name__)
 os.environ['GDAL_PAM_PROXY_DIR'] = tempfile.gettempdir()
 
 gdal.UseExceptions()
+gdal_array.UseExceptions()
+osr.UseExceptions()
 
 subset_tolerance = 0  # percent
 """
@@ -48,7 +54,7 @@ Examples
 """
 
 
-class Raster(object):
+class Raster:
     """
     This is intended as a raster meta information handler with options for reading and writing raster data in a
     convenient manner by simplifying the numerous options provided by the `GDAL <http://www.gdal.org/>`_ python binding.
@@ -59,23 +65,40 @@ class Raster(object):
 
     Parameters
     ----------
-    filename: str or list or osgeo.gdal.Dataset
+    filename
         the raster file(s)/object to read
-    list_separate: bool
+    list_separate
         treat a list of files as separate layers or otherwise as a single layer? The former is intended for single
         layers of a stack, the latter for tiles of a mosaic.
-    timestamps: list[str] or function or None
+    timestamps
         the time information for each layer or a function converting band names to a :obj:`datetime.datetime` object
+    driver
+        driver name or a list of driver names tried to read the raster file
     """
     
-    def __init__(self, filename, list_separate=True, timestamps=None):
+    def __init__(
+            self,
+            filename: str | list[str] | gdal.Dataset,
+            list_separate: bool = True,
+            timestamps: list[str] | Callable[[str], datetime] | None = None,
+            driver: str | list[str] | None = None
+    ) -> None:
         if isinstance(filename, gdal.Dataset):
             self.raster = filename
             self.filename = self.files[0] if self.files is not None else None
         elif isinstance(filename, str):
             self.filename = filename if os.path.isabs(filename) else os.path.join(os.getcwd(), filename)
             filename = self.__prependVSIdirective(filename)
-            self.raster = gdal.Open(filename, GA_ReadOnly)
+            if driver is None:
+                self.raster = gdal.Open(filename, GA_ReadOnly)
+            else:
+                if isinstance(driver, str):
+                    allowed_drivers = [driver]
+                elif isinstance(driver, list):
+                    allowed_drivers = driver
+                else:
+                    raise RuntimeError('"driver" must be of type str or list; is: {}'.format(type(driver)))
+                self.raster = gdal.OpenEx(filename, gdal.OF_RASTER, allowed_drivers=allowed_drivers)
         elif isinstance(filename, list):
             if len(filename) < 2:
                 raise RuntimeError("'filename' is a list with less than two elements")
@@ -117,13 +140,18 @@ class Raster(object):
         else:
             self.timestamps = None
     
-    def __enter__(self):
+    def __enter__(self) -> Raster:
         return self
     
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc_val: BaseException | None,
+            exc_tb: TracebackType | None
+    ) -> None:
         self.close()
     
-    def __str__(self):
+    def __str__(self) -> str:
         vals = dict()
         vals['rows'], vals['cols'], vals['bands'] = self.dim
         vals.update(self.geo)
@@ -147,7 +175,7 @@ class Raster(object):
         
         return info
     
-    def __getitem__(self, index):
+    def __getitem__(self, index: tuple[slice, ...] | Vector) -> Raster:
         """
         subset the object by slices or vector geometry. If slices are provided, one slice for each raster dimension
         needs to be defined. I.e., if the raster object contains several image bands, three slices are necessary.
@@ -157,12 +185,11 @@ class Raster(object):
 
         Parameters
         ----------
-        index: :obj:`tuple` of :obj:`slice` or :obj:`~spatialist.vector.Vector`
+        index
             the subsetting indices to be used
 
         Returns
         -------
-        Raster
             a new raster object referenced through an in-memory GDAL VRT file
 
         Examples
@@ -353,12 +380,12 @@ class Raster(object):
         return out
     
     @staticmethod
-    def __create_tmp_name(suffix):
+    def __create_tmp_name(suffix: str) -> str:
         tmpdir = os.path.join(tempfile.gettempdir(), 'spatialist')
         os.makedirs(tmpdir, exist_ok=True)
         return tempfile.NamedTemporaryFile(suffix=suffix, dir=tmpdir).name
     
-    def __extent2slice(self, extent):
+    def __extent2slice(self, extent: dict[str, float]) -> tuple[slice, ...]:
         extent_bbox = bbox(extent, self.projection)
         inter = intersect(self.bbox(), extent_bbox)
         extent_bbox.close()
@@ -380,7 +407,13 @@ class Raster(object):
         else:
             raise RuntimeError('extent does not overlap with raster object')
     
-    def __maskbyvector(self, vec, outname=None, format='GTiff', nodata=0):
+    def __maskbyvector(
+            self,
+            vec: Vector,
+            outname: str | None = None,
+            format: str = 'GTiff',
+            nodata: int | float | None = 0
+    ) -> Raster | None:
         
         if outname is not None:
             driver_name = format
@@ -431,13 +464,13 @@ class Raster(object):
             out.timestamps = self.timestamps
             return out
     
-    def __prependVSIdirective(self, filename):
+    def __prependVSIdirective(self, filename: str | list[str]) -> str | list[str]:
         """
         prepend one of /vsizip/ or /vsitar/ to the file name if a zip of tar archive.
 
         Parameters
         ----------
-        filename: str or list
+        filename
             the file name, e.g. archive.tar.gz/filename
 
         Returns
@@ -453,18 +486,17 @@ class Raster(object):
             filename = [self.__prependVSIdirective(x) for x in filename]
         return filename
     
-    def allstats(self, approximate=False):
+    def allstats(self, approximate: bool = False) -> list[dict[str, float]]:
         """
         Compute some basic raster statistics
 
         Parameters
         ----------
-        approximate: bool
+        approximate
             approximate statistics from overviews or a subset of all tiles?
 
         Returns
         -------
-        list[dict]
             a list with a dictionary of statistics for each band. Keys: `min`, `max`, `mean`, `sdev`.
             See :meth:`osgeo.gdal.Band.ComputeStatistics`.
         """
@@ -478,84 +510,83 @@ class Raster(object):
             statcollect.append(stats)
         return statcollect
     
-    def array(self):
+    def array(self, mask_nan: bool = True) -> NDArray[Any]:
         """
-        read all raster bands into a numpy ndarray
+        Read all raster bands into a numpy ndarray.
+        If 3D, the `bands` dimension is transposed from the
+        first (GDAL default) to the last dimension.
+        Axes of length 1 are removed using :func:`numpy.squeeze`.
+
+        Parameters
+        ----------
+        mask_nan
+            convert nodata values to :obj:`numpy.nan`? As :obj:`numpy.nan`
+            requires at least float values, any integer array is cast to
+            float32.
 
         Returns
         -------
-        numpy.ndarray
             the array containing all raster data
         """
         # determine whether the current data type can hold np.nan
-        if not np.can_cast('float32', Dtype(self.dtype).numpystr):
+        buf_type = Dtype(self.dtype).gdalint
+        if mask_nan and not np.can_cast('float32', Dtype(self.dtype).numpystr):
             buf_type = gdal.GDT_Float32
-        else:
-            buf_type = Dtype(self.dtype).gdalint
         
         if self.bands == 1:
-            return self.matrix()
+            return self.matrix(mask_nan=mask_nan)
         else:
             arr = self.raster.ReadAsArray(buf_type=buf_type).transpose(1, 2, 0)
-            if isinstance(self.nodata, list):
-                for i in range(0, self.bands):
-                    arr[:, :, i][arr[:, :, i] == self.nodata[i]] = np.nan
-            else:
-                arr[arr == self.nodata] = np.nan
+            if mask_nan:
+                if isinstance(self.nodata, list):
+                    for i in range(0, self.bands):
+                        arr[:, :, i][arr[:, :, i] == self.nodata[i]] = np.nan
+                else:
+                    arr[arr == self.nodata] = np.nan
             return np.squeeze(arr)
     
-    def assign(self, array, band):
+    def assign(self, array: NDArray[Any], band: int) -> None:
         """
         assign an array to an existing Raster object
 
         Parameters
         ----------
-        array: numpy.ndarray
+        array
             the array to be assigned to the Raster object
-        band: int
+        band
             the index of the band to assign to
-
-        Returns
-        -------
-
         """
         self.__data[band] = array
     
     @property
-    def bands(self):
+    def bands(self) -> int:
         """
 
         Returns
         -------
-        int
             the number of image bands
         """
         return self.raster.RasterCount
     
     @property
-    def bandnames(self):
+    def bandnames(self) -> list[str]:
         """
 
         Returns
         -------
-        list
             the names of the bands
         """
         return self.__bandnames
     
     @bandnames.setter
-    def bandnames(self, names):
+    def bandnames(self, names: list[str]) -> None:
         """
         set the names of the raster bands
 
         Parameters
         ----------
-        names: list of str
+        names
             the names to be set; must be of same length as the number of bands
-
-        Returns
-        -------
-
         """
         if not isinstance(names, list):
             raise TypeError('the names to be set must be of type list')
@@ -564,23 +595,28 @@ class Raster(object):
                 'length mismatch of names to be set ({}) and number of bands ({})'.format(len(names), self.bands))
         self.__bandnames = names
     
-    def bbox(self, outname=None, driver=None, overwrite=True, source='image'):
+    def bbox(
+            self,
+            outname: str | None = None,
+            driver: str | None = None,
+            overwrite: bool = True,
+            source: str = 'image'
+    ) -> Vector | None:
         """
         Parameters
         ----------
-        outname: str or None
+        outname
             the name of the file to write; If `None`, the bounding box is returned
             as :class:`~spatialist.vector.Vector` object
-        driver: str or None
+        driver
             The file format to write. `None`: auto-detect from filename extension.
-        overwrite: bool
+        overwrite
             overwrite an already existing file?
-        source: str
+        source
             get the bounding box of either the image ('image') or the ground control points ('gcp').
 
         Returns
         -------
-        Vector or None
             the bounding box vector object if `outname` is not `None` and `None` otherwise.
         
         See Also
@@ -609,7 +645,7 @@ class Raster(object):
             bbox(coordinates=extent, crs=crs, outname=outname,
                  driver=driver, overwrite=overwrite)
     
-    def close(self):
+    def close(self) -> None:
         """
         closes the GDAL raster file connection
         Returns
@@ -623,31 +659,29 @@ class Raster(object):
                 os.remove(self.filename)
     
     @property
-    def cols(self):
+    def cols(self) -> int:
         """
 
         Returns
         -------
-        int
             the number of image columns
         """
         return self.raster.RasterXSize
     
-    def coord_map2img(self, x=None, y=None):
+    def coord_map2img(self, x: int | float | None = None, y: int | float | None = None) -> int | tuple[int, int]:
         """
         convert map coordinates in the raster CRS to image pixel coordinates.
         Either x, y or both must be defined.
 
         Parameters
         ----------
-        x: int or float
+        x
             the x coordinate
-        y: int or float
+        y
             the y coordinate
 
         Returns
         -------
-        int or tuple
             the converted coordinate for either x, y or both
         """
         if x is None and y is None:
@@ -659,21 +693,20 @@ class Raster(object):
             out.append(int((self.geo['ymax'] - y) / abs(self.geo['yres'])))
         return tuple(out) if len(out) > 1 else out[0]
     
-    def coord_img2map(self, x=None, y=None):
+    def coord_img2map(self, x: int | float | None = None, y: int | float | None = None) -> float | tuple[float, float]:
         """
         convert image pixel coordinates to map coordinates in the raster CRS.
         Either x, y or both must be defined.
 
         Parameters
         ----------
-        x: int or float
+        x
             the x coordinate
-        y: int or float
+        y
             the y coordinate
 
         Returns
         -------
-        float or tuple
             the converted coordinate for either x, y or both
         """
         if x is None and y is None:
@@ -686,45 +719,41 @@ class Raster(object):
         return tuple(out) if len(out) > 1 else out[0]
     
     @property
-    def dim(self):
+    def dim(self) -> tuple[int, int, int]:
         """
 
         Returns
         -------
-        tuple
             (rows, columns, bands)
         """
-        return (self.rows, self.cols, self.bands)
+        return self.rows, self.cols, self.bands
     
     @property
-    def driver(self):
+    def driver(self) -> gdal.Driver:
         """
 
         Returns
         -------
-        osgeo.gdal.Driver
             a GDAL raster driver object.
         """
         return self.raster.GetDriver()
     
     @property
-    def dtype(self):
+    def dtype(self) -> str:
         """
 
         Returns
         -------
-        str
             the data type description; e.g. `Float32`
         """
         return gdal.GetDataTypeName(self.raster.GetRasterBand(1).DataType)
     
     @property
-    def epsg(self):
+    def epsg(self) -> int | None:
         """
 
         Returns
         -------
-        int
             the CRS EPSG code
         """
         try:
@@ -734,35 +763,39 @@ class Raster(object):
         return code
     
     @property
-    def extent(self):
+    def extent(self) -> dict[str, float]:
         """
 
         Returns
         -------
-        dict
             the extent of the image
         """
         return {key: self.geo[key] for key in ['xmin', 'xmax', 'ymin', 'ymax']}
     
-    def extract(self, px, py, radius=1, nodata=None):
+    def extract(
+            self,
+            px: int | float,
+            py: int | float,
+            radius: int | float = 1,
+            nodata: int | float | None = None
+    ) -> int | float:
         """
         extract weighted average of pixels intersecting with a defined radius to a point.
 
         Parameters
         ----------
-        px: int or float
+        px
             the x coordinate in units of the Raster SRS
-        py: int or float
+        py
             the y coordinate in units of the Raster SRS
-        radius: int or float
+        radius
             the radius around the point to extract pixel values from; defined as multiples of the pixel resolution
-        nodata: int
+        nodata
             a value to ignore from the computations; If `None`, the nodata value of the Raster object is used
 
         Returns
         -------
-        int or float
-            the the weighted average of all pixels within the defined radius
+            the weighted average of all pixels within the defined radius
 
         """
         if not self.geo['xmin'] <= px <= self.geo['xmax']:
@@ -824,24 +857,23 @@ class Raster(object):
                     
                     # check whether point lies within ellipse: if ((dx ** 2) / xlim ** 2) + ((dy ** 2) / ylim ** 2) <= 1
                     weight = sqrt(dx ** 2 + dy ** 2)
-                    sum += val * weight
+                    sum += float(val) * weight
                     weightsum += weight
                     counter += 1
         
         array = None
         
         if counter > 0:
-            return sum / weightsum
+            return float(sum) / float(weightsum)
         else:
             return nodata
     
     @property
-    def files(self):
+    def files(self) -> list[str] | None:
         """
 
         Returns
         -------
-        list of str
             a list of all absolute names of files associated with this raster data set
         """
         fl = self.raster.GetFileList()
@@ -849,24 +881,22 @@ class Raster(object):
             return [os.path.abspath(x) for x in fl]
     
     @property
-    def format(self):
+    def format(self) -> str:
         """
 
         Returns
         -------
-        str
             the name of the image format
         """
         return self.driver.ShortName
     
     @property
-    def geo(self):
+    def geo(self) -> dict[str, float]:
         """
         General image geo information.
 
         Returns
         -------
-        dict
             a dictionary with keys `xmin`, `xmax`, `xres`, `rotation_x`, `ymin`, `ymax`, `yres`, `rotation_y`
         """
         out = dict(zip(['xmin', 'xres', 'rotation_x', 'ymax', 'rotation_y', 'yres'],
@@ -878,17 +908,16 @@ class Raster(object):
         return out
     
     @property
-    def geogcs(self):
+    def geogcs(self) -> str | None:
         """
 
         Returns
         -------
-        str or None
             an identifier of the geographic coordinate system
         """
         return self.srs.GetAttrValue('geogcs')
     
-    def is_valid(self):
+    def is_valid(self) -> bool:
         """
         Check image integrity.
         Tries to compute the checksum for each raster layer and returns False if this fails.
@@ -897,7 +926,6 @@ class Raster(object):
 
         Returns
         -------
-        bool
             is the file valid?
         """
         for i in range(self.raster.RasterCount):
@@ -907,17 +935,16 @@ class Raster(object):
                 return False
         return True
     
-    def layers(self):
+    def layers(self) -> list[gdal.Band]:
         """
 
         Returns
         -------
-        list[osgeo.gdal.Band]
             a list containing a :class:`osgeo.gdal.Band` object for each image band
         """
         return [self.raster.GetRasterBand(band) for band in range(1, self.bands + 1)]
     
-    def load(self):
+    def load(self) -> None:
         """
         load all raster data to internal memory arrays.
         This shortens the read time of other methods like :meth:`matrix`.
@@ -925,21 +952,20 @@ class Raster(object):
         for i in range(1, self.bands + 1):
             self.__data[i - 1] = self.matrix(i)
     
-    def matrix(self, band=1, mask_nan=True):
+    def matrix(self, band: int = 1, mask_nan: bool = True) -> NDArray[Any]:
         """
         read a raster band (subset) into a numpy ndarray
 
         Parameters
         ----------
-        band: int
+        band
             the band to read the matrix from; 1-based indexing
-        mask_nan: bool
+        mask_nan
             convert nodata values to :obj:`numpy.nan`? As :obj:`numpy.nan` requires at least float values, any integer array is cast
             to float32.
 
         Returns
         -------
-        numpy.ndarray
             the matrix (subset) of the selected band
         """
         # determine whether the current data type can hold np.nan
@@ -959,7 +985,7 @@ class Raster(object):
         return mat
     
     @property
-    def nodata(self):
+    def nodata(self) -> float | list[float]:
         """
 
         Returns
@@ -975,33 +1001,30 @@ class Raster(object):
             return nodatas
     
     @property
-    def projcs(self):
+    def projcs(self) -> str | None:
         """
         Returns
         -------
-        str or None
             an identifier of the projected coordinate system; If the CRS is not projected `None` is returned
         """
         return self.srs.GetAttrValue('projcs') if self.srs.IsProjected() else None
     
     @property
-    def projection(self):
+    def projection(self) -> str | None:
         """
 
         Returns
         -------
-        str
             the CRS Well Known Text (WKT) description
         """
         return self.raster.GetProjection()
     
     @property
-    def proj4(self):
+    def proj4(self) -> str | None:
         """
 
         Returns
         -------
-        str
             the CRS PROJ4 description
         """
         try:
@@ -1010,36 +1033,37 @@ class Raster(object):
             return None
     
     @property
-    def proj4args(self):
+    def proj4args(self) -> dict[str, str | None]:
         """
 
         Returns
         -------
-        dict
             the PROJ4 string arguments as a dictionary
         """
         args = [x.split('=') for x in re.split('[+ ]+', self.proj4) if len(x) > 0]
         return dict([(x[0], None) if len(x) == 1 else tuple(x) for x in args])
     
     @property
-    def res(self):
+    def res(self) -> tuple[float, float]:
         """
-        the raster resolution in x and y direction
+        The raster resolution in x and y dimension.
+        Contrary to GDAL conventions, both values are positive.
+        Values are converted to float.
 
         Returns
         -------
-        tuple
             (xres, yres)
         """
-        return (abs(float(self.geo['xres'])), abs(float(self.geo['yres'])))
+        return abs(float(self.geo['xres'])), abs(float(self.geo['yres']))
     
-    def rescale(self, fun):
+    def rescale(self, fun: Callable[[NDArray[Any]], NDArray[Any]]) -> None:
         """
-        perform raster computations with custom functions and assign them to the existing raster object in memory
+        Perform raster computations with custom functions and assign
+        them to the existing raster object in memory.
 
         Parameters
         ----------
-        fun: function
+        fun
             the custom function to compute on the data
 
         Examples
@@ -1061,70 +1085,79 @@ class Raster(object):
         self.assign(scaled, band=0)
     
     @property
-    def rows(self):
+    def rows(self) -> int:
         """
 
         Returns
         -------
-        int
             the number of image rows
         """
         return self.raster.RasterYSize
     
     @property
-    def srs(self):
+    def srs(self) -> osr.SpatialReference:
         """
 
         Returns
         -------
-        osgeo.osr.SpatialReference
             the spatial reference system of the data set.
         """
         return osr.SpatialReference(wkt=self.projection)
     
-    def write(self, outname, dtype='default', format='GTiff', nodata='default', overwrite=False,
-              cmap=None, update=False, xoff=0, yoff=0, array=None, options=None, overviews=None,
-              overview_resampling='AVERAGE'):
+    def write(
+            self,
+            outname: str,
+            dtype: str = 'default',
+            format: str = 'GTiff',
+            nodata: str | int | float | None = 'default',
+            overwrite: bool = False,
+            cmap: gdal.ColorTable = None,
+            update: bool = False,
+            xoff: int = 0,
+            yoff: int = 0,
+            array: NDArray[Any] | None = None,
+            options: list[str] | None = None,
+            overviews: list[int] | None = None,
+            overview_resampling: str = 'AVERAGE'
+    ) -> None:
         """
         write the raster object to a file.
 
         Parameters
         ----------
-        outname: str
+        outname
             the file to be written
-        dtype: str
+        dtype
             the data type of the written file;
             data type notations of GDAL (e.g. `Float32`) and numpy (e.g. `int8`) are supported.
-        format: str
+            Default `'default'`: use the data type of the raster object.
+        format
             the file format; e.g. 'GTiff'
-        nodata: int or float
-            the nodata value to write to the file
-        overwrite: bool
+        nodata
+            the nodata value to write to the file.
+            Default `'default'`: use the nodata value of the raster object.
+        overwrite
             overwrite an already existing file? Only applies if `update` is `False`.
-        cmap: osgeo.gdal.ColorTable
+        cmap
             a color map to apply to each band.
             Can for example be created with function :func:`~spatialist.auxil.cmap_mpl2gdal`.
-        update: bool
+        update
             open the output file for update or only for writing?
-        xoff: int
+        xoff
             the x/column offset
-        yoff: int
+        yoff
             the y/row offset
-        array: numpy.ndarray
+        array
             write different data than that associated with the Raster object
-        options: list[str] or None
+        options
             a list of options for creating the output dataset via :meth:`osgeo.gdal.Driver.Create`.
             For drivers `GTiff` and `COG`, TIFF tags can also be defined, which are then written to the
             file using :meth:`osgeo.gdal.MajorObject.SetMetadataItem`.
             For example ``TIFFTAG_SOFTWARE=spatialist``.
-        overviews: list[int] or None
+        overviews
             a list of integer overview levels to be created; see :meth:`osgeo.gdal.Dataset.BuildOverviews`.
-        overview_resampling: str
+        overview_resampling
             the resampling to use for creating the overviews
-
-        Returns
-        -------
-
         """
         if outname == self.filename:
             raise RuntimeError('overwriting the currently opened file is not supported.')
@@ -1267,29 +1300,38 @@ class Raster(object):
     #         self.write(outname, dim=[left, top, cols, rows], format=format)
 
 
-def png(src, dst, percent=10, scale=(2, 98), vmin=None, vmax=None, worldfile=False, nodata=None):
+def png(
+        src: Raster,
+        dst: str,
+        percent: int = 10,
+        scale: tuple[int, int] | None = (2, 98),
+        vmin: int | float | None = None,
+        vmax: int | float | None = None,
+        worldfile: bool = False,
+        nodata: int | float | None = None
+) -> None:
     """
     convert a raster image to png. The input raster must either have one or three bands to create
     a grey scale or RGB image respectively.
     
     Parameters
     ----------
-    src: Raster
+    src
         the input raster image to be converted
-    dst: str
+    dst
         the output png file name
-    percent: int
+    percent
         the size of the png relative to `src`
-    scale: tuple or None
+    scale
         the percentile bounds  as (min, max) for scaling the values of the input image
         or `None` to not apply any scaling. Overridden by `vmin` and `vmax` if both are not `None`.
-    vmin: int or float or None
+    vmin
         the minimum value used for image scaling.
-    vmax: int or float or None
+    vmax
         the maximum value used for image scaling.
-    worldfile: bool
+    worldfile
         create a world file (extension .wld)?
-    nodata: int or None
+    nodata
         The no data value to write to the file. All pixels with this value will be transparent.
     
     Notes
@@ -1300,9 +1342,6 @@ def png(src, dst, percent=10, scale=(2, 98), vmin=None, vmax=None, worldfile=Fal
     hand if `nodata` is 255, all values higher than the upper percentile will be transparent.
     This is addressed in GDAL issue `#1825 <https://github.com/OSGeo/gdal/issues/1825>`_.
 
-    Returns
-    -------
-    
     Examples
     --------
     >>> from spatialist.raster import Raster, png
@@ -1341,33 +1380,41 @@ def png(src, dst, percent=10, scale=(2, 98), vmin=None, vmax=None, worldfile=Fal
     gdal_translate(src=src.raster, dst=dst, **options)
 
 
-def rasterize(vectorobject, reference, outname=None, burn_values=1, expressions=None, nodata=0, append=False):
+def rasterize(
+        vectorobject: Vector,
+        reference: Raster,
+        outname: str | None = None,
+        burn_values: int | float | list[int | float] = 1,
+        expressions: list[str] | None = None,
+        nodata: int | float | None = 0,
+        append: bool = False
+) -> Raster | None:
     """
     rasterize a vector object
 
     Parameters
     ----------
-    vectorobject: Vector
+    vectorobject
         the vector object to be rasterized
-    reference: Raster
+    reference
         a reference Raster object to retrieve geo information and extent from
-    outname: str or None
+    outname
         the name of the GeoTiff output file; if None, an in-memory object of type :class:`Raster` is returned and
         parameter outname is ignored
-    burn_values: int or list
+    burn_values
         the values to be written to the raster file
-    expressions: list
+    expressions
         SQL expressions to filter the vector object by attributes
-    nodata: int or float or None
+    nodata
         the nodata value of the target raster file
-    append: bool
+    append
         if the output file already exists, update this file with new rasterized values?
         If True and the output file exists, parameters `reference` and `nodata` are ignored.
 
     Returns
     -------
-    Raster or None
         if outname is `None`, a raster object pointing to an in-memory dataset else `None`
+    
     Example
     -------
     >>> from spatialist import Vector, Raster, rasterize
@@ -1417,34 +1464,38 @@ def rasterize(vectorobject, reference, outname=None, burn_values=1, expressions=
         vectorobject.layer.SetAttributeFilter(expression)
         gdal.RasterizeLayer(target_ds, [1], vectorobject.layer, burn_values=[value])
     vectorobject.layer.SetAttributeFilter('')
+    target_ds.FlushCache()
     if outname is None:
         return Raster(target_ds)
     else:
         target_ds = None
 
 
-def reproject(rasterobject, reference, outname, targetres=None, resampling='bilinear', format='GTiff'):
+def reproject(
+        rasterobject: Raster | str,
+        reference: Raster | Vector | str | int | osr.SpatialReference,
+        outname: str,
+        targetres: tuple[int | float, int | float] | None = None,
+        resampling: str = 'bilinear',
+        format: str = 'GTiff'
+) -> None:
     """
     reproject a raster file
 
     Parameters
     ----------
-    rasterobject: Raster or str
+    rasterobject
         the raster image to be reprojected
-    reference: Raster, Vector, str, int or osr.SpatialReference
+    reference
         either a projection string or a spatial object with an attribute 'projection'
-    outname: str
+    outname
         the name of the output file
-    targetres: tuple
+    targetres
         the output resolution in the target SRS; a two-entry tuple is required: (xres, yres)
-    resampling: str
+    resampling
         the resampling algorithm to be used
-    format: str
+    format
         the output file format
-
-    Returns
-    -------
-
     """
     if isinstance(rasterobject, str):
         rasterobject = Raster(rasterobject)
@@ -1480,49 +1531,60 @@ def reproject(rasterobject, reference, outname, targetres=None, resampling='bili
 
 
 # todo improve speed until aborting when all target files already exist
-def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, shapefile=None, layernames=None,
-          sortfun=None, separate=False, overwrite=False, compress=True, cores=4, pbar=False):
+def stack(
+        srcfiles: list[str] | list[list[str]],
+        dstfile: str,
+        resampling: str,
+        targetres: tuple[float, float],
+        dstnodata: int | float,
+        srcnodata: int | float | None = None,
+        shapefile: str | Vector | None = None,
+        layernames: list[str] | None = None,
+        sortfun: Callable[[str], Any] | None = None,
+        separate: bool = False,
+        overwrite: bool = False,
+        compress: bool = True,
+        cores: int = 4,
+        pbar: bool = False
+) -> None:
     """
     function for mosaicking, resampling and stacking of multiple raster files
 
     Parameters
     ----------
-    srcfiles: list
+    srcfiles
         a list of file names or a list of lists; each sub-list is treated as a task to mosaic its containing files
-    dstfile: str
+    dstfile
         the destination file or a directory (if `separate` is True)
-    resampling: {near, bilinear, cubic, cubicspline, lanczos, average, mode, max, min, med, Q1, Q3}
+    resampling
         the resampling method; see `documentation of gdalwarp <https://www.gdal.org/gdalwarp.html>`_.
-    targetres: tuple or list
+    targetres
         two entries for x and y spatial resolution in units of the source CRS
-    srcnodata: int, float or None
+    srcnodata
         the nodata value of the source files; if left at the default (None), the nodata values are read from the files
-    dstnodata: int or float
+    dstnodata
         the nodata value of the destination file(s)
-    shapefile: str, Vector or None
+    shapefile
         a shapefile for defining the spatial extent of the destination files
-    layernames: list
+    layernames
         the names of the output layers; if `None`, the basenames of the input files are used; overrides sortfun
-    sortfun: function
+    sortfun
         a function for sorting the input files; not used if layernames is not None.
         This is first used for sorting the items in each sub-list of srcfiles;
         the basename of the first item in a sub-list will then be used as the name for the mosaic of this group.
         After mosaicing, the function is again used for sorting the names in the final output
         (only relevant if `separate` is False)
-    separate: bool
+    separate
         should the files be written to a single raster stack (ENVI format) or separate files (GTiff format)?
-    overwrite: bool
+    overwrite
         overwrite the file if it already exists?
-    compress: bool
+    compress
         compress the geotiff files?
-    cores: int
+    cores
         the number of CPU threads to use
-    pbar: bool
+    pbar
         add a progressbar? This is currently only used if `separate==False`
 
-    Returns
-    -------
-    
     Raises
     ------
     RuntimeError
@@ -1563,8 +1625,8 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
         if len(layernames) != len(srcfiles):
             raise RuntimeError('mismatch between number of source file groups and layernames')
     
-    if not isinstance(targetres, (list, tuple)) or len(targetres) != 2:
-        raise RuntimeError('targetres must be a list or tuple with two entries for x and y resolution')
+    if not isinstance(targetres, tuple) or len(targetres) != 2:
+        raise RuntimeError('targetres must be a tuple with two entries for x and y resolution')
     
     if len(srcfiles) == 1 and not isinstance(srcfiles[0], list):
         raise RuntimeError('only one file specified; nothing to be done')
@@ -1723,7 +1785,7 @@ def stack(srcfiles, dstfile, resampling, targetres, dstnodata, srcnodata=None, s
     ##########################################################################################
 
 
-class Dtype(object):
+class Dtype:
     """
     Convert between different data type representations. After initialization, other representations can be obtained
     from the object attributes `gdalint`, `gdalstr` and `numpystr`.
@@ -1743,7 +1805,8 @@ class Dtype(object):
     >>> print(Dtype('Byte').numpystr)
     'uint8'
     """
-    def __init__(self, dtype):
+    
+    def __init__(self, dtype: int | str) -> None:
         if isinstance(dtype, int):
             if dtype in self.numpy2gdalint.values():
                 self.gdalint = dtype
@@ -1759,42 +1822,40 @@ class Dtype(object):
                 self.gdalint = self.numpy2gdalint[self.numpystr]
                 self.gdalstr = self.gdalint2gdalstr[self.gdalint]
         else:
-            raise TypeError('data type identifier must be of type int or str')
+            raise TypeError(f'data type identifier must be of type int or str, '
+                            f'was {type(dtype)}')
         
         required = ['gdalint', 'gdalstr', 'numpystr']
         if sum([x in dir(self) for x in required]) != len(required):
             raise ValueError('unknown data type identifier')
     
     @property
-    def numpy2gdalint(self):
+    def numpy2gdalint(self) -> dict[str, int]:
         """
         create a dictionary for mapping numpy data types to GDAL data type codes
 
         Returns
         -------
-        dict
             the type map
         """
         if not hasattr(self, '__numpy2gdalint'):
             tmap = {}
-            
-            for group in ['int', 'uint', 'float', 'complex']:
-                for dtype in np.sctypes[group]:
-                    code = gdal_array.NumericTypeCodeToGDALTypeCode(dtype)
-                    if code is not None:
-                        tmap[dtype().dtype.name] = code
+            for k, v in np.sctypeDict.items():
+                code = gdal_array.NumericTypeCodeToGDALTypeCode(v)
+                if code is not None:
+                    tmap[k] = code
             self.__numpy2gdalint = tmap
         return self.__numpy2gdalint
     
     @property
-    def gdalstr2gdalint(self):
+    def gdalstr2gdalint(self) -> dict[str, int]:
         map = []
         for key in self.gdalint2numpystr.keys():
             map.append((gdal.GetDataTypeName(key), key))
         return dict(map)
     
     @property
-    def gdalint2numpystr(self):
+    def gdalint2numpystr(self) -> dict[int, str]:
         code = 1
         map = []
         while True:
@@ -1807,14 +1868,25 @@ class Dtype(object):
         return dict(map)
     
     @property
-    def gdalint2gdalstr(self):
+    def gdalint2gdalstr(self) -> dict[int, str]:
         map = []
         for key in self.gdalint2numpystr.keys():
             map.append((key, gdal.GetDataTypeName(key)))
         return dict(map)
 
 
-def apply_along_time(src, dst, func1d, nodata, format, cmap=None, maxlines=None, cores=8, *args, **kwargs):
+def apply_along_time(
+        src: Raster,
+        dst: str,
+        func1d: Callable[..., Any],
+        nodata: int | float,
+        format: str,
+        cmap: gdal.ColorTable | None = None,
+        maxlines: int | None = None,
+        cores: int = 8,
+        *args: Any,
+        **kwargs: Any
+) -> None:
     """
     Apply a time series computation to a 3D raster stack using multiple CPUs.
     The stack is read in chunks of maxlines x columns x time steps, for which the result is computed and stored in a 2D output array.
@@ -1828,34 +1900,30 @@ def apply_along_time(src, dst, func1d, nodata, format, cmap=None, maxlines=None,
 
     Parameters
     ----------
-    src: Raster
+    src
         the source raster data
-    dst: str
+    dst
         the output file in GeoTiff format
-    func1d: function
+    func1d
         the function to be applied over a single time series 1D array
-    nodata: int
+    nodata
         the nodata value to write to the output file
-    format: str
+    format
         the output file format, e.g. 'GTiff'
-    cmap: gdal.ColorTable
+    cmap
         a color table to write to the resulting file; see :func:`spatialist.auxil.cmap_mpl2gdal` for creation options.
-    maxlines: int
+    maxlines
         the maximum number of lines to read at once. Controls the amount of memory used.
-    cores: int
+    cores
         the number of parallel cores
-    args: any
+    args
         Additional arguments to `func1d`.
-    kwargs:any
+    kwargs
         Additional named arguments to `func1d`.
 
     See Also
     --------
     :func:`spatialist.ancillary.parallel_apply_along_axis`
-    
-    Returns
-    -------
-
     """
     rows, cols, bands = src.dim
     

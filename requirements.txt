@@ -1,7 +1,10 @@
-progressbar2
-pathos>=0.2
-numpy<2.0
-tblib
-pyyaml
 dill
+geopandas
 matplotlib
+numpy
+pandas
+pathos>=0.2
+progressbar2
+pyyaml
+shapely
+tblib

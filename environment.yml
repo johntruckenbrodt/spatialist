@@ -1,17 +1,20 @@
 name: sp_test
 channels:
   - conda-forge
-  - defaults
 dependencies:
-  - python>=3.8
+  - python>=3.11
   - progressbar2
   - pathos>=0.2
-  - numpy<2.0
+  - numpy
   - matplotlib-base
   - tblib
   - pyyaml
   - dill
   - gdal>=2.4
+  - libgdal
   - pip
   - sqlite
   - libspatialite
+  - shapely
+  - pandas
+  - geopandas

@@ -15,7 +15,7 @@
 import sys
 import os
 import datetime
-from pkg_resources import get_distribution
+from importlib.metadata import version as read_version
 
 project = 'spatialist'
 authors = 'John Truckenbrodt, Ismail Baris, Felix Cremer, Marco Wolsza, Tyler Anderson'
@@ -35,10 +35,10 @@ sys.path.insert(0, os.path.join(os.path.abspath('.'), '_extensions'))
 # release = get_distribution('spatialist').version
 # The short X.Y version.
 # version = '.'.join(release.split('.')[:2])
-version = get_distribution(project).version
+version = read_version(project)
 
 # -- General configuration ------------------------------------------------
-autodoc_mock_imports = ['osgeo', 'matplotlib', 'mpl_toolkits', 'IPython', 'ipywidgets', 'sqlite3']
+autodoc_mock_imports = ['matplotlib', 'mpl_toolkits', 'IPython', 'ipywidgets', 'sqlite3']
 
 # If your documentation needs a minimal Sphinx version, state it here.
 needs_sphinx = '1.6'
@@ -53,15 +53,20 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
+    'sphinx_autodoc_typehints',
     'epsg_links',
     'list_drivers'
 ]
 
-intersphinx_mapping = {'python': ('https://docs.python.org/3', None),
-                       'matplotlib': ('https://matplotlib.org', None),
-                       'numpy': ('https://numpy.org/doc/stable', None),
-                       'pathos': ('https://pathos.readthedocs.io/en/latest', None),
-                       'osgeo': ('https://gdal.org', None)}
+intersphinx_mapping = {
+    'geopandas': ('https://geopandas.org/en/stable', None),
+    'matplotlib': ('https://matplotlib.org', None),
+    'numpy': ('https://numpy.org/doc/stable', None),
+    'osgeo': ('https://gdal.org', None),
+    'pandas': ('https://pandas.pydata.org/docs', None),
+    'pathos': ('https://pathos.readthedocs.io/en/latest', None),
+    'python': ('https://docs.python.org/3', None)
+}
 
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
@@ -218,10 +223,10 @@ htmlhelp_basename = '{}doc'.format(project)
 latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
     # 'papersize': 'letterpaper',
-
+    
     # The font size ('10pt', '11pt' or '12pt').
     # 'pointsize': '10pt',
-
+    
     # Additional stuff for the LaTeX preamble.
     # 'preamble': '',
 }

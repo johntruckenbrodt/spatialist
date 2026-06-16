@@ -3,14 +3,15 @@ import shutil
 import pytest
 import platform
 import numpy as np
+from datetime import datetime, timezone
 from osgeo import ogr, gdal
-from spatialist import crsConvert, haversine, Raster, stack, ogr2ogr, gdal_translate, gdal_rasterize, bbox, rasterize, \
-    gdalwarp, utm_autodetect, coordinate_reproject, cmap_mpl2gdal
-from spatialist.raster import Dtype, png
-from spatialist.vector import feature2vector, dissolve, Vector, intersect
+from spatialist.raster import Dtype, png, Raster, stack, rasterize
+from spatialist.vector import feature2vector, dissolve, Vector, intersect, bbox, wkt2vector, set_field
 from spatialist.envi import hdr, HDRobject
 from spatialist.sqlite_util import sqlite_setup, __Handler
 from spatialist.ancillary import parallel_apply_along_axis
+from spatialist.auxil import (crsConvert, haversine, ogr2ogr, gdal_translate, gdal_rasterize, gdalwarp,
+                              utm_autodetect, coordinate_reproject, cmap_mpl2gdal)
 
 import logging
 
@@ -35,11 +36,12 @@ def test_haversine():
     assert haversine(50, 10, 51, 10) == 111194.92664455889
 
 
-def test_Vector(testdata):
+def test_Vector(tmpdir, testdata):
     scene = Raster(testdata['tif'])
     bbox1 = scene.bbox()
     assert bbox1.getArea() == 23262400.0
-    assert bbox1.extent == {'ymax': 4830114.70107, 'ymin': 4825774.70107, 'xmin': 620048.241204, 'xmax': 625408.241204}
+    assert bbox1.extent == {'ymax': 4830114.70107, 'ymin': 4825774.70107,
+                            'xmin': 620048.241204, 'xmax': 625408.241204}
     assert bbox1.nlayers == 1
     assert bbox1.getProjection('epsg') == 32631
     assert bbox1.proj4.strip() == '+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs'
@@ -66,6 +68,20 @@ def test_Vector(testdata):
     with pytest.raises(OSError):
         vec = Vector(filename='foobar')
     bbox1.close()
+    with scene.bbox() as bbox3:
+        bbox3.addfield(name='datetime', type=ogr.OFTDateTime,
+                       values=[datetime.now()])
+        gdf_out = tmpdir / "test.gpkg"
+        gdf = bbox3.to_geopandas()
+        gdf.to_file(str(gdf_out))
+        assert gdf_out.exists()
+    coords = {'xmin': 10, 'ymin': 20, 'xmax': 50, 'ymax': 51}
+    with bbox(coordinates=coords, crs=4326, buffer=None) as bbox4:
+        assert bbox4.getArea() == 1240.0
+    with bbox(coordinates=coords, crs=4326, buffer=1) as bbox4:
+        assert bbox4.getArea() == 1386.0
+    with bbox(coordinates=coords, crs=4326, buffer=(1, 2)) as bbox4:
+        assert bbox4.getArea() == 1470.0
 
 
 def test_dissolve(tmpdir, travis, testdata):
@@ -98,8 +114,7 @@ def test_dissolve(tmpdir, travis, testdata):
 
 def test_Raster(tmpdir, testdata):
     with pytest.raises(RuntimeError):
-        with Raster(1) as ras:
-            print(ras)
+        ras = Raster(1)
     with Raster(testdata['tif']) as ras:
         print(ras)
         assert ras.bands == 1
@@ -141,6 +156,13 @@ def test_Raster(tmpdir, testdata):
         ras.write(os.path.join(str(tmpdir), 'test'), format='GTiff')
         with pytest.raises(RuntimeError):
             ras.write(os.path.join(str(tmpdir), 'test.tif'), format='GTiff')
+    with Raster(testdata['tif'],driver='GTiff') as ras:
+        print(ras," with GTiff driver")
+        assert ras.bands == 1
+
+    with Raster(testdata['tif'],driver=['ENVI','GTiff']) as ras:
+        print(ras," with ['ENVI','GTiff'] driver list")
+        assert ras.bands == 1
 
 
 def test_Raster_subset(testdata):
@@ -185,8 +207,7 @@ def test_Raster_extract(testdata):
 
 def test_Raster_filestack(testdata):
     with pytest.raises(RuntimeError):
-        with Raster([testdata['tif']]) as ras:
-            print(ras)
+        ras = Raster([testdata['tif']])
     with Raster([testdata['tif'], testdata['tif2']]) as ras:
         assert ras.bands == 2
         arr = ras.array()
@@ -426,3 +447,47 @@ def test_png(tmpdir, testdata):
     outname = os.path.join(str(tmpdir), 'test_rgb.png')
     with Raster(src) as ras:
         png(src=ras, dst=outname, percent=100, scale=(2, 98), worldfile=True)
+
+
+def test_addfield():
+    extent = {'xmin': 10, 'xmax': 11, 'ymin': 50, 'ymax': 51}
+    with bbox(coordinates=extent, crs=4326) as box:
+        box.addfield(name='test1', type=ogr.OFTString, values=['a'])
+        box.addfield(name='test2', type=ogr.OFTStringList, values=[['a', 'b']])
+        box.addfield(name='test3', type=ogr.OFTInteger, values=[1])
+        box.addfield(name='test4', type=ogr.OFTIntegerList, values=[[1, 2]])
+        box.addfield(name='test5', type=ogr.OFTInteger64, values=[1])
+        box.addfield(name='test6', type=ogr.OFTInteger64List, values=[[1, 2]])
+        box.addfield(name='test7', type=ogr.OFTReal, values=[1])
+        box.addfield(name='test8', type=ogr.OFTRealList, values=[[1., 2.]])
+        box.addfield(name='test9', type=ogr.OFTBinary, values=[b'1'])
+        now = datetime.now()  # timezone unaware
+        box.addfield(name='test10', type=ogr.OFTDateTime, values=[now])
+        now = now.astimezone()  # local timezone
+        box.addfield(name='test11', type=ogr.OFTDateTime, values=[now])
+        now = now.astimezone(timezone.utc)  # UTC timezone
+        box.addfield(name='test12', type=ogr.OFTDateTime, values=[now])
+        with pytest.raises(ValueError):
+            # Date type is not supported
+            box.addfield(name='test13', type=ogr.OFTDate, values=[now])
+        with pytest.raises(ValueError):
+            # Time type is not supported
+            box.addfield(name='test14', type=ogr.OFTTime, values=[now])
+        with pytest.raises(TypeError):
+            # value must be a datetime object
+            box.addfield(name='test15', type=ogr.OFTDateTime, values=[1])
+        with pytest.raises(RuntimeError):
+            # one feature, two values
+            box.addfield(name='test16', type=ogr.OFTString, values=['a', 'b'])
+        with pytest.raises(TypeError):
+            # target must be Vector or ogr.Feature
+            set_field(target='x', name='test17', type=ogr.OFTString, values=['a'])
+
+
+def test_wkt2vector():
+    wkt1 = 'POLYGON ((0. 0., 0. 1., 1. 1., 1. 0., 0. 0.))'
+    wkt2 = 'POLYGON ((1. 1., 1. 2., 2. 2., 2. 1., 1. 1.))'
+    with wkt2vector(wkt1, srs=4326) as vec:
+        assert vec.getArea() == 1.
+    with wkt2vector([wkt1, wkt2], srs=4326) as vec:
+        assert vec.getArea() == 2.

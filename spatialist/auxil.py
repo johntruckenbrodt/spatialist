@@ -1,9 +1,17 @@
 ##############################################################
 # Convenience functions for general spatial applications
-# John Truckenbrodt, 2016-2022
+# John Truckenbrodt, 2016-2026
 ##############################################################
+from __future__ import annotations
+
 import math
 import warnings
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .raster import Raster
+    from .vector import Vector
+
 from osgeo import osr, gdal, ogr
 import progressbar as pb
 from matplotlib import pyplot as plt
@@ -12,16 +20,23 @@ osr.UseExceptions()
 ogr.UseExceptions()
 gdal.UseExceptions()
 
+GDS = str | gdal.Dataset
+CRS = int | str | osr.SpatialReference
 
-def crsConvert(crsIn, crsOut, wkt_format='DEFAULT'):
+
+def crsConvert(
+        crsIn: CRS,
+        crsOut: str,
+        wkt_format: str = 'DEFAULT'
+) -> CRS:
     """
     convert between different types of spatial reference representations
 
     Parameters
     ----------
-    crsIn: int or str or osgeo.osr.SpatialReference
+    crsIn
         the input CRS
-    crsOut: str
+    crsOut
         the output CRS type; supported options:
         
         - epsg
@@ -30,13 +45,12 @@ def crsConvert(crsIn, crsOut, wkt_format='DEFAULT'):
         - prettyWkt
         - proj4
         - wkt
-    wkt_format: str
+    wkt_format
         the format of the `wkt` string. See here for options:
         https://gdal.org/api/ogrspatialref.html#_CPPv4NK19OGRSpatialReference11exportToWktEPPcPPCKc
 
     Returns
     -------
-    int or str or osgeo.osr.SpatialReference
         the output CRS
 
     Examples
@@ -95,24 +109,23 @@ def crsConvert(crsIn, crsOut, wkt_format='DEFAULT'):
         raise ValueError('crsOut not recognized; must be either wkt, prettyWkt, proj4, epsg, opengis or osr')
 
 
-def haversine(lat1, lon1, lat2, lon2):
+def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """
     compute the distance in meters between two points in latlon
 
     Parameters
     ----------
-    lat1: int or float
+    lat1
         the latitude of point 1
-    lon1: int or float
+    lon1
         the longitude of point 1
-    lat2: int or float
+    lat2
         the latitude of point 2
-    lon2: int or float
+    lon2
         the longitude of point 2
 
     Returns
     -------
-    float
         the distance between point 1 and point 2 in meters
 
     """
@@ -123,24 +136,25 @@ def haversine(lat1, lon1, lat2, lon2):
     return radius * c
 
 
-def gdalwarp(src, dst, pbar=False, **kwargs):
+def gdalwarp(
+        src: GDS | list[GDS],
+        dst: str,
+        pbar: bool = False,
+        **kwargs: Any
+) -> None:
     """
     a simple wrapper for :func:`osgeo.gdal.Warp`
 
     Parameters
     ----------
-    src: str or osgeo.ogr.DataSource or osgeo.gdal.Dataset or list[str or osgeo.ogr.DataSource or osgeo.gdal.Dataset]
+    src
         the input data set
-    dst: str
+    dst
         the output data set
-    pbar: bool
+    pbar
         add a progressbar?
     **kwargs
         additional parameters passed to :func:`osgeo.gdal.Warp`; see :func:`osgeo.gdal.WarpOptions`
-
-    Returns
-    -------
-
     """
     progress = None
     try:
@@ -160,24 +174,25 @@ def gdalwarp(src, dst, pbar=False, **kwargs):
         out = None
 
 
-def gdalbuildvrt(src, dst, void=True, **kwargs):
+def gdalbuildvrt(
+        src: GDS | list[GDS],
+        dst: str,
+        void: bool = True,
+        **kwargs: Any
+) -> gdal.Dataset | None:
     """
     a simple wrapper for :func:`osgeo.gdal.BuildVRT`
 
     Parameters
     ----------
-    src: str, list, :class:`osgeo.ogr.DataSource` or :class:`osgeo.gdal.Dataset`
+    src
         the input data set(s)
-    dst: str
+    dst
         the output data set
-    void: bool
-        just write the results and don't return anything? If not, the spatial object is returned
+    void
+        just write the results and don't return anything? If not, the spatial object is returned.
     **kwargs
         additional parameters passed to :func:`osgeo.gdal.BuildVRT`; see :func:`osgeo.gdal.BuildVRTOptions`
-
-    Returns
-    -------
-
     """
     
     if 'outputBounds' in kwargs.keys() and gdal.__version__ < '2.4.0':
@@ -193,94 +208,92 @@ def gdalbuildvrt(src, dst, void=True, **kwargs):
     out.FlushCache()
     if void:
         out = None
-    else:
-        return out
+    return out
 
 
-def gdal_translate(src, dst, **kwargs):
+def gdal_translate(
+        src: GDS,
+        dst: str,
+        void: bool = True,
+        **kwargs: Any
+) -> None:
     """
     a simple wrapper for :func:`osgeo.gdal.Translate`
 
     Parameters
     ----------
-    src: str, osgeo.ogr.DataSource or osgeo.gdal.Dataset
+    src
         the input data set
-    dst: str
+    dst
         the output data set
+    void
+        just write the results and don't return anything? If not, the spatial object is returned.
     **kwargs
         additional parameters passed to :func:`osgeo.gdal.Translate`;
         see :func:`osgeo.gdal.TranslateOptions`
-
-    Returns
-    -------
-
     """
     out = gdal.Translate(dst, src, options=gdal.TranslateOptions(**kwargs))
-    out = None
+    out.FlushCache()
+    if void:
+        out = None
+    return out
 
 
-def ogr2ogr(src, dst, **kwargs):
+def ogr2ogr(src: GDS, dst: str, **kwargs: Any) -> None:
     """
     a simple wrapper for :func:`osgeo.gdal.VectorTranslate` aka `ogr2ogr <https://www.gdal.org/ogr2ogr.html>`_
 
     Parameters
     ----------
-    src: str or osgeo.ogr.DataSource
+    src
         the input data set
-    dst: str
+    dst
         the output data set
     **kwargs
         additional parameters passed to :func:`osgeo.gdal.VectorTranslate`;
         see :func:`osgeo.gdal.VectorTranslateOptions`
-
-    Returns
-    -------
-
     """
     out = gdal.VectorTranslate(dst, src, options=gdal.VectorTranslateOptions(**kwargs))
     out = None
 
 
-def gdal_rasterize(src, dst, **kwargs):
+def gdal_rasterize(src: GDS, dst: str, **kwargs: Any) -> None:
     """
     a simple wrapper for :func:`osgeo.gdal.Rasterize`
 
     Parameters
     ----------
-    src: str or osgeo.ogr.DataSource
+    src
         the input data set
-    dst: str
+    dst
         the output data set
     **kwargs
-        additional parameters passed to :func:`osgeo.gdal.Rasterize`; see :func:`osgeo.gdal.RasterizeOptions`
-
-    Returns
-    -------
-
+        Additional parameters passed to :func:`osgeo.gdal.Rasterize`.
+        See :func:`osgeo.gdal.RasterizeOptions`.
     """
     out = gdal.Rasterize(dst, src, options=gdal.RasterizeOptions(**kwargs))
     out = None
 
 
-def coordinate_reproject(x, y, s_crs, t_crs):
+def coordinate_reproject(
+        x: float,
+        y: float,
+        s_crs: CRS,
+        t_crs: CRS
+) -> tuple[float, float]:
     """
     reproject a coordinate from one CRS to another
     
     Parameters
     ----------
-    x: int or float
+    x
         the X coordinate component
-    y: int or float
+    y
         the Y coordinate component
-    s_crs: int, str or osgeo.osr.SpatialReference
+    s_crs
         the source CRS. See :func:`~spatialist.auxil.crsConvert` for options.
-    t_crs: int, str or osgeo.osr.SpatialReference
+    t_crs
         the target CRS. See :func:`~spatialist.auxil.crsConvert` for options.
-
-    Returns
-    -------
-    tuple
-    
     """
     source = crsConvert(s_crs, 'osr')
     target = crsConvert(t_crs, 'osr')
@@ -289,7 +302,7 @@ def coordinate_reproject(x, y, s_crs, t_crs):
     return point
 
 
-def utm_autodetect(spatial, crsOut):
+def utm_autodetect(spatial: Raster | Vector, crsOut: str) -> CRS:
     """
     get the UTM CRS for a spatial object
     
@@ -298,14 +311,14 @@ def utm_autodetect(spatial, crsOut):
     
     Parameters
     ----------
-    spatial: Raster or Vector
+    spatial
         a spatial object in an arbitrary CRS
-    crsOut: str
+    crsOut
         the output CRS type; see function :func:`crsConvert` for options
     
     Returns
     -------
-    int or str or osgeo.osr.SpatialReference
+    out
         the output CRS
     """
     with spatial.bbox() as box:
@@ -323,15 +336,15 @@ def utm_autodetect(spatial, crsOut):
     return crsConvert(utm_cs, crsOut)
 
 
-def __callback(pct, msg, data):
+def __callback(pct: float, msg: str, data: Any) -> int:
     """
     helper function to create a progress bar in function gdalwarp
     
     Parameters
     ----------
-    pct: float
+    pct
         the percentage progress
-    msg: str
+    msg
         the message to be printed on each progress step
     data
         the data to be modified during each progress step
@@ -345,18 +358,17 @@ def __callback(pct, msg, data):
     return 1
 
 
-def __osr2epsg(srs):
+def __osr2epsg(srs: osr.SpatialReference) -> int:
     """
     helper function for crsConvert
     
     Parameters
     ----------
-    srs: osgeo.osr.SpatialReference
+    srs
         an SRS to be converted
 
     Returns
     -------
-    int
         the EPSG code if one exists
     
     Raises
@@ -387,20 +399,20 @@ def __osr2epsg(srs):
     return code
 
 
-def cmap_mpl2gdal(mplcolor, values):
+def cmap_mpl2gdal(mplcolor: str, values: list[int] | range) -> gdal.ColorTable:
     """
     convert a matplotlib color table to a GDAL representation.
     
     Parameters
     ----------
-    mplcolor: str
+    mplcolor
         a color table code
-    values: list[int] or range
+    values
         the integer data values for which to retrieve colors
 
     Returns
     -------
-    osgeo.gdal.ColorTable
+    cmap
         the color table in GDAL format
     
     Note

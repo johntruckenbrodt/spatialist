@@ -27,22 +27,12 @@ def test_parse_literal():
 
 def test_run(tmpdir, testdata):
     log = os.path.join(str(tmpdir), 'test_run.log')
-    out, err = anc.run(cmd=['gdalinfo', testdata['tif']],
-                       logfile=log, void=False)
+    returncode, out, err = anc.run(cmd=['gdalinfo', testdata['tif']],
+                                   logfile=log, void=False)
     with pytest.raises(OSError):
         anc.run(['foobar'])
     with pytest.raises(sp.CalledProcessError):
         anc.run(['gdalinfo', 'foobar'])
-
-
-def test_which():
-    env = os.environ['PATH']
-    os.environ['PATH'] = '{}{}{}'.format(os.environ['PATH'], os.path.pathsep, os.path.dirname(os.__file__))
-    program = anc.which(os.__file__, os.F_OK)
-    assert os.path.isfile(program)
-    assert anc.which(program, os.F_OK) == program
-    assert anc.which('foobar') is None
-    os.environ['PATH'] = env
 
 
 def test_multicore():
@@ -74,11 +64,11 @@ def test_finder(tmpdir, testdata):
     assert len(anc.finder(dir, ['test*'], foldermode=1)) == 4
     assert len(anc.finder(dir, ['test*'], foldermode=2)) == 2
     assert len(anc.finder([dir_sub1, dir_sub2], ['test*'])) == 2
-
+    
     assert len(anc.finder(testdata['zip'], ['file*'])) == 3
     assert len(anc.finder(testdata['zip'], ['*'], foldermode=1)) == 5
     assert len(anc.finder(testdata['zip'], ['[a-z]{1}'], foldermode=2, regex=True)) == 2
-
+    
     assert len(anc.finder(testdata['zip_noimplicit'], ['*'], foldermode=1)) == 5
     
     assert len(anc.finder(testdata['tar'], ['file*'])) == 3
@@ -102,26 +92,6 @@ def test_rescale():
     assert anc.rescale([1000, 2000, 3000], [1, 3]) == [1, 2, 3]
     with pytest.raises(RuntimeError):
         anc.rescale([1000, 1000])
-
-
-def test_Queue():
-    st = anc.Queue()
-    st.push('a')
-    assert st.pop() == 'a'
-    assert st.length() == 0
-
-
-def test_Stack():
-    st = anc.Stack()
-    assert st.empty() is True
-    st = anc.Stack(['a', 'b'])
-    assert st.length() == 2
-    st = anc.Stack('a')
-    st.push('b')
-    st.push(['c', 'd'])
-    assert st.pop() == 'd'
-    st.flush()
-    assert st.empty() is True
 
 
 def test_urlQueryParser():

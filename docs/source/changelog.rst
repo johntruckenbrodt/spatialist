@@ -189,3 +189,87 @@ Changelog
 -------------------
 
 - add progress bar to :func:`spatialist.ancillary.multicore` (non-Windows only)
+
+0.13.1 | 2024-04-11
+-------------------
+
+- :func:`spatialist.ancillary.multicore` bug fix
+
+0.14.0 | 2024-10-01
+-------------------
+
+- :func:`spatialist.vector.feature2vector`: bug fix
+- :meth:`spatialist.vector.Vector.addfield`: new argument `values`
+- :func:`spatialist.vector.wkt2vector`: enable passing multiple geometries as list
+
+0.15.0 | 2025-04-09
+-------------------
+
+- :meth:`spatialist.vector.Vector.write`: significantly reduced lines of code and removed
+  bugs by making use of :meth:`osgeo.gdal.Dataset.CopyLayer`
+- :meth:`spatialist.vector.Vector.to_geopandas`: new method
+- :func:`spatialist.vector.set_field`: new function
+
+  + code outsourced from :meth:`spatialist.vector.Vector.addfield`
+  + used by :meth:`spatialist.vector.Vector.addfeature`
+  + added support for `DateTime` fields
+
+0.15.1 | 2025-05-09
+-------------------
+
+- :meth:`spatialist.vector.Vector.to_geopandas`: fixed bug in `DateTime` field parsing
+
+0.16.0 | 2025-08-22
+-------------------
+
+- :func:`spatialist.vector.bbox`:
+
+  + new argument `buffer`
+  + change order of coordinates to counter-clockwise
+
+0.16.1 | 2025-10-08
+-------------------
+
+- support for numpy>=2.0
+
+0.16.2 | 2026-01-16
+-------------------
+
+- moved tests folder to top directory (so it is not included in distributions)
+- :func:`spatialist.vector.set_field`: round DateTime fields to milliseconds
+
+0.16.3 | 2026-02-27
+-------------------
+
+- use `importlib` instead of legacy `pkg_resources`
+- call `UseExceptions()` on all imported `osgeo` submodules
+- :func:`spatialist.raster.rasterize`: call :meth:`osgeo.gdal.Dataset.FlushCache` to avoid running into suppressed
+  errors when closing the dataset with `target_ds = None`
+
+0.17.0 | 2026-03-06
+-------------------
+
+- :func:`spatialist.ancillary.run`: also return the return code of the subprocess
+
+0.17.1 | 2026-03-10
+-------------------
+
+- :func:`spatialist.ancillary.run`: bug fixes
+
+  + do not encode `inlist` to `bytes`
+  + make sure the function may not return `None`
+  + pas right arguments to `sp.CalledProcessError`
+  + use `with` context manager for the logfile to make sure it is closed
+
+0.18.0 | 2026-03-12
+-------------------
+
+- class :class:`spatialist.raster.Raster`: new argument `driver`
+- replaced usage of deprecated `Memory` driver with `MEM`
+
+0.19.0 | 2026-04-02
+-------------------
+
+- method :meth:`spatialist.raster.Raster.array`: new argument `mask_nan`
+- :mod:`spatialist.ancillary`: removed classes :class:`~spatialist.ancillary.Stack` and :class:`~spatialist.ancillary.Queue`, which are no longer needed
+- added typing
