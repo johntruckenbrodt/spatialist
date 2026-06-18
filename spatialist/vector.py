@@ -347,7 +347,7 @@ class Vector:
         >>> from spatialist.vector import bbox
         >>> extent = {'xmin': 178, 'xmax': -178, 'ymin': 50, 'ymax': 51}
         >>> box = bbox(coordinates=extent, crs=4326)
-        >>> print(box.get_extent())
+        >>> print(box.get_extent(split_antimeridian=False))
         {'xmin': -180.0, 'xmax': 180.0, 'ymin': 50.0, 'ymax': 51.0}
         >>> print(box.get_extent(split_antimeridian=True))
         {'xmin': 178.0, 'xmax': -178.0, 'ymin': 50.0, 'ymax': 51.0}
