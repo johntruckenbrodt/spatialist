@@ -315,13 +315,18 @@ class Vector:
     @property
     def extent(self) -> EXT:
         """
-        the extent of the vector object
+        The extent of the vector object.
+        
+        Note
+        ----
+        The extent is auto-split along the antimeridian.
+        Use method :meth:`~spatialist.vector.Vector.get_extent` if you do not require this.
 
         Returns
         -------
             a dictionary with keys `xmin`, `xmax`, `ymin`, `ymax`
         """
-        return dict(zip(['xmin', 'xmax', 'ymin', 'ymax'], self.layer.GetExtent()))
+        return self.get_extent(split_antimeridian=True)
     
     def get_extent(self, split_antimeridian: bool = True) -> EXT:
         """
