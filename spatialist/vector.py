@@ -275,15 +275,11 @@ class Vector:
 
         Returns
         -------
-            if outname is None, the bounding box Vector object
+            the bounding box Vector object id `outname=None` and `None` otherwise.
         """
-        if outname is None:
-            return bbox(coordinates=self.extent, crs=self.srs,
-                        split_antimeridian=split_antimeridian)
-        else:
-            bbox(coordinates=self.extent, crs=self.srs, outname=outname,
-                 driver=driver, overwrite=overwrite,
-                 split_antimeridian=split_antimeridian)
+        return bbox(coordinates=self.extent, crs=self.srs,
+                    outname=outname, driver=driver, overwrite=overwrite,
+                    split_antimeridian=split_antimeridian)
     
     def clone(self) -> Vector:
         return feature2vector(self.getfeatures(), ref=self)
