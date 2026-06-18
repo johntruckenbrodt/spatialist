@@ -1071,21 +1071,27 @@ def feature2vector(
 
 def from_geopandas(gdf: gpd.GeoDataFrame, layer_name: str = "layer") -> Vector:
     """
-    Convert a geopandas GeoDataFrame to a Vector object
+    Convert a geopandas GeoDataFrame to a Vector object.
     
     Parameters
     ----------
     gdf
-        the input GeoDataFrame
+        The input GeoDataFrame. All features (columns) must have the same geometry type.
     layer_name
-        the name of the Vector object's layer
+        The name of the Vector object's layer.
     """
     out = Vector()
     
     srs = osr.SpatialReference()
     srs.ImportFromWkt(gdf.crs.to_wkt())
     
-    geom_type = ogr.wkbUnknown
+    geom_types = list(set(gdf.geometry.dropna().geom_type.unique()))
+    
+    if len(geom_types) > 1:
+        raise RuntimeError(f'Multiple geometry types are not supported. '
+                           f'Found: {geom_types}.')
+    
+    geom_type = getattr(ogr, f'wkb{geom_types[0]}')
     
     out.addlayer(name=layer_name, srs=srs, geomType=geom_type)
     
