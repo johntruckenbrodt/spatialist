@@ -1068,6 +1068,57 @@ def feature2vector(
     return vec
 
 
+def from_geopandas(gdf: gpd.GeoDataFrame, layer_name: str = "layer") -> Vector:
+    """
+    Convert a geopandas GeoDataFrame to a Vector object
+    
+    Parameters
+    ----------
+    gdf
+        the input GeoDataFrame
+    layer_name
+        the name of the Vector object's layer
+    """
+    out = Vector()
+    
+    srs = osr.SpatialReference()
+    srs.ImportFromWkt(gdf.crs.to_wkt())
+    
+    geom_type = ogr.wkbUnknown
+    
+    out.addlayer(name=layer_name, srs=srs, geomType=geom_type)
+    
+    for name, dtype in gdf.drop(columns=gdf.geometry.name).dtypes.items():
+        if dtype.kind in {"i", "u"}:
+            field_type = ogr.OFTInteger64
+        elif dtype.kind == "f":
+            field_type = ogr.OFTReal
+        else:
+            field_type = ogr.OFTString
+        out.addfield(name, field_type)
+    
+    layer_defn = out.layer.GetLayerDefn()
+    
+    for _, row in gdf.iterrows():
+        feat = ogr.Feature(layer_defn)
+        
+        for name in gdf.columns:
+            if name == gdf.geometry.name:
+                continue
+            value = row[name]
+            if value is not None:
+                feat.SetField(name, value)
+        
+        geom = ogr.CreateGeometryFromWkb(row.geometry.wkb)
+        feat.SetGeometry(geom)
+        out.layer.CreateFeature(feat)
+    
+    layer_defn = None
+    feat = None
+    
+    return out
+
+
 def intersect(obj1: Vector, obj2: Vector) -> Vector | None:
     """
     intersect two Vector objects
