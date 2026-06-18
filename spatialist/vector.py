@@ -255,7 +255,7 @@ class Vector:
             outname: str | None = None,
             driver: str | None = None,
             overwrite: bool = True,
-            split_antimeridian: bool = False,
+            split_antimeridian: bool = True,
     ) -> Vector | None:
         """
         create a bounding box from the extent of the Vector object
@@ -327,7 +327,7 @@ class Vector:
         """
         return dict(zip(['xmin', 'xmax', 'ymin', 'ymax'], self.layer.GetExtent()))
     
-    def get_extent(self, split_antimeridian: bool = False) -> EXT:
+    def get_extent(self, split_antimeridian: bool = True) -> EXT:
         """
         Get the extent of the vector object.
         Optionally splits along the antimeridian.
@@ -787,7 +787,7 @@ def bbox(
         driver: str | None = None,
         overwrite: bool = True,
         buffer: int | float | tuple[int | float, int | float] | None = None,
-        split_antimeridian: bool = False
+        split_antimeridian: bool = True
 ) -> Vector | None:
     """
     create a bounding box vector object or file.
