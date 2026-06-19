@@ -1830,6 +1830,10 @@ class Dtype:
             raise ValueError('unknown data type identifier')
     
     @property
+    def bytes(self):
+        return np.dtype(self.numpystr).itemsize
+    
+    @property
     def numpy2gdalint(self) -> dict[str, int]:
         """
         create a dictionary for mapping numpy data types to GDAL data type codes
