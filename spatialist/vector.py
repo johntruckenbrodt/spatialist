@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import os
+import json
 import yaml
 from datetime import datetime, timezone, timedelta
 from osgeo import ogr, osr, gdal
@@ -155,15 +156,24 @@ class Vector:
         
         Returns
         -------
-        dict
             a GeoJSON dictionary
         """
-        if self.nfeatures > 1:
-            raise RuntimeError('multiple features are currently not supported')
-        with self.clone() as tmp:
-            tmp.reproject(4326)
-            out = tmp.getFeatureByIndex(0).ExportToJson(as_object=True)
-        return out
+        filename = "/vsimem/output.geojson"
+        
+        gdal.VectorTranslate(
+            destNameOrDestDS=filename,
+            srcDS=self.vector,
+            format="GeoJSON",
+            dstSRS="EPSG:4326",
+            reproject=True
+        )
+        size = gdal.VSIStatL(filename).size
+        
+        f = gdal.VSIFOpenL(filename, "rb")
+        geojson = gdal.VSIFReadL(1, size, f).decode("utf-8")
+        gdal.VSIFCloseL(f)
+        gdal.Unlink(filename)
+        return json.loads(geojson)
     
     @staticmethod
     def __driver_autodetect(filename: str) -> str:
