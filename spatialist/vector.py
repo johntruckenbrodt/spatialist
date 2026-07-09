@@ -643,7 +643,7 @@ class Vector:
         """
         return self.srs.ExportToProj4().strip()
     
-    def reproject(self, projection: CRS) -> None:
+    def reproject(self, projection: CRS, split_antimeridian: bool = True) -> None:
         """
         In-memory reprojection. Antimeridian splitting is performed automatically.
 
@@ -651,8 +651,17 @@ class Vector:
         ----------
         projection
             the target CRS. See :func:`spatialist.auxil.crsConvert`.
+        split_antimeridian
+            split geometries along the antimeridian if projecting to a geographic CRS?
         """
         srs_out = crsConvert(projection, 'osr')
+        
+        if split_antimeridian and srs_out.IsGeographic():
+            geometryType = 'PROMOTE_TO_MULTI'
+            options = ['-wrapdateline']
+        else:
+            geometryType = None
+            options = []
         
         if self.getProjection('epsg') != crsConvert(projection, 'epsg'):
             ds = ogr2ogr(
@@ -661,7 +670,8 @@ class Vector:
                 format='MEM',
                 dstSRS=srs_out,
                 reproject=True,
-                geometryType='PROMOTE_TO_MULTI',
+                geometryType=geometryType,
+                options=options,
                 void=False
             )
             self.__init__()
