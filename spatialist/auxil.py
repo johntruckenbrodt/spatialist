@@ -320,8 +320,10 @@ def utm_autodetect(spatial: Raster | Vector, crsOut: str) -> CRS:
     """
     get the UTM CRS for a spatial object
     
-    The bounding box of the object is extracted, reprojected to :epsg:`4326` and its
-    center coordinate used for computing the best UTM zone fit.
+    The bounding box of the object is extracted, reprojected to :epsg:`4326`
+    and its center coordinate used for computing the best UTM zone fit.
+    In case the reprojected geometry crosses the antimeridian, the coordinates
+    are first shifted to a 0-360° space.
     
     Parameters
     ----------
@@ -338,15 +340,29 @@ def utm_autodetect(spatial: Raster | Vector, crsOut: str) -> CRS:
     with spatial.bbox() as box:
         box.reproject(4326)
         ext = box.extent
-    lon = (ext['xmax'] + ext['xmin']) / 2
+    
+    xmin = ext['xmin']
+    xmax = ext['xmax']
+    
+    if xmax < xmin:
+        lon = (xmin + (xmax + 360)) / 2
+        if lon > 180:
+            lon -= 360
+    else:
+        lon = (xmin + xmax) / 2
+    
     lat = (ext['ymax'] + ext['ymin']) / 2
+    
     zone = int(1 + (lon + 180.0) / 6.0)
+    zone = min(max(zone, 1), 60)
     north = lat > 0
+    
     utm_cs = osr.SpatialReference()
     utm_cs.SetWellKnownGeogCS('WGS84')
-    if gdal.__version__ >= '3.0':
+    if Version(gdal.__version__) >= Version('3.0'):
         utm_cs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
     utm_cs.SetUTM(zone, north)
+    
     return crsConvert(utm_cs, crsOut)
 
 
