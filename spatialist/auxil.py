@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 from osgeo import osr, gdal, ogr
 import progressbar as pb
 from matplotlib import pyplot as plt
+from packaging.version import Version
 
 osr.UseExceptions()
 ogr.UseExceptions()
@@ -81,13 +82,15 @@ def crsConvert(
         if isinstance(crsIn, str):
             try:
                 srs.SetFromUserInput(crsIn)
-                if gdal.__version__ >= '3.0':
-                    srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
             except RuntimeError:
                 raise TypeError('crsIn not recognized; must be of type WKT, PROJ4 or EPSG\n'
                                 '  was: "{}" of type {}'.format(crsIn, type(crsIn).__name__))
         else:
             raise TypeError('crsIn must be of type int, str or osr.SpatialReference')
+    
+    if Version(gdal.__version__) >= Version('3.0'):
+        srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    
     if crsOut == 'wkt':
         if wkt_format == 'DEFAULT':
             # keep downward compatibility
