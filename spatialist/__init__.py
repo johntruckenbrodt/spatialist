@@ -7,7 +7,7 @@ from .auxil import crsConvert, haversine, gdalbuildvrt, gdalwarp, gdal_translate
     utm_autodetect, coordinate_reproject, cmap_mpl2gdal
 
 from .vector import Vector, bbox, boundary, centerdist, intersect, vectorize
-from .raster import Raster, stack, rasterize
+from .raster import Raster, rasterize
 from .sqlite_util import sqlite_setup, sqlite3
 
 import importlib.metadata

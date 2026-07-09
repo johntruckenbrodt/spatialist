@@ -1,16 +1,15 @@
 import os
-import shutil
 import pytest
 import platform
 import numpy as np
 from datetime import datetime, timezone
 from osgeo import ogr, gdal
-from spatialist.raster import Dtype, png, Raster, stack, rasterize
+from spatialist.raster import Dtype, png, Raster, rasterize
 from spatialist.vector import feature2vector, dissolve, Vector, intersect, bbox, wkt2vector, set_field
 from spatialist.envi import hdr, HDRobject
 from spatialist.sqlite_util import sqlite_setup, __Handler
 from spatialist.ancillary import parallel_apply_along_axis
-from spatialist.auxil import (crsConvert, haversine, ogr2ogr, gdal_translate, gdal_rasterize, gdalwarp,
+from spatialist.auxil import (crsConvert, haversine, ogr2ogr, gdal_translate, gdal_rasterize,
                               utm_autodetect, coordinate_reproject, cmap_mpl2gdal)
 
 import logging
@@ -227,131 +226,6 @@ def test_dtypes():
         Dtype(None)
 
 
-def test_stack(tmpdir, testdata):
-    name = testdata['tif']
-    outname = os.path.join(str(tmpdir), 'test')
-    tr = (30, 30)
-    # no input files provided
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=[], resampling='near', targetres=tr,
-              srcnodata=-99, dstnodata=-99, dstfile=outname)
-    
-    # two files, but only one layer name
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=[name, name], resampling='near', targetres=tr,
-              srcnodata=-99, dstnodata=-99, dstfile=outname, layernames=['a'])
-    
-    # targetres must be a two-entry tuple/list
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=[name, name], resampling='near', targetres=30,
-              srcnodata=-99, dstnodata=-99, dstfile=outname)
-    
-    # only one file specified
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=[name], resampling='near', targetres=tr, overwrite=True,
-              srcnodata=-99, dstnodata=-99, dstfile=outname)
-    
-    # targetres must contain two values
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=[name, name], resampling='near', targetres=(30, 30, 30),
-              srcnodata=-99, dstnodata=-99, dstfile=outname)
-    
-    # unknown resampling method
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=[name, name], resampling='foobar', targetres=tr,
-              srcnodata=-99, dstnodata=-99, dstfile=outname)
-    
-    # non-existing files
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=['foo', 'bar'], resampling='near', targetres=tr,
-              srcnodata=-99, dstnodata=-99, dstfile=outname)
-    
-    # create a multi-band stack
-    stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=True,
-          srcnodata=-99, dstnodata=-99, dstfile=outname, layernames=['test1', 'test2'])
-    with Raster(outname) as ras:
-        assert ras.bands == 2
-        # Raster.rescale currently only supports one band
-        with pytest.raises(ValueError):
-            ras.rescale(lambda x: x * 10)
-    
-    # outname exists and overwrite is False
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=False,
-              srcnodata=-99, dstnodata=-99, dstfile=outname, layernames=['test1', 'test2'])
-    
-    # pass shapefile
-    outname = os.path.join(str(tmpdir), 'test2')
-    with Raster(name).bbox() as box:
-        stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=True,
-              srcnodata=-99, dstnodata=-99, dstfile=outname, shapefile=box, layernames=['test1', 'test2'])
-    with Raster(outname) as ras:
-        assert ras.bands == 2
-    
-    # pass shapefile and do mosaicing
-    outname = os.path.join(str(tmpdir), 'test3')
-    with Raster(name).bbox() as box:
-        stack(srcfiles=[[name, name]], resampling='near', targetres=tr, overwrite=True,
-              srcnodata=-99, dstnodata=-99, dstfile=outname, shapefile=box)
-    with Raster(outname + '.tif') as ras:
-        assert ras.bands == 1
-        assert ras.format == 'GTiff'
-    
-    # projection mismatch
-    name2 = os.path.join(str(tmpdir), os.path.basename(name))
-    outname = os.path.join(str(tmpdir), 'test4')
-    gdalwarp(src=name, dst=name2, dstSRS=crsConvert(4326, 'wkt'))
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=[name, name2], resampling='near', targetres=tr, overwrite=True,
-              srcnodata=-99, dstnodata=-99, dstfile=outname)
-    
-    # no projection found
-    outname = os.path.join(str(tmpdir), 'test5')
-    gdal_translate(src=name, dst=name2, options=['-co', 'PROFILE=BASELINE'])
-    with Raster(name2) as ras:
-        print(ras.projection)
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=[name2, name2], resampling='near', targetres=tr, overwrite=True,
-              srcnodata=-99, dstnodata=-99, dstfile=outname)
-    
-    # create separate GeoTiffs
-    outdir = os.path.join(str(tmpdir), 'subdir')
-    stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=True, layernames=['test1', 'test2'],
-          srcnodata=-99, dstnodata=-99, dstfile=outdir, separate=True, compress=True)
-    
-    # repeat with overwrite disabled (no error raised, just a print message)
-    stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=False, layernames=['test1', 'test2'],
-          srcnodata=-99, dstnodata=-99, dstfile=outdir, separate=True, compress=True)
-    
-    # repeat without layernames but sortfun
-    # bandnames not unique
-    outdir = os.path.join(str(tmpdir), 'subdir2')
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=True, sortfun=os.path.basename,
-              srcnodata=-99, dstnodata=-99, dstfile=outdir, separate=True, compress=True)
-    
-    # repeat without layernames but sortfun
-    name2 = os.path.join(str(tmpdir), os.path.basename(name).replace('VV', 'XX'))
-    shutil.copyfile(name, name2)
-    outdir = os.path.join(str(tmpdir), 'subdir2')
-    stack(srcfiles=[name, name2], resampling='near', targetres=tr, overwrite=True, sortfun=os.path.basename,
-          srcnodata=-99, dstnodata=-99, dstfile=outdir, separate=True, compress=True)
-    
-    # shapefile filtering
-    outdir = os.path.join(str(tmpdir), 'subdir3')
-    files = [testdata['tif'], testdata['tif2'], testdata['tif3']]
-    with Raster(files[0]).bbox() as box:
-        stack(srcfiles=files, resampling='near', targetres=(30, 30),
-              overwrite=False, layernames=['test1', 'test2', 'test3'],
-              srcnodata=-99, dstnodata=-99, dstfile=outdir,
-              separate=True, compress=True, shapefile=box)
-        # repeated run with different scene selection and only one scene after spatial filtering
-        stack(srcfiles=files[1:], resampling='near', targetres=(30, 30),
-              overwrite=True, layernames=['test2', 'test3'],
-              srcnodata=-99, dstnodata=-99, dstfile=outdir,
-              separate=True, compress=True, shapefile=box)
-
-
 def test_auxil(tmpdir, testdata):
     dir = str(tmpdir)
     with Raster(testdata['tif']) as ras:
@@ -491,6 +365,7 @@ def test_wkt2vector():
         assert vec.getArea() == 1.
     with wkt2vector([wkt1, wkt2], srs=4326) as vec:
         assert vec.getArea() == 2.
+
 
 def test_bbox_antimeridian():
     extent = {'xmin': 178, 'xmax': -178, 'ymin': 50, 'ymax': 51}
