@@ -248,7 +248,14 @@ class Raster:
             else:
                 raise RuntimeError('Raster subsetting is only supported for POLYGON geometries')
             # get raster indexing slices from intersect bounding box extent
-            sl = self.__extent2slice(inter.extent)
+            
+            extent = inter.extent
+            if extent["xmin"] > extent["xmax"]:
+                inter = None
+                raise NotImplementedError(
+                    "Vector subsetting across the antimeridian is not supported."
+                )
+            sl = self.__extent2slice(extent)
             # subset raster object with slices
             with self[sl] as sub:
                 # mask subsetted raster object with vector geometries
