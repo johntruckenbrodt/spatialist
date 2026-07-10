@@ -757,6 +757,38 @@ class Vector:
                                                  format='ISO8601')
         return gdf
     
+    def wrap_dateline(self, offset: int | float = 10) -> None:
+        """
+        Split geometries crossing the antimeridian in-place.
+
+        Parameters
+        ----------
+        offset
+            Distance in degrees from the antimeridian where geometries are considered
+            for splitting. This corresponds to ogr2ogr's ``-datelineoffset`` option.
+        """
+        if not self.srs.IsGeographic():
+            return
+        
+        options = [
+            "-wrapdateline",
+            "-datelineoffset", str(offset),
+        ]
+        
+        ds = ogr2ogr(
+            src=self.vector,
+            dst="",
+            format="MEM",
+            dstSRS=self.srs,
+            geometryType="PROMOTE_TO_MULTI",
+            options=options,
+            void=False,
+        )
+        
+        self.__init__()
+        self.vector = ds
+        self.init_layer()
+    
     def write(self, outfile: str, driver: str | None = None, overwrite: bool = True) -> None:
         """
         write the Vector object to a file
