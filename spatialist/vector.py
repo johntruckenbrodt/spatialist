@@ -1170,86 +1170,59 @@ def from_geopandas(gdf: gpd.GeoDataFrame, layer_name: str = "layer") -> Vector:
 
 def intersect(obj1: Vector, obj2: Vector) -> Vector | None:
     """
-    intersect two Vector objects
+    Intersect two (multi)polygon Vector objects.
 
     Parameters
     ----------
     obj1
-        the first vector object; this object is reprojected to the CRS of obj2 if necessary
+        The first vector object ("input layer").
+        This object is reprojected to the CRS of ``obj2`` if necessary.
     obj2
-        the second vector object
+        The second vector object ("method layer").
 
     Returns
     -------
-        the intersection of obj1 and obj2 if both intersect and None otherwise
+        The intersection of ``obj1`` and ``obj2`` if both intersect and ``None`` otherwise.
+    
+    See Also
+    --------
+    osgeo.ogr.Layer.Intersection
     """
     if not isinstance(obj1, Vector) or not isinstance(obj2, Vector):
-        raise RuntimeError('both objects must be of type Vector')
+        raise RuntimeError("both objects must be of type Vector")
+    
+    for vector in (obj1, obj2):
+        if not all(gt in ("POLYGON", "MULTIPOLYGON") for gt in vector.geomTypes):
+            raise RuntimeError(
+                "intersect() only supports polygon and multipolygon geometries."
+            )
     
     obj1 = obj1.clone()
     obj2 = obj2.clone()
     
     obj1.reproject(obj2.srs)
     
-    #######################################################
-    # create basic overlap
+    if obj2.srs.IsGeographic():
+        obj1.wrap_dateline()
+        obj2.wrap_dateline()
     
-    def union(vector: Vector) -> ogr.Geometry:
-        out = ogr.Geometry(ogr.wkbMultiPolygon)
-        for feat in vector.layer:
-            geom = feat.GetGeometryRef()
-            type = geom.GetGeometryName()
-            if type == 'MULTIPOLYGON':
-                for subgeom in geom:
-                    out.AddGeometry(subgeom)
-            else:
-                out.AddGeometry(geom)
-        vector.layer.ResetReading()
-        out.Simplify(0)
-        return out
+    out = Vector()
+    out.addlayer("intersect", obj2.srs, ogr.wkbMultiPolygon)
     
-    # get the union of all polygons of the two layers
-    union1 = union(obj1)
-    union2 = union(obj2)
+    err = obj1.layer.Intersection(
+        method_layer=obj2.layer,
+        result_layer=out.layer,
+        options=[
+            "SKIP_FAILURES=NO",  # abort and raise an error if any overlay fails
+            "PROMOTE_TO_MULTI=YES",  #
+            "KEEP_LOWER_DIMENSION_GEOMETRIES=NO",
+        ],
+    )
     
-    # intersection
-    intersect_base = union1.Intersection(union2)
+    if err != ogr.OGRERR_NONE:
+        raise RuntimeError("OGR layer intersection failed")
     
-    union1 = None
-    union2 = None
-    #######################################################
-    # compute detailed per-geometry overlaps
-    if intersect_base.GetArea() > 0:
-        intersection = Vector()
-        intersection.addlayer('intersect', obj1.srs, ogr.wkbPolygon)
-        fieldmap = []
-        for index, fielddef in enumerate([obj1.fieldDefs, obj2.fieldDefs]):
-            for field in fielddef:
-                name = field.GetName()
-                i = 2
-                while name in intersection.fieldnames:
-                    name = '{}_{}'.format(field.GetName(), i)
-                    i += 1
-                fieldmap.append((index, field.GetName(), name))
-                intersection.addfield(name, type=field.GetType(), width=field.GetWidth())
-        
-        for feature1 in obj1.layer:
-            geom1 = feature1.GetGeometryRef()
-            if geom1.Intersects(intersect_base):
-                for feature2 in obj2.layer:
-                    geom2 = feature2.GetGeometryRef()
-                    # select only the intersections
-                    if geom2.Intersects(intersect_base):
-                        intersect = geom2.Intersection(geom1)
-                        fields = {}
-                        for item in fieldmap:
-                            if item[0] == 0:
-                                fields[item[2]] = feature1.GetField(item[1])
-                            else:
-                                fields[item[2]] = feature2.GetField(item[1])
-                        intersection.addfeature(intersect, fields)
-        intersect_base = None
-        return intersection
+    return out if out.nfeatures > 0 else None
 
 
 def set_field(
