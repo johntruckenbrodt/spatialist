@@ -919,10 +919,12 @@ def boundary(
         outname: str | None = None
 ) -> Vector | None:
     """
-    Get the boundary of the largest geometry as new vector object. The following steps are performed:
+    Get the boundary of the largest geometry as new vector object.
+    The following steps are performed:
     
      - find the largest geometry matching the expression
-     - compute the geometry's boundary using :meth:`osgeo.ogr.Geometry.Boundary`, returning a MULTILINE geometry
+     - compute the geometry's boundary using :meth:`osgeo.ogr.Geometry.Boundary`,
+       returning a MULTILINE geometry
      - select the longest line of the MULTILINE geometry
      - create a closed linear ring from this longest line
      - create a polygon from this linear ring
@@ -931,11 +933,13 @@ def boundary(
     Parameters
     ----------
     vectorobject
-        the vector object containing multiple polygon geometries, e.g. all geometries with a certain value in one field.
+        the vector object containing multiple polygon geometries,
+        e.g. all geometries with a certain value in one field.
     expression
         the SQL expression to select the candidates for the largest geometry.
     outname
-        the name of the output vector file; if None, an in-memory object of type :class:`Vector` is returned.
+        the name of the output vector file;
+        if None, an in-memory object of type :class:`Vector` is returned.
 
     Returns
     -------
