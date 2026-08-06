@@ -913,17 +913,21 @@ def bbox(
         out.write(outfile=outname, driver=driver, overwrite=overwrite)
 
 
-def boundary(
+def largest_polygon_exterior(
         vectorobject: Vector,
         expression: str | None = None,
         outname: str | None = None
 ) -> Vector | None:
     """
-    Get the boundary of the largest geometry as new vector object.
+    Get the exterior of the largest polygon as new polygon vector object.
+    This was developed to get the valid data extent of a raster image
+    vectorized using :func:`vectorize` while omitting data gaps from masking.
+    E.g. for a SAR image while ignoring areas masked due to layover/shadow.
+    
     The following steps are performed:
     
-     - find the largest geometry matching the expression
-     - compute the geometry's boundary using :meth:`osgeo.ogr.Geometry.Boundary`,
+     - find the largest polygon matching the expression
+     - compute the polygon's boundary using :meth:`osgeo.ogr.Geometry.Boundary`,
        returning a MULTILINE geometry
      - select the longest line of the MULTILINE geometry
      - create a closed linear ring from this longest line
@@ -933,17 +937,18 @@ def boundary(
     Parameters
     ----------
     vectorobject
-        the vector object containing multiple polygon geometries,
-        e.g. all geometries with a certain value in one field.
+        the vector object containing multiple polygon geometries.
     expression
-        the SQL expression to select the candidates for the largest geometry.
+        the SQL expression to select the candidates for the largest polygon,
+        e.g. all polygons with a certain value in one field.
     outname
         the name of the output vector file;
         if None, an in-memory object of type :class:`Vector` is returned.
 
     Returns
     -------
-        if `outname` is `None`, a vector object pointing to an in-memory dataset else `None`
+        if `outname` is `None`, a vector object pointing to an
+        in-memory dataset else `None`
     """
     largest = None
     area = None
