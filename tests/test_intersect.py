@@ -1,6 +1,6 @@
 import pytest
 from osgeo import ogr
-from spatialist.vector import bbox, intersect2 as intersect
+from spatialist.vector import bbox, intersect
 
 
 @pytest.mark.parametrize(
