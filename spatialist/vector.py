@@ -927,11 +927,7 @@ def largest_polygon_exterior(
     The following steps are performed:
     
      - find the largest polygon matching the expression
-     - compute the polygon's boundary using :meth:`osgeo.ogr.Geometry.Boundary`,
-       returning a MULTILINE geometry
-     - select the longest line of the MULTILINE geometry
-     - create a closed linear ring from this longest line
-     - create a polygon from this linear ring
+     - get the exterior ring of this polygon as new polygon
      - create a new :class:`Vector` object and add the newly created polygon
 
     Parameters
@@ -961,65 +957,61 @@ def largest_polygon_exterior(
             f"found: {sorted(geom_types)}"
         )
     
-    largest = None
-    area = None
     vectorobject.layer.ResetReading()
+    
     if expression is not None:
         vectorobject.layer.SetAttributeFilter(expression)
-    for feat in vectorobject.layer:
-        geom = feat.GetGeometryRef()
-        geom_area = geom.GetArea()
-        if (largest is None) or (geom_area > area):
-            largest = feat.GetFID()
-            area = geom_area
-    if expression is not None:
-        vectorobject.layer.SetAttributeFilter('')
-    vectorobject.layer.ResetReading()
     
-    feat_major = vectorobject.layer.GetFeature(largest)
-    major = feat_major.GetGeometryRef()
+    largest_geom = None
+    largest_area = -1
     
-    boundary = major.Boundary()
-    if boundary.GetGeometryName() == 'LINESTRING':
-        longest = boundary
-    else:  # MULTILINESTRING
-        longest = None
-        for line in boundary:
-            if (longest is None) or (line.Length() > longest.Length()):
-                longest = line
+    try:
+        for feat in vectorobject.layer:
+            geom = feat.GetGeometryRef()
+            if geom is None or geom.IsEmpty():
+                continue
+            
+            area = geom.GetArea()
+            if area > largest_area:
+                largest_geom = geom.Clone()
+                largest_area = area
+    finally:
+        feat = geom = None
+        if expression is not None:
+            vectorobject.layer.SetAttributeFilter('')
+        vectorobject.layer.ResetReading()
     
-    points = longest.GetPoints()
-    ring = ogr.Geometry(ogr.wkbLinearRing)
+    if largest_geom is None:
+        raise RuntimeError(
+            "no polygon matched the supplied expression"
+            if expression is not None
+            else "no valid polygon geometry found"
+        )
     
-    for point in points:
-        ring.AddPoint_2D(*point)
-    ring.CloseRings()
+    exterior = largest_geom.GetGeometryRef(0)
+    if exterior is None:
+        raise RuntimeError("largest polygon has no exterior ring")
     
-    poly = ogr.Geometry(ogr.wkbPolygon)
-    poly.AddGeometry(ring)
+    polygon = ogr.Geometry(ogr.wkbPolygon)
+    polygon.AddGeometry(exterior.Clone())
     
-    vec_out = Vector()
-    vec_out.addlayer('layer',
-                     vectorobject.layer.GetSpatialRef(),
-                     poly.GetGeometryType())
-    vec_out.addfield('area', ogr.OFTReal)
-    fields = {'area': poly.Area()}
-    vec_out.addfeature(poly, fields=fields)
+    out = Vector()
+    out.addlayer(
+        name="largest_polygon_exterior",
+        srs=vectorobject.srs,
+        geomType=ogr.wkbPolygon,
+    )
+    out.addfield("area", ogr.OFTReal)
+    out.addfeature(polygon, fields={"area": polygon.GetArea()})
     
-    ring = None
-    geom = None
-    line = None
-    longest = None
-    poly = None
-    boundary = None
-    major = None
-    feat_major = None
+    largest_geom = polygon = exterior = None
     
     if outname is not None:
-        vec_out.write(outname)
-        vec_out.close()
-    else:
-        return vec_out
+        out.write(outname)
+        out.close()
+        return None
+    
+    return out
 
 
 def centerdist(obj1: Vector, obj2: Vector) -> float:
