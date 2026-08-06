@@ -7,8 +7,7 @@ from .auxil import (crsConvert, haversine, gdalbuildvrt, gdalwarp, gdal_translat
                     ogr2ogr, gdal_rasterize, utm_autodetect, coordinate_reproject,
                     cmap_mpl2gdal)
 
-from .vector import (Vector, bbox, largest_polygon_exterior, centerdist, intersect,
-                     vectorize)
+from .vector import (Vector, bbox, largest_polygon_exterior, intersect, vectorize)
 from .raster import Raster, rasterize
 from .sqlite_util import sqlite_setup, sqlite3
 

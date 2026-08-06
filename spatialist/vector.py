@@ -1017,33 +1017,6 @@ def largest_polygon_exterior(
     return out
 
 
-def centerdist(obj1: Vector, obj2: Vector) -> float:
-    """
-    Get the center distance between two vector objects.
-    
-    Parameters
-    ----------
-    obj1
-    obj2
-
-    Returns
-    -------
-        the distance in units of the source object's CRS
-    """
-    if not isinstance(obj1, Vector) or isinstance(obj2, Vector):
-        raise IOError('both objects must be of type Vector')
-    
-    feature1 = obj1.getFeatureByIndex(0)
-    geometry1 = feature1.GetGeometryRef()
-    center1 = geometry1.Centroid()
-    
-    feature2 = obj2.getFeatureByIndex(0)
-    geometry2 = feature2.GetGeometryRef()
-    center2 = geometry2.Centroid()
-    
-    return center1.Distance(center2)
-
-
 def dissolve(infile: str, outfile: str, field: str, layername: str | None = None) -> None:
     """
     dissolve the polygons of a vector file by an attribute field
