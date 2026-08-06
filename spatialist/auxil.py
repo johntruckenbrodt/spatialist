@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import math
 import warnings
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from .raster import Raster
@@ -27,7 +27,7 @@ CRS = int | str | osr.SpatialReference
 
 def crsConvert(
         crsIn: CRS,
-        crsOut: str,
+        crsOut: Literal['epsg', 'opengis', 'osr', 'prettyWkt', 'proj4', 'wkt'],
         wkt_format: str = 'DEFAULT'
 ) -> CRS:
     """
@@ -38,14 +38,7 @@ def crsConvert(
     crsIn
         the input CRS
     crsOut
-        the output CRS type; supported options:
-        
-        - epsg
-        - opengis
-        - osr
-        - prettyWkt
-        - proj4
-        - wkt
+        the output CRS type
     wkt_format
         the format of the `wkt` string. See here for options:
         https://gdal.org/api/ogrspatialref.html#_CPPv4NK19OGRSpatialReference11exportToWktEPPcPPCKc
