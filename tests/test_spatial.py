@@ -1,11 +1,13 @@
 import os
 import pytest
 import platform
+import numpy as np
 from datetime import datetime, timezone
-from osgeo import ogr
+from osgeo import ogr, osr, gdal
 from spatialist.raster import Raster
 from spatialist.vector import (feature2vector, dissolve, Vector, intersect,
-                               bbox, wkt2vector, set_field)
+                               bbox, wkt2vector, set_field, vectorize,
+                               largest_polygon_exterior)
 from spatialist.envi import hdr, HDRobject
 from spatialist.sqlite_util import sqlite_setup, __Handler
 from spatialist.auxil import utm_autodetect
@@ -184,3 +186,65 @@ def test_bbox_antimeridian():
         extent_4326 = vec.get_extent(split_antimeridian=True)
         extent_4326_int = {k: int(v) for k, v in extent_4326.items()}
         assert extent_4326_int == {'xmax': -179, 'xmin': 178, 'ymax': 53, 'ymin': 52}
+
+
+def test_largest_polygon_exterior():
+    array = np.array(
+        [
+            [0, 0, 0, 0, 0, 0],
+            [0, 1, 1, 1, 0, 0],
+            [0, 1, 0, 1, 0, 0],
+            [0, 1, 1, 1, 1, 0],
+            [0, 0, 0, 0, 1, 1],
+            [0, 0, 0, 0, 0, 0],
+        ],
+        dtype=np.uint8,
+    )
+    
+    driver = gdal.GetDriverByName("MEM")
+    dataset = driver.Create(
+        "",
+        array.shape[1],
+        array.shape[0],
+        1,
+        gdal.GDT_Byte,
+    )
+    
+    dataset.SetGeoTransform((0, 1, 0, 6, 0, -1))
+    
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+    srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    dataset.SetProjection(srs.ExportToWkt())
+    
+    dataset.GetRasterBand(1).WriteArray(array)
+    
+    with Raster(dataset) as raster:
+        with vectorize(array, raster) as polygons:
+            print(polygons)
+            with largest_polygon_exterior(
+                    polygons,
+                    expression="value = 1",
+            ) as result:
+                print(result)
+                assert result.nfeatures == 1
+                assert result.geomTypes == ["POLYGON"]
+                assert result.getArea() == 12
+                assert result.extent == {
+                    "xmin": 1.0,
+                    "xmax": 6.0,
+                    "ymin": 1.0,
+                    "ymax": 5.0,
+                }
+                
+                feature = result.getFeatureByIndex(0)
+                geometry = feature.GetGeometryRef()
+                
+                # The output polygon contains only its exterior ring.
+                assert geometry.GetGeometryCount() == 1
+                
+                # The stored area describes the exterior-only polygon.
+                assert feature.GetField("area") == 12
+    
+    dataset = None
+    driver = None
