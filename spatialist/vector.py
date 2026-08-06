@@ -929,6 +929,9 @@ def largest_polygon_exterior(
      - find the largest polygon matching the expression
      - get the exterior ring of this polygon as new polygon
      - create a new :class:`Vector` object and add the newly created polygon
+     
+    .. NOTE::
+        This omits small disconnected polygons
 
     Parameters
     ----------

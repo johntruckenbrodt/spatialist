@@ -191,7 +191,7 @@ def test_bbox_antimeridian():
 def test_largest_polygon_exterior():
     array = np.array(
         [
-            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 1],
             [0, 1, 1, 1, 0, 0],
             [0, 1, 0, 1, 0, 0],
             [0, 1, 1, 1, 1, 0],
