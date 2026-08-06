@@ -950,6 +950,17 @@ def largest_polygon_exterior(
         if `outname` is `None`, a vector object pointing to an
         in-memory dataset else `None`
     """
+    if not isinstance(vectorobject, Vector):
+        raise TypeError("'vectorobject' must be of type Vector")
+    
+    geom_types = set(vectorobject.geomTypes)
+    
+    if geom_types != {"POLYGON"}:
+        raise RuntimeError(
+            "largest_polygon_exterior() only supports Polygon geometries; "
+            f"found: {sorted(geom_types)}"
+        )
+    
     largest = None
     area = None
     vectorobject.layer.ResetReading()
