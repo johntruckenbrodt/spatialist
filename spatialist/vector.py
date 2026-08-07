@@ -757,18 +757,24 @@ class Vector:
                                                  format='ISO8601')
         return gdf
     
-    def wrap_dateline(self, offset: int | float = 10) -> None:
+    def wrap_dateline(
+            self,
+            offset: int | float = 10,
+            inplace: bool = True
+    ) -> Vector | None:
         """
-        Split geometries crossing the antimeridian in-place.
+        Split geometries crossing the antimeridian.
 
         Parameters
         ----------
         offset
             Distance in degrees from the antimeridian where geometries are considered
             for splitting. This corresponds to ogr2ogr's ``-datelineoffset`` option.
+        inplace
+            wrap in place (or return a new Vector object)?
         """
         if not self.srs.IsGeographic():
-            return
+            return None if inplace else self.clone()
         
         options = [
             "-wrapdateline",
@@ -785,9 +791,15 @@ class Vector:
             void=False,
         )
         
-        self.__init__()
-        self.vector = ds
-        self.init_layer()
+        if inplace:
+            self.__init__()
+            self.vector = ds
+            self.init_layer()
+        else:
+            out = Vector()
+            out.vector = ds
+            out.init_layer()
+            return out
     
     def write(self, outfile: str, driver: str | None = None, overwrite: bool = True) -> None:
         """
