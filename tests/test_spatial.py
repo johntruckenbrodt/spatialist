@@ -84,6 +84,16 @@ def test_Vector(tmpdir, testdata):
         assert bbox4.getArea() == 1470.0
 
 
+def test_vector_geo_interface():
+    extent = {'xmin': 10, 'ymin': 11, 'xmax': 50, 'ymax': 51}
+    with bbox(extent, 4326) as box:
+        geom = box.__geo_interface__
+    assert geom['type'] == 'FeatureCollection'
+    assert len(geom['features']) == 1
+    assert geom['features'][0]['type'] == 'Feature'
+    assert geom['features'][0]['geometry']['type'] == 'Polygon'
+
+
 def test_dissolve(tmpdir, travis, testdata):
     scene = Raster(testdata['tif'])
     bbox1 = scene.bbox()
@@ -156,12 +166,12 @@ def test_Raster(tmpdir, testdata):
         ras.write(os.path.join(str(tmpdir), 'test'), format='GTiff')
         with pytest.raises(RuntimeError):
             ras.write(os.path.join(str(tmpdir), 'test.tif'), format='GTiff')
-    with Raster(testdata['tif'],driver='GTiff') as ras:
-        print(ras," with GTiff driver")
+    with Raster(testdata['tif'], driver='GTiff') as ras:
+        print(ras, " with GTiff driver")
         assert ras.bands == 1
-
-    with Raster(testdata['tif'],driver=['ENVI','GTiff']) as ras:
-        print(ras," with ['ENVI','GTiff'] driver list")
+    
+    with Raster(testdata['tif'], driver=['ENVI', 'GTiff']) as ras:
+        print(ras, " with ['ENVI','GTiff'] driver list")
         assert ras.bands == 1
 
 
