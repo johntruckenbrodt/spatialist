@@ -162,13 +162,24 @@ class Vector:
         """
         filename = "/vsimem/output.geojson"
         
-        gdal.VectorTranslate(
-            destNameOrDestDS=filename,
-            srcDS=self.vector,
-            format="GeoJSON",
-            dstSRS="EPSG:4326",
-            reproject=True
-        )
+        if self.getProjection('epsg') != 4326:
+            gdal.VectorTranslate(
+                destNameOrDestDS=filename,
+                srcDS=self.vector,
+                format="GeoJSON",
+                dstSRS="EPSG:4326",
+                reproject=True,
+                geometryType='PROMOTE_TO_MULTI',
+                options=['-wrapdateline'],
+                void=False
+            )
+        else:
+            gdal.VectorTranslate(
+                destNameOrDestDS=filename,
+                srcDS=self.vector,
+                format="GeoJSON"
+            )
+        
         size = gdal.VSIStatL(filename).size
         
         f = gdal.VSIFOpenL(filename, "rb")

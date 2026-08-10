@@ -65,14 +65,28 @@ def test_Vector(tmpdir, testdata):
         assert bbox4.getArea() == 1470.0
 
 
-def test_vector_geo_interface():
-    extent = {'xmin': 10, 'ymin': 11, 'xmax': 50, 'ymax': 51}
+@pytest.mark.parametrize(
+    "extent, geometry_type",
+    [
+        (
+                {'xmin': 10, 'ymin': 11, 'xmax': 50, 'ymax': 51},
+                'Polygon'
+        ),
+        (
+                {'xmin': 179, 'ymin': -179, 'xmax': 50, 'ymax': 51},
+                'MultiPolygon'
+        )
+    ],
+    ids=['regular', 'antimeridian']
+)
+def test_vector_geo_interface(extent, geometry_type):
     with bbox(extent, 4326) as box:
         geom = box.__geo_interface__
+    print(geom['features'][0]['geometry'])
     assert geom['type'] == 'FeatureCollection'
     assert len(geom['features']) == 1
     assert geom['features'][0]['type'] == 'Feature'
-    assert geom['features'][0]['geometry']['type'] == 'Polygon'
+    assert geom['features'][0]['geometry']['type'] == geometry_type
 
 
 def test_dissolve(tmpdir, travis, testdata):
