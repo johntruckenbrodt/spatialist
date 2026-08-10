@@ -688,7 +688,7 @@ class Vector:
             self,
             projection: CRS,
             split_antimeridian: bool = True,
-            inplace=True
+            inplace: bool = True
     ) -> Vector | None:
         """
         In-memory reprojection. Antimeridian splitting is performed automatically.
