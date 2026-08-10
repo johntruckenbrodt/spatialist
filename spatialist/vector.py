@@ -643,7 +643,12 @@ class Vector:
         """
         return self.srs.ExportToProj4().strip()
     
-    def reproject(self, projection: CRS, split_antimeridian: bool = True) -> None:
+    def reproject(
+            self,
+            projection: CRS,
+            split_antimeridian: bool = True,
+            inplace=True
+    ) -> Vector | None:
         """
         In-memory reprojection. Antimeridian splitting is performed automatically.
 
@@ -653,6 +658,10 @@ class Vector:
             the target CRS. See :func:`spatialist.auxil.crsConvert`.
         split_antimeridian
             split geometries along the antimeridian if projecting to a geographic CRS?
+        inplace
+            reproject in place (or return a new Vector object)?
+            If no reprojection is necessary and ``inplace=False``,
+            a clone of the current object is returned.
         """
         srs_out = crsConvert(projection, 'osr')
         
@@ -674,9 +683,17 @@ class Vector:
                 options=options,
                 void=False
             )
-            self.__init__()
-            self.vector = ds
-            self.init_layer()
+            if inplace:
+                self.__init__()
+                self.vector = ds
+                self.init_layer()
+            else:
+                out = Vector()
+                out.vector = ds
+                out.init_layer()
+                return out
+        else:
+            return None if inplace else self.clone()
     
     def setCRS(self, crs: CRS) -> None:
         """
