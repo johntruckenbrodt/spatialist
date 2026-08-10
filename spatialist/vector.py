@@ -152,7 +152,9 @@ class Vector:
     @property
     def __geo_interface__(self) -> dict[str, Any]:
         """
-        See https://gist.github.com/sgillies/2217756
+        See https://gist.github.com/sgillies/2217756.
+        The GeoJSON return type is always a `FeatureCollection`
+        containing 1..n features.
         
         Returns
         -------
@@ -173,6 +175,7 @@ class Vector:
         geojson = gdal.VSIFReadL(1, size, f).decode("utf-8")
         gdal.VSIFCloseL(f)
         gdal.Unlink(filename)
+        f = None
         return json.loads(geojson)
     
     @staticmethod
