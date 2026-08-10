@@ -757,7 +757,7 @@ class Vector:
                                                  format='ISO8601')
         return gdf
     
-    def wrap_dateline(
+    def wrap_antimeridian(
             self,
             offset: int | float = 10,
             inplace: bool = True
@@ -772,6 +772,8 @@ class Vector:
             for splitting. This corresponds to ogr2ogr's ``-datelineoffset`` option.
         inplace
             wrap in place (or return a new Vector object)?
+            If no wrapping is necessary and ``inplace=False``,
+            a clone of the current object is returned.
         """
         if not self.srs.IsGeographic():
             return None if inplace else self.clone()
@@ -1203,8 +1205,8 @@ def intersect(obj1: Vector, obj2: Vector) -> Vector | None:
     obj1.reproject(obj2.srs)
     
     if obj2.srs.IsGeographic():
-        obj1.wrap_dateline()
-        obj2.wrap_dateline()
+        obj1.wrap_antimeridian()
+        obj2.wrap_antimeridian()
     
     out = Vector()
     out.addlayer("intersect", obj2.srs, ogr.wkbMultiPolygon)
