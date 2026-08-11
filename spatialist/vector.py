@@ -898,33 +898,8 @@ class Vector:
             If no wrapping is necessary and ``inplace=False``,
             a clone of the current object is returned.
         """
-        if not self.srs.IsGeographic():
-            return None if inplace else self.clone()
-        
-        options = [
-            "-wrapdateline",
-            "-datelineoffset", str(offset),
-        ]
-        
-        ds = ogr2ogr(
-            src=self.vector,
-            dst="",
-            format="MEM",
-            dstSRS=self.srs,
-            geometryType="PROMOTE_TO_MULTI",
-            options=options,
-            void=False,
-        )
-        
-        if inplace:
-            self.__init__()
-            self.vector = ds
-            self.init_layer()
-        else:
-            out = Vector()
-            out.vector = ds
-            out.init_layer()
-            return out
+        return self.reproject(projection=None, split_antimeridian=True,
+                              antimeridian_offset=offset, inplace=inplace)
     
     def write(self, outfile: str, driver: str | None = None, overwrite: bool = True) -> None:
         """
