@@ -66,21 +66,33 @@ def test_Vector(tmpdir, testdata):
 
 
 @pytest.mark.parametrize(
-    "extent, geometry_type",
+    "extent, crs, geometry_type",
     [
         (
                 {'xmin': 10, 'ymin': 11, 'xmax': 50, 'ymax': 51},
+                4326,
                 'Polygon'
         ),
         (
                 {'xmin': 179, 'ymin': -179, 'xmax': 50, 'ymax': 51},
+                4326,
+                'MultiPolygon'
+        ),
+        (
+                {'xmin': 600000, 'xmax': 709800, 'ymin': 5790240, 'ymax': 5900040},
+                32632,
+                'Polygon'
+        ),
+        (
+                {'xmin': 600000, 'xmax': 709800, 'ymin': 5790240, 'ymax': 5900040},
+                32660,
                 'MultiPolygon'
         )
     ],
-    ids=['regular', 'antimeridian']
+    ids=['regular', 'antimeridian', 'regular_utm', 'antimeridian_utm']
 )
-def test_vector_geo_interface(extent, geometry_type):
-    with bbox(extent, 4326) as box:
+def test_vector_geo_interface(extent, crs, geometry_type):
+    with bbox(coordinates=extent, crs=crs) as box:
         geom = box.__geo_interface__
     print(geom['features'][0]['geometry'])
     assert geom['type'] == 'FeatureCollection'

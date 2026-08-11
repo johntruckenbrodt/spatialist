@@ -160,25 +160,17 @@ class Vector:
         -------
             a GeoJSON dictionary
         """
+        tmp = self.reproject(projection=4326, split_antimeridian=True,
+                             inplace=False)
+        
         filename = "/vsimem/output.geojson"
         
-        if self.getProjection('epsg') != 4326:
-            gdal.VectorTranslate(
-                destNameOrDestDS=filename,
-                srcDS=self.vector,
-                format="GeoJSON",
-                dstSRS="EPSG:4326",
-                reproject=True,
-                geometryType='PROMOTE_TO_MULTI',
-                options=['-wrapdateline'],
-                void=False
-            )
-        else:
-            gdal.VectorTranslate(
-                destNameOrDestDS=filename,
-                srcDS=self.vector,
-                format="GeoJSON"
-            )
+        gdal.VectorTranslate(
+            destNameOrDestDS=filename,
+            srcDS=tmp.vector,
+            format="GeoJSON"
+        )
+        tmp.close()
         
         size = gdal.VSIStatL(filename).size
         
