@@ -686,44 +686,109 @@ class Vector:
     
     def reproject(
             self,
-            projection: CRS,
+            projection: CRS | None,
             split_antimeridian: bool = True,
+            antimeridian_offset: int | float = 10,
             inplace: bool = True
     ) -> Vector | None:
         """
-        In-memory reprojection. Antimeridian splitting is performed automatically.
+        In-memory reprojection and ntimeridian splitting.
+        
+        Geometry type considerations:
+        
+        - the input vector object's layer and all features must share the same
+          geometry type
+        - if no antimeridian splitting is necessary, the output object will
+          have the same geometry types as the input object
+        - if antimeridian splitting is performed, the geometry types of the
+          layer and all its features are promoted to the corresponding MULTI*
+          type (e.g. POLYGON -> MULTIPOLYGON).
 
         Parameters
         ----------
         projection
             the target CRS. See :func:`spatialist.auxil.crsConvert`.
+            If set to ``None``, no reprojection is performed
+            (and only antimeridian splitting if necessary).
         split_antimeridian
             split geometries along the antimeridian if projecting to a geographic CRS?
+        antimeridian_offset
+            Distance in degrees from the antimeridian where geometries are considered
+            for splitting. This corresponds to ogr2ogr's ``-datelineoffset`` option.
         inplace
             reproject in place (or return a new Vector object)?
             If no reprojection is necessary and ``inplace=False``,
             a clone of the current object is returned.
         """
-        srs_out = crsConvert(projection, 'osr')
         
-        if split_antimeridian and srs_out.IsGeographic():
-            geometryType = 'PROMOTE_TO_MULTI'
-            options = ['-wrapdateline']
+        def geom_types_all_equal(ds: gdal.Dataset):
+            """check whether all features have the same geometry type as the layer"""
+            all_equal = True
+            layer = ds.GetLayer()
+            layer_def = layer.GetLayerDefn()
+            layer_geom_type = layer_def.GetGeomType()
+            layer.ResetReading()
+            try:
+                for feature in layer:
+                    geom = feature.GetGeometryRef()
+                    geom_type = geom.GetGeometryType()
+                    if geom_type != layer_geom_type:
+                        print(geom_type, layer_geom_type)
+                        all_equal = False
+                        break
+            finally:
+                layer.ResetReading()
+                layer = layer_def = None
+            return all_equal
+        
+        if not geom_types_all_equal(self.vector):
+            raise ValueError('the geometry types of the layer and its features are not equal')
+        
+        if projection is not None:
+            srs_out = crsConvert(projection, 'osr')
+            do_reproject = self.getProjection('epsg') != crsConvert(projection, 'epsg')
         else:
-            geometryType = None
+            srs_out = self.getProjection('osr')
+            do_reproject = False
+        
+        do_split = split_antimeridian and srs_out.IsGeographic()
+        
+        if do_split:
+            options = ['-wrapdateline', "-datelineoffset", str(antimeridian_offset)]
+        else:
             options = []
         
-        if self.getProjection('epsg') != crsConvert(projection, 'epsg'):
+        # reproject the vector layer.
+        # geometryType is first set to None to preserve the original geometry type.
+        # If a polygon is split along the antimeridian, it is converted to a MULTIPOLYGON.
+        # Hence, in this case the layer's geometry type will be different than that of the
+        # split feature. In this case, reprojection is performed again, this time with
+        # `geometryType='PROMOTE_TO_MULTI'` so that all geometries and the layer's type
+        # are promoted to a MULTI* type.
+        if do_reproject:
             ds = ogr2ogr(
                 src=self.vector,
                 dst='',
                 format='MEM',
                 dstSRS=srs_out,
-                reproject=True,
-                geometryType=geometryType,
+                reproject=do_reproject,
+                geometryType=None,
                 options=options,
                 void=False
             )
+            # promote the layer's geometry type and all geometries to MULTI* types
+            # if antimeridian splitting is necessary.
+            if do_split and not geom_types_all_equal(ds):
+                ds = ogr2ogr(
+                    src=self.vector,
+                    dst='',
+                    format='MEM',
+                    dstSRS=srs_out,
+                    reproject=do_reproject,
+                    geometryType='PROMOTE_TO_MULTI',
+                    options=options,
+                    void=False
+                )
             if inplace:
                 self.__init__()
                 self.vector = ds

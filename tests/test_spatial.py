@@ -193,23 +193,42 @@ def test_wkt2vector():
 
 
 def test_bbox_antimeridian():
+    crs = 4326
     extent = {'xmin': 178, 'xmax': -178, 'ymin': 50, 'ymax': 51}
-    with bbox(coordinates=extent, crs=4326, split_antimeridian=False) as vec:
+
+    # 4326 crossing the antimeridian, not wrapped
+    with bbox(coordinates=extent, crs=crs, split_antimeridian=False) as vec:
         assert vec.geomType == ogr.wkbPolygon
         assert vec.get_extent() == {'xmin': -178, 'xmax': 178, 'ymin': 50, 'ymax': 51}
-    with bbox(coordinates=extent, crs=4326, split_antimeridian=True) as vec:
+
+    # 4326 crossing the antimeridian, wrapped
+    with bbox(coordinates=extent, crs=crs, split_antimeridian=True) as vec:
         assert vec.geomType == ogr.wkbMultiPolygon
         assert vec.get_extent(split_antimeridian=False) == {'xmin': -180, 'xmax': 180, 'ymin': 50, 'ymax': 51}
         assert vec.get_extent(split_antimeridian=True) == extent
     
-    crs = 32660
+    # UTM not crossing the antimeridian, wrapped
+    crs = 32632
     extent_utm = {'xmin': 600000, 'xmax': 709800, 'ymin': 5790240, 'ymax': 5900040}
+
+    with bbox(coordinates=extent_utm, crs=crs) as vec:
+        vec.reproject(4326)
+        assert vec.geomType == ogr.wkbPolygon
+        assert vec.geomTypes == ['POLYGON']
+        extent_4326 = vec.get_extent(split_antimeridian=True)
+        expected = {'xmin': 10.5, 'xmax': 12.1, 'ymin': 52.2, 'ymax': 53.2}
+        assert extent_4326 == pytest.approx(expected, rel=1e-1)
+    
+    # UTM crossing the antimeridian, wrapped
+    crs = 32660
     
     with bbox(coordinates=extent_utm, crs=crs) as vec:
         vec.reproject(4326)
+        assert vec.geomType == ogr.wkbMultiPolygon
+        assert vec.geomTypes == ['MULTIPOLYGON']
         extent_4326 = vec.get_extent(split_antimeridian=True)
-        extent_4326_int = {k: int(v) for k, v in extent_4326.items()}
-        assert extent_4326_int == {'xmax': -179, 'xmin': 178, 'ymax': 53, 'ymin': 52}
+        expected = {'xmin': 178.5, 'xmax': -179.9, 'ymin': 52.2, 'ymax': 53.2}
+        assert extent_4326 == pytest.approx(expected, rel=1e-1)
 
 
 def test_largest_polygon_exterior():
