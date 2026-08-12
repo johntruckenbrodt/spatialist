@@ -757,7 +757,7 @@ class Vector:
         # split feature. In this case, reprojection is performed again, this time with
         # `geometryType='PROMOTE_TO_MULTI'` so that all geometries and the layer's type
         # are promoted to a MULTI* type.
-        if do_reproject:
+        if do_reproject or do_split:
             ds = ogr2ogr(
                 src=self.vector,
                 dst='',

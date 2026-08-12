@@ -212,6 +212,10 @@ def test_bbox_antimeridian():
     with bbox(coordinates=extent, crs=crs, split_antimeridian=False) as vec:
         assert vec.geomType == ogr.wkbPolygon
         assert vec.get_extent() == {'xmin': -178, 'xmax': 178, 'ymin': 50, 'ymax': 51}
+        
+        vec.wrap_antimeridian()
+        assert vec.geomType == ogr.wkbMultiPolygon
+        assert vec.get_extent() == {'xmin': 178, 'xmax': -178, 'ymin': 50, 'ymax': 51}
 
     # 4326 crossing the antimeridian, wrapped
     with bbox(coordinates=extent, crs=crs, split_antimeridian=True) as vec:
