@@ -32,6 +32,7 @@ osr.UseExceptions()
 gdal.UseExceptions()
 
 # typing
+BUF = int | float | tuple[int | float, int | float] | None
 CRS = int | str | osr.SpatialReference
 EXT = dict[str, int | float]
 
@@ -288,6 +289,7 @@ class Vector:
             outname: str | None = None,
             driver: str | None = None,
             overwrite: bool = True,
+            buffer: BUF = None,
             split_antimeridian: bool = True,
     ) -> Vector | None:
         """
@@ -301,6 +303,9 @@ class Vector:
             the name of the file format to write. Ignored if `outname=None`.
         overwrite
             overwrite an already existing file? Ignored if `outname=None`.
+        buffer
+            a buffer to add around the extent. Default None: do not add
+            a buffer. A tuple is interpreted as (x buffer, y buffer).
         split_antimeridian
             split polygons into multipolygons if they're crossing the antimeridian?
             It is assumed that `xmax` < `xmin` as check for antimeridian crossing.
@@ -310,9 +315,15 @@ class Vector:
         -------
             the bounding box Vector object id `outname=None` and `None` otherwise.
         """
-        return bbox(coordinates=self.extent, crs=self.srs,
-                    outname=outname, driver=driver, overwrite=overwrite,
-                    split_antimeridian=split_antimeridian)
+        return bbox(
+            coordinates=self.extent,
+            crs=self.srs,
+            outname=outname,
+            driver=driver,
+            overwrite=overwrite,
+            buffer=buffer,
+            split_antimeridian=split_antimeridian
+        )
     
     def clone(self) -> Vector:
         return feature2vector(self.getfeatures(), ref=self)
@@ -933,7 +944,7 @@ def bbox(
         outname: str | None = None,
         driver: str | None = None,
         overwrite: bool = True,
-        buffer: int | float | tuple[int | float, int | float] | None = None,
+        buffer: BUF = None,
         split_antimeridian: bool = True
 ) -> Vector | None:
     """
