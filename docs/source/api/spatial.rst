@@ -17,5 +17,7 @@ General Spatial Tools
         gdalbuildvrt
         gdalwarp
         haversine
+        latlon_clamp
+        latlon_normalize
         ogr2ogr
         utm_autodetect

@@ -461,3 +461,69 @@ def cmap_mpl2gdal(mplcolor: str, values: list[int] | range) -> gdal.ColorTable:
         color = tuple(int(round(x * 255)) for x in cmap_plt(i))
         cmap.SetColorEntry(i, color)
     return cmap
+
+
+def latlon_clamp(
+        lat: int | float | None = None,
+        lon: int | float | None = None
+) -> float:
+    """
+    Clamp latitude and longitude values to the range [-180, 180] and [-90, 90] respectively.
+
+    Parameters
+    ----------
+    lat
+        the latitude
+    lon
+        the longitude
+    
+    Examples
+    --------
+    >>> latlon_clamp(lon=200)
+    180.0
+    """
+    if lat is not None and lon is not None:
+        raise ValueError('only one of lat and lon can be specified')
+    if lat is None and lon is None:
+        raise ValueError('either lat or lon must be specified')
+    if isinstance(lat, (int, float)):
+        return max(-90.0, min(90.0, lat))
+    if isinstance(lon, (int, float)):
+        return max(-180.0, min(180.0, lon))
+    raise ValueError('lat and lon must be numeric or None')
+
+
+def latlon_normalize(
+        lat: int | float | None = None,
+        lon: int | float | None = None
+) -> float:
+    """
+    Normalize latitude and longitude values to the range [-180, 180] and [-90, 90] respectively.
+
+    Parameters
+    ----------
+    lat
+        the latitude
+    lon
+        the longitude
+
+    Examples
+    --------
+    >>> latlon_normalize(lon=200)
+    -20.0
+    """
+    if lat is not None and lon is not None:
+        raise ValueError('only one of lat and lon can be specified')
+    if lat is None and lon is None:
+        raise ValueError('either lat or lon must be specified')
+    if isinstance(lat, (int, float)):
+        lat = ((lat + 90.0) % 360.0) - 90.0
+        if lat > 90.0:
+            lat = 180.0 - lat
+        return lat
+    if isinstance(lon, (int, float)):
+        lon = ((lon + 180.0) % 360.0) - 180.0
+        if lon == -180.0:
+            return 180.0
+        return lon
+    raise ValueError('lat and lon must be numeric or None')

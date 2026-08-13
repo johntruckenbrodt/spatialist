@@ -19,7 +19,7 @@ from packaging.version import Version
 if TYPE_CHECKING:
     from .raster import Raster
 
-from .auxil import crsConvert, ogr2ogr
+from .auxil import crsConvert, ogr2ogr, latlon_clamp
 from .ancillary import parse_literal
 from .sqlite_util import sqlite_setup
 
@@ -1010,10 +1010,10 @@ def bbox(
         
         # fit the coordinates back into the valid ranges
         if is_geographic:
-            buffered['xmin'] = min(180., max(buffered['xmin'], -180.))
-            buffered['xmax'] = max(-180., min(buffered['xmax'], 180.))
-            buffered['ymin'] = min(90., max(buffered['ymin'], -90.))
-            buffered['ymax'] = max(-90., min(buffered['ymax'], 90.))
+            buffered['xmin'] = latlon_clamp(lon=buffered['xmin'])
+            buffered['xmax'] = latlon_clamp(lon=buffered['xmax'])
+            buffered['ymin'] = latlon_clamp(lat=buffered['ymin'])
+            buffered['ymax'] = latlon_clamp(lat=buffered['ymax'])
         return buffered
     
     def _create_polygon(extent: EXT) -> ogr.Geometry:
