@@ -207,26 +207,44 @@ def test_wkt2vector():
 def test_bbox_antimeridian():
     crs = 4326
     extent = {'xmin': 178, 'xmax': -178, 'ymin': 50, 'ymax': 51}
-
+    
     # 4326 crossing the antimeridian, not wrapped
     with bbox(coordinates=extent, crs=crs, split_antimeridian=False) as vec:
         assert vec.geomType == ogr.wkbPolygon
         assert vec.get_extent() == {'xmin': -178, 'xmax': 178, 'ymin': 50, 'ymax': 51}
         
+        # wrap separately
         vec.wrap_antimeridian()
         assert vec.geomType == ogr.wkbMultiPolygon
         assert vec.get_extent() == {'xmin': 178, 'xmax': -178, 'ymin': 50, 'ymax': 51}
-
+    
+    # 4326 crossing the antimeridian, not wrapped, buffered
+    with bbox(coordinates=extent, crs=crs, split_antimeridian=False, buffer=3) as vec:
+        assert vec.geomType == ogr.wkbPolygon
+        assert vec.get_extent() == {'xmin': -180., 'xmax': 180., 'ymin': 47., 'ymax': 54.}
+        
+        # wrap separately: the polygon is now truly world-spanning,
+        # and wrapping thus does not have any effect
+        vec.wrap_antimeridian()
+        assert vec.geomType == ogr.wkbPolygon
+        assert vec.get_extent() == {'xmin': -180., 'xmax': 180., 'ymin': 47., 'ymax': 54.}
+    
     # 4326 crossing the antimeridian, wrapped
     with bbox(coordinates=extent, crs=crs, split_antimeridian=True) as vec:
         assert vec.geomType == ogr.wkbMultiPolygon
         assert vec.get_extent(split_antimeridian=False) == {'xmin': -180, 'xmax': 180, 'ymin': 50, 'ymax': 51}
         assert vec.get_extent(split_antimeridian=True) == extent
     
-    # UTM not crossing the antimeridian, wrapped
+    # 4326 crossing the antimeridian, wrapped, buffered
+    with bbox(coordinates=extent, crs=crs, split_antimeridian=True, buffer=3) as vec:
+        assert vec.geomType == ogr.wkbMultiPolygon
+        assert vec.get_extent(split_antimeridian=False) == {'xmin': -180, 'xmax': 180, 'ymin': 47, 'ymax': 54}
+        assert vec.get_extent(split_antimeridian=True) == {'xmin': 175, 'xmax': -175, 'ymin': 47, 'ymax': 54}
+    
+    # UTM not crossing the antimeridian
     crs = 32632
     extent_utm = {'xmin': 600000, 'xmax': 709800, 'ymin': 5790240, 'ymax': 5900040}
-
+    
     with bbox(coordinates=extent_utm, crs=crs) as vec:
         vec.reproject(4326)
         assert vec.geomType == ogr.wkbPolygon

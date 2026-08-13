@@ -979,41 +979,95 @@ def bbox(
     -------
         the bounding box Vector object
     """
-    if buffer is not None:
-        coordinates = coordinates.copy()
-        if isinstance(buffer, tuple):
-            xbuffer, ybuffer = buffer
-        else:
-            xbuffer = ybuffer = buffer
-        coordinates['xmin'] -= xbuffer
-        coordinates['xmax'] += xbuffer
-        coordinates['ymin'] -= ybuffer
-        coordinates['ymax'] += ybuffer
-    
     srs = crsConvert(crs, 'osr')
     
-    def create_polygon(xmin, ymin, xmax, ymax):
+    def _buffer_extent(
+            extent: EXT,
+            buffer: BUF,
+            is_geographic: bool
+    ) -> EXT:
+        if buffer is not None:
+            if isinstance(buffer, tuple):
+                xbuffer = float(buffer[0])
+                ybuffer = float(buffer[1])
+            else:
+                xbuffer = ybuffer = float(buffer)
+        else:
+            xbuffer = ybuffer = 0.
+        
+        buffered = dict()
+        
+        if is_geographic and extent['xmin'] > extent['xmax']:
+            buffered['xmin'] = extent['xmin'] + xbuffer
+            buffered['xmax'] = extent['xmax'] - xbuffer
+        else:
+            buffered['xmin'] = extent['xmin'] - xbuffer
+            buffered['xmax'] = extent['xmax'] + xbuffer
+        
+        buffered['ymin'] = extent['ymin'] - ybuffer
+        buffered['ymax'] = extent['ymax'] + ybuffer
+        
+        # fit the coordinates back into the valid ranges
+        if is_geographic:
+            buffered['xmin'] = min(180., max(buffered['xmin'], -180.))
+            buffered['xmax'] = max(-180., min(buffered['xmax'], 180.))
+            buffered['ymin'] = min(90., max(buffered['ymin'], -90.))
+            buffered['ymax'] = max(-90., min(buffered['ymax'], 90.))
+        return buffered
+    
+    def _create_polygon(extent: EXT) -> ogr.Geometry:
         ring = ogr.Geometry(ogr.wkbLinearRing)
-        ring.AddPoint(xmin, ymin)
-        ring.AddPoint(xmax, ymin)
-        ring.AddPoint(xmax, ymax)
-        ring.AddPoint(xmin, ymax)
+        ring.AddPoint(extent['xmin'], extent['ymin'])
+        ring.AddPoint(extent['xmax'], extent['ymin'])
+        ring.AddPoint(extent['xmax'], extent['ymax'])
+        ring.AddPoint(extent['xmin'], extent['ymax'])
         ring.CloseRings()
         geom = ogr.Geometry(ogr.wkbPolygon)
         geom.AddGeometry(ring)
         return geom
     
-    if split_antimeridian and srs.IsGeographic() and coordinates['xmax'] < coordinates['xmin']:
-        geom1 = create_polygon(xmin=coordinates['xmin'], ymin=coordinates['ymin'],
-                               xmax=180, ymax=coordinates['ymax'])
-        geom2 = create_polygon(xmin=-180, ymin=coordinates['ymin'],
-                               xmax=coordinates['xmax'], ymax=coordinates['ymax'])
+    extent = coordinates.copy()
+    
+    is_geographic = srs.IsGeographic() == 1
+    
+    if split_antimeridian and is_geographic and extent['xmax'] < extent['xmin']:
+        extent_buffered = _buffer_extent(
+            extent={
+                'xmin': extent['xmin'],
+                'ymin': extent['ymin'],
+                'xmax': 180,
+                'ymax': extent['ymax']
+            },
+            buffer=buffer, is_geographic=is_geographic
+        )
+        
+        geom1 = _create_polygon(extent=extent_buffered)
+        
+        extent_buffered = _buffer_extent(
+            extent={
+                'xmin': -180,
+                'ymin': extent['ymin'],
+                'xmax': extent['xmax'],
+                'ymax': extent['ymax']
+            },
+            buffer=buffer, is_geographic=is_geographic
+        )
+        geom2 = _create_polygon(extent=extent_buffered)
+        
         geom = ogr.Geometry(ogr.wkbMultiPolygon)
         geom.AddGeometry(geom1)
         geom.AddGeometry(geom2)
     else:
-        geom = create_polygon(xmin=coordinates['xmin'], ymin=coordinates['ymin'],
-                              xmax=coordinates['xmax'], ymax=coordinates['ymax'])
+        extent_buffered = _buffer_extent(
+            extent={
+                'xmin': extent['xmin'],
+                'ymin': extent['ymin'],
+                'xmax': extent['xmax'],
+                'ymax': extent['ymax']
+            },
+            buffer=buffer, is_geographic=is_geographic
+        )
+        geom = _create_polygon(extent=extent_buffered)
     
     geom.FlattenTo2D()
     
