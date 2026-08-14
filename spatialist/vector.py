@@ -737,7 +737,6 @@ class Vector:
                     geom = feature.GetGeometryRef()
                     geom_type = geom.GetGeometryType()
                     if geom_type != layer_geom_type:
-                        print(geom_type, layer_geom_type)
                         all_equal = False
                         break
             finally:
