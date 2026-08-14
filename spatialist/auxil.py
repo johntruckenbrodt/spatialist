@@ -21,8 +21,9 @@ osr.UseExceptions()
 ogr.UseExceptions()
 gdal.UseExceptions()
 
-GDS = str | gdal.Dataset
 CRS = int | str | osr.SpatialReference
+EXT = dict[str, int | float]
+GDS = str | gdal.Dataset
 
 
 def crsConvert(
@@ -334,17 +335,7 @@ def utm_autodetect(spatial: Raster | Vector, crsOut: str) -> CRS:
         box.reproject(4326)
         ext = box.extent
     
-    xmin = ext['xmin']
-    xmax = ext['xmax']
-    
-    if xmax < xmin:
-        lon = (xmin + (xmax + 360)) / 2
-        if lon > 180:
-            lon -= 360
-    else:
-        lon = (xmin + xmax) / 2
-    
-    lat = (ext['ymax'] + ext['ymin']) / 2
+    lat, lon = latlon_extent_center(ext)
     
     zone = int(1 + (lon + 180.0) / 6.0)
     zone = min(max(zone, 1), 60)
@@ -527,3 +518,15 @@ def latlon_normalize(
             return 180.0
         return lon
     raise ValueError('lat and lon must be numeric or None')
+
+
+def latlon_extent_center(extent: EXT) -> tuple[float, float]:
+    if extent['xmax'] < extent['xmin']:
+        lon = (extent['xmin'] + (extent['xmax'] + 360)) / 2.
+        if lon > 180:
+            lon -= 360
+    else:
+        lon = (extent['xmin'] + extent['xmax']) / 2.
+    
+    lat = (extent['ymax'] + extent['ymin']) / 2.
+    return lat, lon
