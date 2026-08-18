@@ -338,24 +338,49 @@ class Vector:
             if feature is not None:
                 feature = None
     
-    def convert2wkt(self, set3D: bool = True) -> list[str]:
+    def convert2wkt(
+            self,
+            set3D: bool = True,
+            multi: bool = False
+    ) -> list[str]:
         """
-        export the geometry of each feature as a wkt string
+        Export the geometry of each feature as a WKT string.
 
         Parameters
         ----------
         set3D
             keep the third (height) dimension?
+        multi
+            promote every geometry to its corresponding MULTI* type?
+        
+        Returns
+        -------
+            a list of WKT string representations
         """
         features = self.getfeatures()
+        out = []
+        
         for feature in features:
+            geom = feature.geometry()
+            
             try:
-                feature.geometry().Set3D(set3D)
+                geom.Set3D(set3D)
             except AttributeError:
                 dim = 3 if set3D else 2
-                feature.geometry().SetCoordinateDimension(dim)
+                geom.SetCoordinateDimension(dim)
+            
+            if multi:
+                geom_type = ogr.GT_Flatten(geom.GetGeometryType())
+                if geom_type == ogr.wkbPoint:
+                    geom = ogr.ForceToMultiPoint(geom)
+                elif geom_type == ogr.wkbLineString:
+                    geom = ogr.ForceToMultiLineString(geom)
+                elif geom_type == ogr.wkbPolygon:
+                    geom = ogr.ForceToMultiPolygon(geom)
+            out.append(geom.ExportToWkt())
         
-        return [feature.geometry().ExportToWkt() for feature in features]
+        features = geom = None
+        return out
     
     @property
     def extent(self) -> EXT:
