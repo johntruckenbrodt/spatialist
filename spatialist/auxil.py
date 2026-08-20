@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import math
 import warnings
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from .raster import Raster
@@ -15,18 +15,20 @@ if TYPE_CHECKING:
 from osgeo import osr, gdal, ogr
 import progressbar as pb
 from matplotlib import pyplot as plt
+from packaging.version import Version
 
 osr.UseExceptions()
 ogr.UseExceptions()
 gdal.UseExceptions()
 
-GDS = str | gdal.Dataset
 CRS = int | str | osr.SpatialReference
+EXT = dict[str, int | float]
+GDS = str | gdal.Dataset
 
 
 def crsConvert(
         crsIn: CRS,
-        crsOut: str,
+        crsOut: Literal['epsg', 'opengis', 'osr', 'prettyWkt', 'proj4', 'wkt'],
         wkt_format: str = 'DEFAULT'
 ) -> CRS:
     """
@@ -37,14 +39,7 @@ def crsConvert(
     crsIn
         the input CRS
     crsOut
-        the output CRS type; supported options:
-        
-        - epsg
-        - opengis
-        - osr
-        - prettyWkt
-        - proj4
-        - wkt
+        the output CRS type
     wkt_format
         the format of the `wkt` string. See here for options:
         https://gdal.org/api/ogrspatialref.html#_CPPv4NK19OGRSpatialReference11exportToWktEPPcPPCKc
@@ -81,13 +76,15 @@ def crsConvert(
         if isinstance(crsIn, str):
             try:
                 srs.SetFromUserInput(crsIn)
-                if gdal.__version__ >= '3.0':
-                    srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
             except RuntimeError:
                 raise TypeError('crsIn not recognized; must be of type WKT, PROJ4 or EPSG\n'
                                 '  was: "{}" of type {}'.format(crsIn, type(crsIn).__name__))
         else:
             raise TypeError('crsIn must be of type int, str or osr.SpatialReference')
+    
+    if Version(gdal.__version__) >= Version('3.0'):
+        srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    
     if crsOut == 'wkt':
         if wkt_format == 'DEFAULT':
             # keep downward compatibility
@@ -216,7 +213,7 @@ def gdal_translate(
         dst: str,
         void: bool = True,
         **kwargs: Any
-) -> None:
+) -> gdal.Dataset | None:
     """
     a simple wrapper for :func:`osgeo.gdal.Translate`
 
@@ -239,7 +236,12 @@ def gdal_translate(
     return out
 
 
-def ogr2ogr(src: GDS, dst: str, **kwargs: Any) -> None:
+def ogr2ogr(
+        src: GDS,
+        dst: str,
+        void: bool = True,
+        **kwargs: Any
+) -> gdal.Dataset | None:
     """
     a simple wrapper for :func:`osgeo.gdal.VectorTranslate` aka `ogr2ogr <https://www.gdal.org/ogr2ogr.html>`_
 
@@ -249,12 +251,18 @@ def ogr2ogr(src: GDS, dst: str, **kwargs: Any) -> None:
         the input data set
     dst
         the output data set
+    void
+        just write the results and don't return anything? If not, the spatial object is returned.
     **kwargs
         additional parameters passed to :func:`osgeo.gdal.VectorTranslate`;
         see :func:`osgeo.gdal.VectorTranslateOptions`
     """
-    out = gdal.VectorTranslate(dst, src, options=gdal.VectorTranslateOptions(**kwargs))
-    out = None
+    out = gdal.VectorTranslate(destNameOrDestDS=dst, srcDS=src,
+                               options=gdal.VectorTranslateOptions(**kwargs))
+    out.FlushCache()
+    if void:
+        out = None
+    return out
 
 
 def gdal_rasterize(src: GDS, dst: str, **kwargs: Any) -> None:
@@ -306,8 +314,10 @@ def utm_autodetect(spatial: Raster | Vector, crsOut: str) -> CRS:
     """
     get the UTM CRS for a spatial object
     
-    The bounding box of the object is extracted, reprojected to :epsg:`4326` and its
-    center coordinate used for computing the best UTM zone fit.
+    The bounding box of the object is extracted, reprojected to :epsg:`4326`
+    and its center coordinate used for computing the best UTM zone fit.
+    In case the reprojected geometry crosses the antimeridian, the coordinates
+    are first shifted to a 0-360° space.
     
     Parameters
     ----------
@@ -324,15 +334,19 @@ def utm_autodetect(spatial: Raster | Vector, crsOut: str) -> CRS:
     with spatial.bbox() as box:
         box.reproject(4326)
         ext = box.extent
-    lon = (ext['xmax'] + ext['xmin']) / 2
-    lat = (ext['ymax'] + ext['ymin']) / 2
+    
+    lat, lon = latlon_extent_center(ext)
+    
     zone = int(1 + (lon + 180.0) / 6.0)
+    zone = min(max(zone, 1), 60)
     north = lat > 0
+    
     utm_cs = osr.SpatialReference()
     utm_cs.SetWellKnownGeogCS('WGS84')
-    if gdal.__version__ >= '3.0':
+    if Version(gdal.__version__) >= Version('3.0'):
         utm_cs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
     utm_cs.SetUTM(zone, north)
+    
     return crsConvert(utm_cs, crsOut)
 
 
@@ -438,3 +452,81 @@ def cmap_mpl2gdal(mplcolor: str, values: list[int] | range) -> gdal.ColorTable:
         color = tuple(int(round(x * 255)) for x in cmap_plt(i))
         cmap.SetColorEntry(i, color)
     return cmap
+
+
+def latlon_clamp(
+        lat: int | float | None = None,
+        lon: int | float | None = None
+) -> float:
+    """
+    Clamp latitude and longitude values to the range [-180, 180] and [-90, 90] respectively.
+
+    Parameters
+    ----------
+    lat
+        the latitude
+    lon
+        the longitude
+    
+    Examples
+    --------
+    >>> latlon_clamp(lon=200)
+    180.0
+    """
+    if lat is not None and lon is not None:
+        raise ValueError('only one of lat and lon can be specified')
+    if lat is None and lon is None:
+        raise ValueError('either lat or lon must be specified')
+    if isinstance(lat, (int, float)):
+        return max(-90.0, min(90.0, lat))
+    if isinstance(lon, (int, float)):
+        return max(-180.0, min(180.0, lon))
+    raise ValueError('lat and lon must be numeric or None')
+
+
+def latlon_normalize(
+        lat: int | float | None = None,
+        lon: int | float | None = None
+) -> float:
+    """
+    Normalize latitude and longitude values to the range [-180, 180] and [-90, 90] respectively.
+
+    Parameters
+    ----------
+    lat
+        the latitude
+    lon
+        the longitude
+
+    Examples
+    --------
+    >>> latlon_normalize(lon=200)
+    -20.0
+    """
+    if lat is not None and lon is not None:
+        raise ValueError('only one of lat and lon can be specified')
+    if lat is None and lon is None:
+        raise ValueError('either lat or lon must be specified')
+    if isinstance(lat, (int, float)):
+        lat = ((lat + 90.0) % 360.0) - 90.0
+        if lat > 90.0:
+            lat = 180.0 - lat
+        return lat
+    if isinstance(lon, (int, float)):
+        lon = ((lon + 180.0) % 360.0) - 180.0
+        if lon == -180.0:
+            return 180.0
+        return lon
+    raise ValueError('lat and lon must be numeric or None')
+
+
+def latlon_extent_center(extent: EXT) -> tuple[float, float]:
+    if extent['xmax'] < extent['xmin']:
+        lon = (extent['xmin'] + (extent['xmax'] + 360)) / 2.
+        if lon > 180:
+            lon -= 360
+    else:
+        lon = (extent['xmin'] + extent['xmax']) / 2.
+    
+    lat = (extent['ymax'] + extent['ymin']) / 2.
+    return lat, lon

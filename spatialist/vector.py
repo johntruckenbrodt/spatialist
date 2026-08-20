@@ -3,8 +3,6 @@
 # OGR wrapper for convenient vector data handling and processing
 # John Truckenbrodt 2015-2026
 ################################################################
-
-
 from __future__ import annotations
 
 import os
@@ -21,19 +19,23 @@ from packaging.version import Version
 if TYPE_CHECKING:
     from .raster import Raster
 
-from .auxil import crsConvert
+from .auxil import crsConvert, ogr2ogr, latlon_clamp
 from .ancillary import parse_literal
 from .sqlite_util import sqlite_setup
 
 import pandas as pd
 import geopandas as gpd
 from shapely.wkb import loads as wkb_loads
+from shapely import MultiPolygon, Polygon
 
 ogr.UseExceptions()
 osr.UseExceptions()
 gdal.UseExceptions()
 
+# typing
+BUF = int | float | tuple[int | float, int | float] | None
 CRS = int | str | osr.SpatialReference
+EXT = dict[str, int | float]
 
 
 class Vector:
@@ -160,15 +162,18 @@ class Vector:
         -------
             a GeoJSON dictionary
         """
+        tmp = self.reproject(projection=4326, split_antimeridian=True,
+                             inplace=False)
+        
         filename = "/vsimem/output.geojson"
         
         gdal.VectorTranslate(
             destNameOrDestDS=filename,
-            srcDS=self.vector,
-            format="GeoJSON",
-            dstSRS="EPSG:4326",
-            reproject=True
+            srcDS=tmp.vector,
+            format="GeoJSON"
         )
+        tmp.close()
+        
         size = gdal.VSIStatL(filename).size
         
         f = gdal.VSIFOpenL(filename, "rb")
@@ -284,7 +289,9 @@ class Vector:
             self,
             outname: str | None = None,
             driver: str | None = None,
-            overwrite: bool = True
+            overwrite: bool = True,
+            buffer: BUF = None,
+            split_antimeridian: bool = True,
     ) -> Vector | None:
         """
         create a bounding box from the extent of the Vector object
@@ -294,18 +301,30 @@ class Vector:
         outname
             the name of the vector file to be written; if None, a Vector object is returned
         driver
-            the name of the file format to write
+            the name of the file format to write. Ignored if `outname=None`.
         overwrite
-            overwrite an already existing file?
+            overwrite an already existing file? Ignored if `outname=None`.
+        buffer
+            a buffer to add around the extent. Default None: do not add
+            a buffer. A tuple is interpreted as (x buffer, y buffer).
+        split_antimeridian
+            split polygons into multipolygons if they're crossing the antimeridian?
+            It is assumed that `xmax` < `xmin` as check for antimeridian crossing.
+            Only applied to geographic CRSs.
 
         Returns
         -------
-            if outname is None, the bounding box Vector object
+            the bounding box Vector object id `outname=None` and `None` otherwise.
         """
-        if outname is None:
-            return bbox(self.extent, self.srs)
-        else:
-            bbox(self.extent, self.srs, outname=outname, driver=driver, overwrite=overwrite)
+        return bbox(
+            coordinates=self.extent,
+            crs=self.srs,
+            outname=outname,
+            driver=driver,
+            overwrite=overwrite,
+            buffer=buffer,
+            split_antimeridian=split_antimeridian
+        )
     
     def clone(self) -> Vector:
         return feature2vector(self.getfeatures(), ref=self)
@@ -319,35 +338,149 @@ class Vector:
             if feature is not None:
                 feature = None
     
-    def convert2wkt(self, set3D: bool = True) -> list[str]:
+    def convert2wkt(
+            self,
+            set3D: bool = True,
+            multi: bool = False
+    ) -> list[str]:
         """
-        export the geometry of each feature as a wkt string
+        Export the geometry of each feature as a WKT string.
 
         Parameters
         ----------
         set3D
             keep the third (height) dimension?
+        multi
+            promote every geometry to its corresponding MULTI* type?
+        
+        Returns
+        -------
+            a list of WKT string representations
         """
         features = self.getfeatures()
+        out = []
+        
         for feature in features:
+            geom = feature.geometry()
+            
             try:
-                feature.geometry().Set3D(set3D)
+                geom.Set3D(set3D)
             except AttributeError:
                 dim = 3 if set3D else 2
-                feature.geometry().SetCoordinateDimension(dim)
+                geom.SetCoordinateDimension(dim)
+            
+            if multi:
+                geom_type = ogr.GT_Flatten(geom.GetGeometryType())
+                if geom_type == ogr.wkbPoint:
+                    geom = ogr.ForceToMultiPoint(geom)
+                elif geom_type == ogr.wkbLineString:
+                    geom = ogr.ForceToMultiLineString(geom)
+                elif geom_type == ogr.wkbPolygon:
+                    geom = ogr.ForceToMultiPolygon(geom)
+            out.append(geom.ExportToWkt())
         
-        return [feature.geometry().ExportToWkt() for feature in features]
+        features = geom = None
+        return out
     
     @property
-    def extent(self) -> dict[str, float]:
+    def extent(self) -> EXT:
         """
-        the extent of the vector object
+        The extent of the vector object.
+        
+        Note
+        ----
+        The extent is auto-split along the antimeridian.
+        Use method :meth:`~spatialist.vector.Vector.get_extent` if you do not require this.
 
         Returns
         -------
             a dictionary with keys `xmin`, `xmax`, `ymin`, `ymax`
         """
-        return dict(zip(['xmin', 'xmax', 'ymin', 'ymax'], self.layer.GetExtent()))
+        return self.get_extent(split_antimeridian=True)
+    
+    def get_extent(self, split_antimeridian: bool = True) -> EXT:
+        """
+        Get the extent of the vector object.
+        Optionally splits along the antimeridian.
+        
+        Parameters
+        ----------
+        split_antimeridian
+            split the extent along the antimeridian?
+
+        Returns
+        -------
+            a dictionary with keys `xmin`, `xmax`, `ymin`, `ymax`
+        
+        Example
+        -------
+        >>> from spatialist.vector import bbox
+        >>> extent = {'xmin': 178, 'xmax': -178, 'ymin': 50, 'ymax': 51}
+        >>> box = bbox(coordinates=extent, crs=4326)
+        >>> print(box.get_extent(split_antimeridian=False))
+        {'xmin': -180.0, 'xmax': 180.0, 'ymin': 50.0, 'ymax': 51.0}
+        >>> print(box.get_extent(split_antimeridian=True))
+        {'xmin': 178.0, 'xmax': -178.0, 'ymin': 50.0, 'ymax': 51.0}
+        >>> box.close()
+        """
+        extent_plain = dict(zip(
+            ['xmin', 'xmax', 'ymin', 'ymax'],
+            self.layer.GetExtent()
+        ))
+        if not split_antimeridian:
+            return extent_plain
+        else:
+            if self.layer.GetSpatialRef().IsGeographic():
+                extent_parts = self.get_extent_parts()
+                xmin = [part['xmin'] for part in extent_parts]
+                xmax = [part['xmax'] for part in extent_parts]
+                ymin = [part['ymin'] for part in extent_parts]
+                ymax = [part['ymax'] for part in extent_parts]
+                if 180 in xmax and -180 in xmin:
+                    return {'xmin': max(xmin), 'xmax': min(xmax),
+                            'ymin': min(ymin), 'ymax': max(ymax)}
+                else:
+                    return extent_plain
+            else:
+                return extent_plain
+    
+    def get_extent_parts(self) -> list[EXT]:
+        """
+        Get extents for individual geometry parts of all features.
+        Multipolygons are split into polygon parts.
+        """
+        
+        def iter_geometry_parts(geom):
+            """Yield polygon parts; for MultiPolygon yields each Polygon."""
+            if geom is None or geom.IsEmpty():
+                return
+            
+            gtype = ogr.GT_Flatten(geom.GetGeometryType())
+            
+            if gtype == ogr.wkbMultiPolygon:
+                for i in range(geom.GetGeometryCount()):
+                    yield geom.GetGeometryRef(i)
+            
+            elif gtype == ogr.wkbPolygon:
+                yield geom
+            
+            else:
+                yield geom
+        
+        self.layer.ResetReading()
+        
+        extent_parts = []
+        
+        for feat in self.layer:
+            geom = feat.GetGeometryRef()
+            if geom is None:
+                continue
+            
+            keys = ['xmin', 'xmax', 'ymin', 'ymax']
+            for i, part in enumerate(iter_geometry_parts(geom)):
+                extent_parts.append(dict(zip(keys, part.GetEnvelope())))
+        self.layer.ResetReading()
+        return extent_parts
     
     @property
     def fieldDefs(self) -> list[ogr.FieldDefn]:
@@ -580,42 +713,121 @@ class Vector:
         """
         return self.srs.ExportToProj4().strip()
     
-    def reproject(self, projection: CRS) -> None:
+    def reproject(
+            self,
+            projection: CRS | None,
+            split_antimeridian: bool = True,
+            antimeridian_offset: int | float = 10,
+            inplace: bool = True
+    ) -> Vector | None:
         """
-        in-memory reprojection
+        In-memory reprojection and ntimeridian splitting.
+        
+        Geometry type considerations:
+        
+        - the input vector object's layer and all features must share the same
+          geometry type
+        - if no antimeridian splitting is necessary, the output object will
+          have the same geometry types as the input object
+        - if antimeridian splitting is performed, the geometry types of the
+          layer and all its features are promoted to the corresponding MULTI*
+          type (e.g. POLYGON -> MULTIPOLYGON).
 
         Parameters
         ----------
         projection
             the target CRS. See :func:`spatialist.auxil.crsConvert`.
+            If set to ``None``, no reprojection is performed
+            (and only antimeridian splitting if necessary).
+        split_antimeridian
+            split geometries along the antimeridian if projecting to a geographic CRS?
+        antimeridian_offset
+            Distance in degrees from the antimeridian where geometries are considered
+            for splitting. This corresponds to ogr2ogr's ``-datelineoffset`` option.
+        inplace
+            reproject in place (or return a new Vector object)?
+            If no reprojection is necessary and ``inplace=False``,
+            a clone of the current object is returned.
         """
-        srs_out = crsConvert(projection, 'osr')
         
-        # the following check was found to not work in GDAL 3.0.1; likely a bug
-        # if self.srs.IsSame(srs_out) == 0:
-        if self.getProjection('epsg') != crsConvert(projection, 'epsg'):
-            
-            # create the CoordinateTransformation
-            coordTrans = osr.CoordinateTransformation(self.srs, srs_out)
-            
-            layername = self.layername
-            geomType = self.geomType
-            features = self.getfeatures()
-            feat_def = features[0].GetDefnRef()
-            fields = [feat_def.GetFieldDefn(x) for x in range(0, feat_def.GetFieldCount())]
-            
-            self.__init__()
-            self.addlayer(layername, srs_out, geomType)
-            self.layer.CreateFields(fields)
-            
-            for feature in features:
-                geom = feature.GetGeometryRef()
-                geom.Transform(coordTrans)
-                newfeature = feature.Clone()
-                newfeature.SetGeometry(geom)
-                self.layer.CreateFeature(newfeature)
-                newfeature = None
-            self.init_features()
+        def geom_types_all_equal(ds: gdal.Dataset):
+            """check whether all features have the same geometry type as the layer"""
+            all_equal = True
+            layer = ds.GetLayer()
+            layer_def = layer.GetLayerDefn()
+            layer_geom_type = layer_def.GetGeomType()
+            layer.ResetReading()
+            try:
+                for feature in layer:
+                    geom = feature.GetGeometryRef()
+                    geom_type = geom.GetGeometryType()
+                    if geom_type != layer_geom_type:
+                        all_equal = False
+                        break
+            finally:
+                layer.ResetReading()
+                layer = layer_def = None
+            return all_equal
+        
+        if not geom_types_all_equal(self.vector):
+            raise ValueError('the geometry types of the layer and its features are not equal')
+        
+        if projection is not None:
+            srs_out = crsConvert(projection, 'osr')
+            do_reproject = self.getProjection('epsg') != crsConvert(projection, 'epsg')
+        else:
+            srs_out = self.getProjection('osr')
+            do_reproject = False
+        
+        do_split = split_antimeridian and srs_out.IsGeographic()
+        
+        if do_split:
+            options = ['-wrapdateline', "-datelineoffset", str(antimeridian_offset)]
+        else:
+            options = []
+        
+        # reproject the vector layer.
+        # geometryType is first set to None to preserve the original geometry type.
+        # If a polygon is split along the antimeridian, it is converted to a MULTIPOLYGON.
+        # Hence, in this case the layer's geometry type will be different than that of the
+        # split feature. In this case, reprojection is performed again, this time with
+        # `geometryType='PROMOTE_TO_MULTI'` so that all geometries and the layer's type
+        # are promoted to a MULTI* type.
+        if do_reproject or do_split:
+            ds = ogr2ogr(
+                src=self.vector,
+                dst='',
+                format='MEM',
+                dstSRS=srs_out,
+                reproject=do_reproject,
+                geometryType=None,
+                options=options,
+                void=False
+            )
+            # promote the layer's geometry type and all geometries to MULTI* types
+            # if antimeridian splitting is necessary.
+            if do_split and not geom_types_all_equal(ds):
+                ds = ogr2ogr(
+                    src=self.vector,
+                    dst='',
+                    format='MEM',
+                    dstSRS=srs_out,
+                    reproject=do_reproject,
+                    geometryType='PROMOTE_TO_MULTI',
+                    options=options,
+                    void=False
+                )
+            if inplace:
+                self.__init__()
+                self.vector = ds
+                self.init_layer()
+            else:
+                out = Vector()
+                out.vector = ds
+                out.init_layer()
+                return out
+        else:
+            return None if inplace else self.clone()
     
     def setCRS(self, crs: CRS) -> None:
         """
@@ -696,6 +908,27 @@ class Vector:
                                                  format='ISO8601')
         return gdf
     
+    def wrap_antimeridian(
+            self,
+            offset: int | float = 10,
+            inplace: bool = True
+    ) -> Vector | None:
+        """
+        Split geometries crossing the antimeridian.
+
+        Parameters
+        ----------
+        offset
+            Distance in degrees from the antimeridian where geometries are considered
+            for splitting. This corresponds to ogr2ogr's ``-datelineoffset`` option.
+        inplace
+            wrap in place (or return a new Vector object)?
+            If no wrapping is necessary and ``inplace=False``,
+            a clone of the current object is returned.
+        """
+        return self.reproject(projection=None, split_antimeridian=True,
+                              antimeridian_offset=offset, inplace=inplace)
+    
     def write(self, outfile: str, driver: str | None = None, overwrite: bool = True) -> None:
         """
         write the Vector object to a file
@@ -731,12 +964,13 @@ class Vector:
 
 
 def bbox(
-        coordinates: dict[str, int | float],
+        coordinates: EXT,
         crs: CRS,
         outname: str | None = None,
         driver: str | None = None,
         overwrite: bool = True,
-        buffer: int | float | tuple[int | float, int | float] | None = None
+        buffer: BUF = None,
+        split_antimeridian: bool = True
 ) -> Vector | None:
     """
     create a bounding box vector object or file.
@@ -761,161 +995,220 @@ def bbox(
     buffer
         a buffer to add around `coordinates`. Default None: do not add
         a buffer. A tuple is interpreted as (x buffer, y buffer).
+    split_antimeridian
+        split polygons into multipolygons if they're crossing the antimeridian?
+        It is assumed that `xmax` < `xmin` as check for antimeridian crossing.
+        Only applied to geographic CRSs.
     
     Returns
     -------
         the bounding box Vector object
     """
-    if buffer is not None:
-        coordinates = coordinates.copy()
-        if isinstance(buffer, tuple):
-            xbuffer, ybuffer = buffer
-        else:
-            xbuffer = ybuffer = buffer
-        coordinates['xmin'] -= xbuffer
-        coordinates['xmax'] += xbuffer
-        coordinates['ymin'] -= ybuffer
-        coordinates['ymax'] += ybuffer
-    
     srs = crsConvert(crs, 'osr')
-    ring = ogr.Geometry(ogr.wkbLinearRing)
     
-    ring.AddPoint(coordinates['xmin'], coordinates['ymin'])
-    ring.AddPoint(coordinates['xmax'], coordinates['ymin'])
-    ring.AddPoint(coordinates['xmax'], coordinates['ymax'])
-    ring.AddPoint(coordinates['xmin'], coordinates['ymax'])
-    ring.CloseRings()
+    def _buffer_extent(
+            extent: EXT,
+            buffer: BUF,
+            is_geographic: bool
+    ) -> EXT:
+        if buffer is not None:
+            if isinstance(buffer, tuple):
+                xbuffer = float(buffer[0])
+                ybuffer = float(buffer[1])
+            else:
+                xbuffer = ybuffer = float(buffer)
+        else:
+            xbuffer = ybuffer = 0.
+        
+        buffered = dict()
+        
+        if is_geographic and extent['xmin'] > extent['xmax']:
+            buffered['xmin'] = extent['xmin'] + xbuffer
+            buffered['xmax'] = extent['xmax'] - xbuffer
+        else:
+            buffered['xmin'] = extent['xmin'] - xbuffer
+            buffered['xmax'] = extent['xmax'] + xbuffer
+        
+        buffered['ymin'] = extent['ymin'] - ybuffer
+        buffered['ymax'] = extent['ymax'] + ybuffer
+        
+        # fit the coordinates back into the valid ranges
+        if is_geographic:
+            buffered['xmin'] = latlon_clamp(lon=buffered['xmin'])
+            buffered['xmax'] = latlon_clamp(lon=buffered['xmax'])
+            buffered['ymin'] = latlon_clamp(lat=buffered['ymin'])
+            buffered['ymax'] = latlon_clamp(lat=buffered['ymax'])
+        return buffered
     
-    geom = ogr.Geometry(ogr.wkbPolygon)
-    geom.AddGeometry(ring)
+    def _create_polygon(extent: EXT) -> ogr.Geometry:
+        ring = ogr.Geometry(ogr.wkbLinearRing)
+        ring.AddPoint(extent['xmin'], extent['ymin'])
+        ring.AddPoint(extent['xmax'], extent['ymin'])
+        ring.AddPoint(extent['xmax'], extent['ymax'])
+        ring.AddPoint(extent['xmin'], extent['ymax'])
+        ring.CloseRings()
+        geom = ogr.Geometry(ogr.wkbPolygon)
+        geom.AddGeometry(ring)
+        return geom
+    
+    extent = coordinates.copy()
+    
+    is_geographic = srs.IsGeographic() == 1
+    
+    if split_antimeridian and is_geographic and extent['xmax'] < extent['xmin']:
+        extent_buffered = _buffer_extent(
+            extent={
+                'xmin': extent['xmin'],
+                'ymin': extent['ymin'],
+                'xmax': 180,
+                'ymax': extent['ymax']
+            },
+            buffer=buffer, is_geographic=is_geographic
+        )
+        
+        geom1 = _create_polygon(extent=extent_buffered)
+        
+        extent_buffered = _buffer_extent(
+            extent={
+                'xmin': -180,
+                'ymin': extent['ymin'],
+                'xmax': extent['xmax'],
+                'ymax': extent['ymax']
+            },
+            buffer=buffer, is_geographic=is_geographic
+        )
+        geom2 = _create_polygon(extent=extent_buffered)
+        
+        geom = ogr.Geometry(ogr.wkbMultiPolygon)
+        geom.AddGeometry(geom1)
+        geom.AddGeometry(geom2)
+    else:
+        extent_buffered = _buffer_extent(
+            extent={
+                'xmin': extent['xmin'],
+                'ymin': extent['ymin'],
+                'xmax': extent['xmax'],
+                'ymax': extent['ymax']
+            },
+            buffer=buffer, is_geographic=is_geographic
+        )
+        geom = _create_polygon(extent=extent_buffered)
     
     geom.FlattenTo2D()
     
-    bbox = Vector()
-    bbox.addlayer('bbox', srs, geom.GetGeometryType())
-    bbox.addfield('area', ogr.OFTReal)
-    bbox.addfeature(geom, fields={'area': geom.Area()})
+    out = Vector()
+    out.addlayer('bbox', srs, geom.GetGeometryType())
+    out.addfield('area', ogr.OFTReal)
+    out.addfeature(geom, fields={'area': geom.Area()})
     geom = None
     if outname is None:
-        return bbox
+        return out
     else:
-        bbox.write(outfile=outname, driver=driver, overwrite=overwrite)
+        out.write(outfile=outname, driver=driver, overwrite=overwrite)
 
 
-def boundary(
+def largest_polygon_exterior(
         vectorobject: Vector,
         expression: str | None = None,
         outname: str | None = None
 ) -> Vector | None:
     """
-    Get the boundary of the largest geometry as new vector object. The following steps are performed:
+    Get the exterior of the largest polygon as new polygon vector object.
+    This was developed to get the valid data extent of a raster image
+    vectorized using :func:`vectorize` while omitting data gaps from masking.
+    E.g. for a SAR image while ignoring areas masked due to layover/shadow.
     
-     - find the largest geometry matching the expression
-     - compute the geometry's boundary using :meth:`osgeo.ogr.Geometry.Boundary`, returning a MULTILINE geometry
-     - select the longest line of the MULTILINE geometry
-     - create a closed linear ring from this longest line
-     - create a polygon from this linear ring
+    The following steps are performed:
+    
+     - find the largest polygon matching the expression
+     - get the exterior ring of this polygon as new polygon
      - create a new :class:`Vector` object and add the newly created polygon
+     
+    .. NOTE::
+        This omits small disconnected polygons
 
     Parameters
     ----------
     vectorobject
-        the vector object containing multiple polygon geometries, e.g. all geometries with a certain value in one field.
+        the vector object containing multiple polygon geometries.
     expression
-        the SQL expression to select the candidates for the largest geometry.
+        the SQL expression to select the candidates for the largest polygon,
+        e.g. all polygons with a certain value in one field.
     outname
-        the name of the output vector file; if None, an in-memory object of type :class:`Vector` is returned.
+        the name of the output vector file;
+        if None, an in-memory object of type :class:`Vector` is returned.
 
     Returns
     -------
-        if `outname` is `None`, a vector object pointing to an in-memory dataset else `None`
+        if `outname` is `None`, a vector object pointing to an
+        in-memory dataset else `None`
     """
-    largest = None
-    area = None
+    if not isinstance(vectorobject, Vector):
+        raise TypeError("'vectorobject' must be of type Vector")
+    
+    geom_types = set(vectorobject.geomTypes)
+    
+    if geom_types != {"POLYGON"}:
+        raise RuntimeError(
+            "largest_polygon_exterior() only supports Polygon geometries; "
+            f"found: {sorted(geom_types)}"
+        )
+    
     vectorobject.layer.ResetReading()
+    
     if expression is not None:
         vectorobject.layer.SetAttributeFilter(expression)
-    for feat in vectorobject.layer:
-        geom = feat.GetGeometryRef()
-        geom_area = geom.GetArea()
-        if (largest is None) or (geom_area > area):
-            largest = feat.GetFID()
-            area = geom_area
-    if expression is not None:
-        vectorobject.layer.SetAttributeFilter('')
-    vectorobject.layer.ResetReading()
     
-    feat_major = vectorobject.layer.GetFeature(largest)
-    major = feat_major.GetGeometryRef()
+    largest_geom = None
+    largest_area = -1
     
-    boundary = major.Boundary()
-    if boundary.GetGeometryName() == 'LINESTRING':
-        longest = boundary
-    else:  # MULTILINESTRING
-        longest = None
-        for line in boundary:
-            if (longest is None) or (line.Length() > longest.Length()):
-                longest = line
+    try:
+        for feat in vectorobject.layer:
+            geom = feat.GetGeometryRef()
+            if geom is None or geom.IsEmpty():
+                continue
+            
+            area = geom.GetArea()
+            if area > largest_area:
+                largest_geom = geom.Clone()
+                largest_area = area
+    finally:
+        feat = geom = None
+        if expression is not None:
+            vectorobject.layer.SetAttributeFilter('')
+        vectorobject.layer.ResetReading()
     
-    points = longest.GetPoints()
-    ring = ogr.Geometry(ogr.wkbLinearRing)
+    if largest_geom is None:
+        raise RuntimeError(
+            "no polygon matched the supplied expression"
+            if expression is not None
+            else "no valid polygon geometry found"
+        )
     
-    for point in points:
-        ring.AddPoint_2D(*point)
-    ring.CloseRings()
+    exterior = largest_geom.GetGeometryRef(0)
+    if exterior is None:
+        raise RuntimeError("largest polygon has no exterior ring")
     
-    poly = ogr.Geometry(ogr.wkbPolygon)
-    poly.AddGeometry(ring)
+    polygon = ogr.Geometry(ogr.wkbPolygon)
+    polygon.AddGeometry(exterior.Clone())
     
-    vec_out = Vector()
-    vec_out.addlayer('layer',
-                     vectorobject.layer.GetSpatialRef(),
-                     poly.GetGeometryType())
-    vec_out.addfield('area', ogr.OFTReal)
-    fields = {'area': poly.Area()}
-    vec_out.addfeature(poly, fields=fields)
+    out = Vector()
+    out.addlayer(
+        name="largest_polygon_exterior",
+        srs=vectorobject.srs,
+        geomType=ogr.wkbPolygon,
+    )
+    out.addfield("area", ogr.OFTReal)
+    out.addfeature(polygon, fields={"area": polygon.GetArea()})
     
-    ring = None
-    geom = None
-    line = None
-    longest = None
-    poly = None
-    boundary = None
-    major = None
-    feat_major = None
+    largest_geom = polygon = exterior = None
     
     if outname is not None:
-        vec_out.write(outname)
-        vec_out.close()
-    else:
-        return vec_out
-
-
-def centerdist(obj1: Vector, obj2: Vector) -> float:
-    """
-    Get the center distance between two vector objects.
+        out.write(outname)
+        out.close()
+        return None
     
-    Parameters
-    ----------
-    obj1
-    obj2
-
-    Returns
-    -------
-        the distance in units of the source object's CRS
-    """
-    if not isinstance(obj1, Vector) or isinstance(obj2, Vector):
-        raise IOError('both objects must be of type Vector')
-    
-    feature1 = obj1.getFeatureByIndex(0)
-    geometry1 = feature1.GetGeometryRef()
-    center1 = geometry1.Centroid()
-    
-    feature2 = obj2.getFeatureByIndex(0)
-    geometry2 = feature2.GetGeometryRef()
-    center2 = geometry2.Centroid()
-    
-    return center1.Distance(center2)
+    return out
 
 
 def dissolve(infile: str, outfile: str, field: str, layername: str | None = None) -> None:
@@ -1000,88 +1293,118 @@ def feature2vector(
     return vec
 
 
+def from_geopandas(gdf: gpd.GeoDataFrame, layer_name: str = "layer") -> Vector:
+    """
+    Convert a geopandas GeoDataFrame to a Vector object.
+    
+    Parameters
+    ----------
+    gdf
+        The input GeoDataFrame. All features (columns) must have the same geometry type.
+    layer_name
+        The name of the Vector object's layer.
+    """
+    out = Vector()
+    
+    srs = osr.SpatialReference()
+    srs.ImportFromWkt(gdf.crs.to_wkt())
+    
+    geom_types = list(set(gdf.geometry.dropna().geom_type.unique()))
+    
+    if len(geom_types) > 1:
+        raise RuntimeError(f'Multiple geometry types are not supported. '
+                           f'Found: {geom_types}.')
+    
+    geom_type = getattr(ogr, f'wkb{geom_types[0]}')
+    
+    out.addlayer(name=layer_name, srs=srs, geomType=geom_type)
+    
+    for name, dtype in gdf.drop(columns=gdf.geometry.name).dtypes.items():
+        if dtype.kind in {"i", "u"}:
+            field_type = ogr.OFTInteger64
+        elif dtype.kind == "f":
+            field_type = ogr.OFTReal
+        else:
+            field_type = ogr.OFTString
+        out.addfield(name, field_type)
+    
+    layer_defn = out.layer.GetLayerDefn()
+    
+    for _, row in gdf.iterrows():
+        feat = ogr.Feature(layer_defn)
+        
+        for name in gdf.columns:
+            if name == gdf.geometry.name:
+                continue
+            value = row[name]
+            if value is not None:
+                feat.SetField(name, value)
+        
+        geom = ogr.CreateGeometryFromWkb(row.geometry.wkb)
+        feat.SetGeometry(geom)
+        out.layer.CreateFeature(feat)
+    
+    layer_defn = None
+    feat = None
+    
+    return out
+
+
 def intersect(obj1: Vector, obj2: Vector) -> Vector | None:
     """
-    intersect two Vector objects
+    Intersect two (multi)polygon Vector objects.
 
     Parameters
     ----------
     obj1
-        the first vector object; this object is reprojected to the CRS of obj2 if necessary
+        The first vector object ("input layer").
+        This object is reprojected to the CRS of ``obj2`` if necessary.
     obj2
-        the second vector object
+        The second vector object ("method layer").
 
     Returns
     -------
-        the intersection of obj1 and obj2 if both intersect and None otherwise
+        The intersection of ``obj1`` and ``obj2`` if both intersect and ``None`` otherwise.
+    
+    See Also
+    --------
+    osgeo.ogr.Layer.Intersection
     """
     if not isinstance(obj1, Vector) or not isinstance(obj2, Vector):
-        raise RuntimeError('both objects must be of type Vector')
+        raise RuntimeError("both objects must be of type Vector")
+    
+    for vector in (obj1, obj2):
+        if not all(gt in ("POLYGON", "MULTIPOLYGON") for gt in vector.geomTypes):
+            raise RuntimeError(
+                "intersect() only supports polygon and multipolygon geometries."
+            )
     
     obj1 = obj1.clone()
     obj2 = obj2.clone()
     
     obj1.reproject(obj2.srs)
     
-    #######################################################
-    # create basic overlap
+    if obj2.srs.IsGeographic():
+        obj1.wrap_antimeridian()
+        obj2.wrap_antimeridian()
     
-    def union(vector: Vector) -> ogr.Geometry:
-        out = ogr.Geometry(ogr.wkbMultiPolygon)
-        for feat in vector.layer:
-            geom = feat.GetGeometryRef()
-            type = geom.GetGeometryName()
-            if type == 'MULTIPOLYGON':
-                for subgeom in geom:
-                    out.AddGeometry(subgeom)
-            else:
-                out.AddGeometry(geom)
-        vector.layer.ResetReading()
-        out.Simplify(0)
-        return out
+    out = Vector()
+    out.addlayer("intersect", obj2.srs, ogr.wkbMultiPolygon)
     
-    # get the union of all polygons of the two layers
-    union1 = union(obj1)
-    union2 = union(obj2)
+    err = obj1.layer.Intersection(
+        method_layer=obj2.layer,
+        result_layer=out.layer,
+        options=[
+            "SKIP_FAILURES=NO",  # abort and raise an error if any overlay fails
+            "PROMOTE_TO_MULTI=YES",  #
+            "KEEP_LOWER_DIMENSION_GEOMETRIES=NO",
+        ],
+    )
     
-    # intersection
-    intersect_base = union1.Intersection(union2)
+    if err != ogr.OGRERR_NONE:
+        raise RuntimeError("OGR layer intersection failed")
     
-    union1 = None
-    union2 = None
-    #######################################################
-    # compute detailed per-geometry overlaps
-    if intersect_base.GetArea() > 0:
-        intersection = Vector()
-        intersection.addlayer('intersect', obj1.srs, ogr.wkbPolygon)
-        fieldmap = []
-        for index, fielddef in enumerate([obj1.fieldDefs, obj2.fieldDefs]):
-            for field in fielddef:
-                name = field.GetName()
-                i = 2
-                while name in intersection.fieldnames:
-                    name = '{}_{}'.format(field.GetName(), i)
-                    i += 1
-                fieldmap.append((index, field.GetName(), name))
-                intersection.addfield(name, type=field.GetType(), width=field.GetWidth())
-        
-        for feature1 in obj1.layer:
-            geom1 = feature1.GetGeometryRef()
-            if geom1.Intersects(intersect_base):
-                for feature2 in obj2.layer:
-                    geom2 = feature2.GetGeometryRef()
-                    # select only the intersections
-                    if geom2.Intersects(intersect_base):
-                        intersect = geom2.Intersection(geom1)
-                        fields = {}
-                        for item in fieldmap:
-                            if item[0] == 0:
-                                fields[item[2]] = feature1.GetField(item[1])
-                            else:
-                                fields[item[2]] = feature2.GetField(item[1])
-                        intersection.addfeature(intersect, fields)
-        intersect_base = None
-        return intersection
+    return out if out.nfeatures > 0 else None
 
 
 def set_field(
@@ -1290,3 +1613,96 @@ def vectorize(
         outband = None
         tmp_driver = None
         out = None
+
+
+def combine_polygons(
+        vector: Vector | list[Vector],
+        crs: CRS | None = None,
+        explode: bool = False,
+        multipolygon: bool = False,
+) -> Vector:
+    """
+    Combine (multi)polygon vector objects into one.
+    The output is a single vector object with the (multi)polygons either stored
+    in separate features or combined into a single multipolygon geometry.
+    If the input contains polygons and multipolygons and both ``explode=False``
+    and ``multipolygon=False``, all polygons are promoted to multipolygons.
+
+    Parameters
+    ----------
+    vector
+        The input vector object(s).
+    crs
+        The target CRS. Default None: do not reproject.
+    explode
+        explode multipolygons into separate polygon features?
+        Ignored if `multipolygon=True`.
+        Default False: preserve the multipolygons and promote
+        simple polygons to multipolygons if both types are present.
+    multipolygon
+        Combine all features into a single multipolygon?
+        Default False: write each feature separately.
+
+    Returns
+    -------
+        The combined vector object.
+    """
+    
+    def _promote_polygons_to_multipolygons(
+            gdf: gpd.GeoDataFrame,
+    ) -> gpd.GeoDataFrame:
+        """Promote Polygon geometries when a GeoDataFrame is mixed."""
+        geometry_types = set(gdf.geometry.geom_type.dropna())
+        
+        if geometry_types != {"Polygon", "MultiPolygon"}:
+            return gdf
+        
+        out = gdf.copy()
+        out["geometry"] = out.geometry.map(
+            lambda geom: (
+                MultiPolygon([geom])
+                if isinstance(geom, Polygon)
+                else geom
+            ),
+        )
+        return out
+    
+    if not isinstance(vector, list):
+        vector_reproject = [vector.reproject(projection=crs, inplace=False)]
+    else:
+        vector_reproject = [vec.reproject(projection=crs, inplace=False)
+                            for vec in vector]
+    
+    gdfs = [vec.to_geopandas() for vec in vector_reproject]
+    vector_reproject = None
+    
+    combined = gpd.GeoDataFrame(
+        data=pd.concat(
+            objs=gdfs,
+            ignore_index=True
+        )
+    )
+    
+    if not multipolygon:
+        if explode:
+            combined = combined.explode(
+                index_parts=False,
+                ignore_index=True
+            )
+        else:
+            combined = _promote_polygons_to_multipolygons(combined)
+        return from_geopandas(combined)
+    
+    parts = []
+    
+    for geom in combined.geometry:
+        if isinstance(geom, Polygon):
+            parts.append(geom)
+        elif isinstance(geom, MultiPolygon):
+            parts.extend(geom.geoms)
+    
+    geom = MultiPolygon(parts)
+    
+    return from_geopandas(
+        gpd.GeoDataFrame(geometry=[geom], crs=combined.crs)
+    )

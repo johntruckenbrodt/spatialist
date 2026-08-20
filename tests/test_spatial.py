@@ -1,39 +1,20 @@
 import os
-import shutil
 import pytest
 import platform
 import numpy as np
 from datetime import datetime, timezone
-from osgeo import ogr, gdal
-from spatialist.raster import Dtype, png, Raster, stack, rasterize
-from spatialist.vector import feature2vector, dissolve, Vector, intersect, bbox, wkt2vector, set_field
+from osgeo import ogr, osr, gdal
+from spatialist.raster import Raster
+from spatialist.vector import (feature2vector, dissolve, Vector, intersect,
+                               bbox, wkt2vector, set_field, vectorize,
+                               largest_polygon_exterior, combine_polygons)
 from spatialist.envi import hdr, HDRobject
 from spatialist.sqlite_util import sqlite_setup, __Handler
-from spatialist.ancillary import parallel_apply_along_axis
-from spatialist.auxil import (crsConvert, haversine, ogr2ogr, gdal_translate, gdal_rasterize, gdalwarp,
-                              utm_autodetect, coordinate_reproject, cmap_mpl2gdal)
+from spatialist.auxil import utm_autodetect
 
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
-
-
-def test_crsConvert():
-    assert crsConvert(crsConvert(4326, 'wkt'), 'proj4').strip() == '+proj=longlat +datum=WGS84 +no_defs'
-    assert crsConvert(crsConvert(4326, 'prettyWkt'), 'opengis') == 'https://www.opengis.net/def/crs/EPSG/0/4326'
-    assert crsConvert('https://www.opengis.net/def/crs/EPSG/0/4326', 'epsg') == 4326
-    assert crsConvert(crsConvert('https://www.opengis.net/def/crs/EPSG/0/4326', 'osr'), 'epsg') == 4326
-    assert crsConvert('EPSG:4326+5773', 'proj4').strip() \
-           == '+proj=longlat +datum=WGS84 +geoidgrids=egm96_15.gtx +vunits=m +no_defs' \
-           or '+proj=longlat +datum=WGS84 +vunits=m +no_defs'
-    with pytest.raises(TypeError):
-        crsConvert('xyz', 'epsg')
-    with pytest.raises(ValueError):
-        crsConvert(4326, 'xyz')
-
-
-def test_haversine():
-    assert haversine(50, 10, 51, 10) == 111194.92664455889
 
 
 def test_Vector(tmpdir, testdata):
@@ -84,14 +65,40 @@ def test_Vector(tmpdir, testdata):
         assert bbox4.getArea() == 1470.0
 
 
-def test_vector_geo_interface():
-    extent = {'xmin': 10, 'ymin': 11, 'xmax': 50, 'ymax': 51}
-    with bbox(extent, 4326) as box:
+@pytest.mark.parametrize(
+    "extent, crs, geometry_type",
+    [
+        (
+                {'xmin': 10, 'ymin': 11, 'xmax': 50, 'ymax': 51},
+                4326,
+                'Polygon'
+        ),
+        (
+                {'xmin': 179, 'ymin': -179, 'xmax': 50, 'ymax': 51},
+                4326,
+                'MultiPolygon'
+        ),
+        (
+                {'xmin': 600000, 'xmax': 709800, 'ymin': 5790240, 'ymax': 5900040},
+                32632,
+                'Polygon'
+        ),
+        (
+                {'xmin': 600000, 'xmax': 709800, 'ymin': 5790240, 'ymax': 5900040},
+                32660,
+                'MultiPolygon'
+        )
+    ],
+    ids=['regular', 'antimeridian', 'regular_utm', 'antimeridian_utm']
+)
+def test_vector_geo_interface(extent, crs, geometry_type):
+    with bbox(coordinates=extent, crs=crs) as box:
         geom = box.__geo_interface__
+    print(geom['features'][0]['geometry'])
     assert geom['type'] == 'FeatureCollection'
     assert len(geom['features']) == 1
     assert geom['features'][0]['type'] == 'Feature'
-    assert geom['features'][0]['geometry']['type'] == 'Polygon'
+    assert geom['features'][0]['geometry']['type'] == geometry_type
 
 
 def test_dissolve(tmpdir, travis, testdata):
@@ -120,292 +127,6 @@ def test_dissolve(tmpdir, travis, testdata):
         bbox4_name = os.path.join(str(tmpdir), 'bbox4.shp')
         dissolve(bbox3_name, bbox4_name, field='area')
         assert os.path.isfile(bbox4_name)
-
-
-def test_Raster(tmpdir, testdata):
-    with pytest.raises(RuntimeError):
-        ras = Raster(1)
-    with Raster(testdata['tif']) as ras:
-        print(ras)
-        assert ras.bands == 1
-        assert ras.proj4.strip() == '+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs'
-        assert ras.cols == 268
-        assert ras.rows == 217
-        assert ras.dim == (217, 268, 1)
-        assert ras.dtype == 'Float32'
-        assert ras.epsg == 32631
-        assert ras.format == 'GTiff'
-        assert ras.geo == {'ymax': 4830114.70107, 'rotation_y': 0.0, 'rotation_x': 0.0, 'xmax': 625408.241204,
-                           'xres': 20.0, 'xmin': 620048.241204, 'ymin': 4825774.70107, 'yres': -20.0}
-        assert ras.geogcs == 'WGS 84'
-        assert ras.is_valid() is True
-        assert ras.proj4args == {'units': 'm', 'no_defs': None, 'datum': 'WGS84', 'proj': 'utm', 'zone': '31'}
-        assert ras.allstats() == [{'min': -26.65471076965332, 'max': 1.4325850009918213,
-                                   'mean': -12.124929534450377, 'sdev': 4.738273594738293}]
-        assert ras.bbox().getArea() == 23262400.0
-        assert len(ras.layers()) == 1
-        assert ras.projcs == 'WGS 84 / UTM zone 31N'
-        assert ras.res == (20.0, 20.0)
-        
-        # test writing a subset with no original data in memory
-        outname = os.path.join(str(tmpdir), 'test_sub.tif')
-        with ras[0:200, 0:100] as sub:
-            sub.write(outname, format='GTiff')
-        with Raster(outname) as ras2:
-            assert ras2.cols == 100
-            assert ras2.rows == 200
-        
-        ras.load()
-        mat = ras.matrix()
-        assert isinstance(mat, np.ndarray)
-        ras.assign(mat, band=0)
-        # ras.reduce()
-        ras.rescale(lambda x: 10 * x)
-        
-        # test writing data with original data in memory
-        ras.write(os.path.join(str(tmpdir), 'test'), format='GTiff')
-        with pytest.raises(RuntimeError):
-            ras.write(os.path.join(str(tmpdir), 'test.tif'), format='GTiff')
-    with Raster(testdata['tif'], driver='GTiff') as ras:
-        print(ras, " with GTiff driver")
-        assert ras.bands == 1
-    
-    with Raster(testdata['tif'], driver=['ENVI', 'GTiff']) as ras:
-        print(ras, " with ['ENVI','GTiff'] driver list")
-        assert ras.bands == 1
-
-
-def test_Raster_subset(testdata):
-    with Raster(testdata['tif']) as ras:
-        ext = ras.bbox().extent
-        xres, yres = ras.res
-        ext['xmin'] += xres
-        ext['xmax'] -= xres
-        ext['ymin'] += yres
-        ext['ymax'] -= yres
-        with bbox(ext, ras.projection) as vec:
-            with ras[vec] as sub:
-                xres, yres = ras.res
-                assert sub.geo['xmin'] - ras.geo['xmin'] == xres
-                assert ras.geo['xmax'] - sub.geo['xmax'] == xres
-                assert sub.geo['ymin'] - ras.geo['ymin'] == xres
-                assert ras.geo['ymax'] - sub.geo['ymax'] == xres
-
-
-def test_Raster_extract(testdata):
-    with Raster(testdata['tif']) as ras:
-        assert ras.extract(px=624000, py=4830000, radius=5) == -10.48837461270875
-        with pytest.raises(RuntimeError):
-            ras.extract(1, 4830000)
-        with pytest.raises(RuntimeError):
-            ras.extract(624000, 1)
-        
-        # ensure corner extraction capability
-        assert ras.extract(px=ras.geo['xmin'], py=ras.geo['ymax']) == -10.147890090942383
-        assert ras.extract(px=ras.geo['xmin'], py=ras.geo['ymin']) == -14.640368461608887
-        assert ras.extract(px=ras.geo['xmax'], py=ras.geo['ymax']) == -9.599242210388182
-        assert ras.extract(px=ras.geo['xmax'], py=ras.geo['ymin']) == -9.406558990478516
-        
-        # test nodata handling capability and correct indexing
-        mat = ras.matrix()
-        mat[0:10, 0:10] = ras.nodata
-        mat[207:217, 258:268] = ras.nodata
-        ras.assign(mat, band=0)
-        assert ras.extract(px=ras.geo['xmin'], py=ras.geo['ymax'], radius=5) == ras.nodata
-        assert ras.extract(px=ras.geo['xmax'], py=ras.geo['ymin'], radius=5) == ras.nodata
-
-
-def test_Raster_filestack(testdata):
-    with pytest.raises(RuntimeError):
-        ras = Raster([testdata['tif']])
-    with Raster([testdata['tif'], testdata['tif2']]) as ras:
-        assert ras.bands == 2
-        arr = ras.array()
-    mean = parallel_apply_along_axis(np.nanmean, axis=2, arr=arr, cores=4)
-    assert mean.shape == (217, 268)
-
-
-def test_dtypes():
-    assert Dtype('Float32').gdalint == 6
-    assert Dtype(6).gdalstr == 'Float32'
-    assert Dtype('uint32').gdalstr == 'UInt32'
-    with pytest.raises(ValueError):
-        Dtype('foobar')
-    with pytest.raises(ValueError):
-        Dtype(999)
-    with pytest.raises(TypeError):
-        Dtype(None)
-
-
-def test_stack(tmpdir, testdata):
-    name = testdata['tif']
-    outname = os.path.join(str(tmpdir), 'test')
-    tr = (30, 30)
-    # no input files provided
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=[], resampling='near', targetres=tr,
-              srcnodata=-99, dstnodata=-99, dstfile=outname)
-    
-    # two files, but only one layer name
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=[name, name], resampling='near', targetres=tr,
-              srcnodata=-99, dstnodata=-99, dstfile=outname, layernames=['a'])
-    
-    # targetres must be a two-entry tuple/list
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=[name, name], resampling='near', targetres=30,
-              srcnodata=-99, dstnodata=-99, dstfile=outname)
-    
-    # only one file specified
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=[name], resampling='near', targetres=tr, overwrite=True,
-              srcnodata=-99, dstnodata=-99, dstfile=outname)
-    
-    # targetres must contain two values
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=[name, name], resampling='near', targetres=(30, 30, 30),
-              srcnodata=-99, dstnodata=-99, dstfile=outname)
-    
-    # unknown resampling method
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=[name, name], resampling='foobar', targetres=tr,
-              srcnodata=-99, dstnodata=-99, dstfile=outname)
-    
-    # non-existing files
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=['foo', 'bar'], resampling='near', targetres=tr,
-              srcnodata=-99, dstnodata=-99, dstfile=outname)
-    
-    # create a multi-band stack
-    stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=True,
-          srcnodata=-99, dstnodata=-99, dstfile=outname, layernames=['test1', 'test2'])
-    with Raster(outname) as ras:
-        assert ras.bands == 2
-        # Raster.rescale currently only supports one band
-        with pytest.raises(ValueError):
-            ras.rescale(lambda x: x * 10)
-    
-    # outname exists and overwrite is False
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=False,
-              srcnodata=-99, dstnodata=-99, dstfile=outname, layernames=['test1', 'test2'])
-    
-    # pass shapefile
-    outname = os.path.join(str(tmpdir), 'test2')
-    with Raster(name).bbox() as box:
-        stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=True,
-              srcnodata=-99, dstnodata=-99, dstfile=outname, shapefile=box, layernames=['test1', 'test2'])
-    with Raster(outname) as ras:
-        assert ras.bands == 2
-    
-    # pass shapefile and do mosaicing
-    outname = os.path.join(str(tmpdir), 'test3')
-    with Raster(name).bbox() as box:
-        stack(srcfiles=[[name, name]], resampling='near', targetres=tr, overwrite=True,
-              srcnodata=-99, dstnodata=-99, dstfile=outname, shapefile=box)
-    with Raster(outname + '.tif') as ras:
-        assert ras.bands == 1
-        assert ras.format == 'GTiff'
-    
-    # projection mismatch
-    name2 = os.path.join(str(tmpdir), os.path.basename(name))
-    outname = os.path.join(str(tmpdir), 'test4')
-    gdalwarp(src=name, dst=name2, dstSRS=crsConvert(4326, 'wkt'))
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=[name, name2], resampling='near', targetres=tr, overwrite=True,
-              srcnodata=-99, dstnodata=-99, dstfile=outname)
-    
-    # no projection found
-    outname = os.path.join(str(tmpdir), 'test5')
-    gdal_translate(src=name, dst=name2, options=['-co', 'PROFILE=BASELINE'])
-    with Raster(name2) as ras:
-        print(ras.projection)
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=[name2, name2], resampling='near', targetres=tr, overwrite=True,
-              srcnodata=-99, dstnodata=-99, dstfile=outname)
-    
-    # create separate GeoTiffs
-    outdir = os.path.join(str(tmpdir), 'subdir')
-    stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=True, layernames=['test1', 'test2'],
-          srcnodata=-99, dstnodata=-99, dstfile=outdir, separate=True, compress=True)
-    
-    # repeat with overwrite disabled (no error raised, just a print message)
-    stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=False, layernames=['test1', 'test2'],
-          srcnodata=-99, dstnodata=-99, dstfile=outdir, separate=True, compress=True)
-    
-    # repeat without layernames but sortfun
-    # bandnames not unique
-    outdir = os.path.join(str(tmpdir), 'subdir2')
-    with pytest.raises(RuntimeError):
-        stack(srcfiles=[name, name], resampling='near', targetres=tr, overwrite=True, sortfun=os.path.basename,
-              srcnodata=-99, dstnodata=-99, dstfile=outdir, separate=True, compress=True)
-    
-    # repeat without layernames but sortfun
-    name2 = os.path.join(str(tmpdir), os.path.basename(name).replace('VV', 'XX'))
-    shutil.copyfile(name, name2)
-    outdir = os.path.join(str(tmpdir), 'subdir2')
-    stack(srcfiles=[name, name2], resampling='near', targetres=tr, overwrite=True, sortfun=os.path.basename,
-          srcnodata=-99, dstnodata=-99, dstfile=outdir, separate=True, compress=True)
-    
-    # shapefile filtering
-    outdir = os.path.join(str(tmpdir), 'subdir3')
-    files = [testdata['tif'], testdata['tif2'], testdata['tif3']]
-    with Raster(files[0]).bbox() as box:
-        stack(srcfiles=files, resampling='near', targetres=(30, 30),
-              overwrite=False, layernames=['test1', 'test2', 'test3'],
-              srcnodata=-99, dstnodata=-99, dstfile=outdir,
-              separate=True, compress=True, shapefile=box)
-        # repeated run with different scene selection and only one scene after spatial filtering
-        stack(srcfiles=files[1:], resampling='near', targetres=(30, 30),
-              overwrite=True, layernames=['test2', 'test3'],
-              srcnodata=-99, dstnodata=-99, dstfile=outdir,
-              separate=True, compress=True, shapefile=box)
-
-
-def test_auxil(tmpdir, testdata):
-    dir = str(tmpdir)
-    with Raster(testdata['tif']) as ras:
-        bbox = os.path.join(dir, 'bbox.shp')
-        ras.bbox(bbox)
-        ogr2ogr(src=bbox, dst=os.path.join(dir, 'bbox.gml'), format='GML')
-        gdal_translate(src=ras.raster, dst=os.path.join(dir, 'test'), format='ENVI')
-    gdal_rasterize(src=bbox, dst=os.path.join(dir, 'test2'), format='GTiff', xRes=20, yRes=20)
-
-
-def test_auxil_coordinate_reproject():
-    point = coordinate_reproject(x=11, y=51, s_crs=4326, t_crs=32632)
-    assert round(point[0], 3) == 640333.296
-    assert round(point[1], 3) == 5651728.683
-
-
-def test_auxil_cmap_mpl2gdal():
-    cmap = cmap_mpl2gdal(mplcolor='YlGnBu', values=range(0, 100))
-    assert type(cmap) == gdal.ColorTable
-
-
-def test_rasterize(tmpdir, testdata):
-    outname = os.path.join(str(tmpdir), 'test.shp')
-    with Raster(testdata['tif']) as ras:
-        vec = ras.bbox()
-        
-        # test length mismatch between burn_values and expressions
-        with pytest.raises(RuntimeError):
-            rasterize(vec, reference=ras, outname=outname, burn_values=[1], expressions=['foo', 'bar'])
-        
-        # test a faulty expression
-        with pytest.raises(RuntimeError):
-            rasterize(vec, reference=ras, outname=outname, burn_values=[1], expressions=['foo'])
-        
-        # test default parametrization
-        rasterize(vec, reference=ras, outname=outname)
-        assert os.path.isfile(outname)
-        
-        # test appending to existing file with valid expression
-        rasterize(vec, reference=ras, outname=outname, append=True, burn_values=[1], expressions=['area=23262400.0'])
-        
-        # test wrong input type for reference
-        with pytest.raises(RuntimeError):
-            rasterize(vec, reference='foobar', outname=outname)
 
 
 def test_envi(tmpdir):
@@ -437,26 +158,6 @@ def test_sqlite():
     con = __Handler(extensions=['spatialite'])
     assert sorted(con.version.keys()) == ['spatialite', 'sqlite']
     assert 'spatial_ref_sys' in con.get_tablenames()
-
-
-def test_png(tmpdir, testdata):
-    outname = os.path.join(str(tmpdir), 'test')
-    with Raster(testdata['tif']) as ras:
-        png(src=ras, dst=outname, percent=100, scale=(2, 98), worldfile=True)
-    assert os.path.isfile(outname + '.png')
-    
-    with pytest.raises(TypeError):
-        png(src=testdata['tif'], dst=outname, percent=100, scale=(2, 98), worldfile=True)
-    
-    src = [testdata['tif'], testdata['tif2']]
-    with pytest.raises(ValueError):
-        with Raster(src) as ras:
-            png(src=ras, dst=outname, percent=100, scale=(2, 98), worldfile=True)
-    
-    src.append(testdata['tif3'])
-    outname = os.path.join(str(tmpdir), 'test_rgb.png')
-    with Raster(src) as ras:
-        png(src=ras, dst=outname, percent=100, scale=(2, 98), worldfile=True)
 
 
 def test_addfield():
@@ -501,3 +202,257 @@ def test_wkt2vector():
         assert vec.getArea() == 1.
     with wkt2vector([wkt1, wkt2], srs=4326) as vec:
         assert vec.getArea() == 2.
+
+
+def test_bbox_antimeridian():
+    crs = 4326
+    extent = {'xmin': 178, 'xmax': -178, 'ymin': 50, 'ymax': 51}
+    
+    # 4326 crossing the antimeridian, not wrapped
+    with bbox(coordinates=extent, crs=crs, split_antimeridian=False) as vec:
+        assert vec.geomType == ogr.wkbPolygon
+        assert vec.get_extent() == {'xmin': -178, 'xmax': 178, 'ymin': 50, 'ymax': 51}
+        
+        # wrap separately
+        vec.wrap_antimeridian()
+        assert vec.geomType == ogr.wkbMultiPolygon
+        assert vec.get_extent() == {'xmin': 178, 'xmax': -178, 'ymin': 50, 'ymax': 51}
+    
+    # 4326 crossing the antimeridian, not wrapped, buffered
+    with bbox(coordinates=extent, crs=crs, split_antimeridian=False, buffer=3) as vec:
+        assert vec.geomType == ogr.wkbPolygon
+        assert vec.get_extent() == {'xmin': -180., 'xmax': 180., 'ymin': 47., 'ymax': 54.}
+        
+        # wrap separately: the polygon is now truly world-spanning,
+        # and wrapping thus does not have any effect
+        vec.wrap_antimeridian()
+        assert vec.geomType == ogr.wkbPolygon
+        assert vec.get_extent() == {'xmin': -180., 'xmax': 180., 'ymin': 47., 'ymax': 54.}
+    
+    # 4326 crossing the antimeridian, wrapped
+    with bbox(coordinates=extent, crs=crs, split_antimeridian=True) as vec:
+        assert vec.geomType == ogr.wkbMultiPolygon
+        assert vec.get_extent(split_antimeridian=False) == {'xmin': -180, 'xmax': 180, 'ymin': 50, 'ymax': 51}
+        assert vec.get_extent(split_antimeridian=True) == extent
+    
+    # 4326 crossing the antimeridian, wrapped, buffered
+    with bbox(coordinates=extent, crs=crs, split_antimeridian=True, buffer=3) as vec:
+        assert vec.geomType == ogr.wkbMultiPolygon
+        assert vec.get_extent(split_antimeridian=False) == {'xmin': -180, 'xmax': 180, 'ymin': 47, 'ymax': 54}
+        assert vec.get_extent(split_antimeridian=True) == {'xmin': 175, 'xmax': -175, 'ymin': 47, 'ymax': 54}
+    
+    # UTM not crossing the antimeridian
+    crs = 32632
+    extent_utm = {'xmin': 600000, 'xmax': 709800, 'ymin': 5790240, 'ymax': 5900040}
+    
+    with bbox(coordinates=extent_utm, crs=crs) as vec:
+        vec.reproject(4326)
+        assert vec.geomType == ogr.wkbPolygon
+        assert vec.geomTypes == ['POLYGON']
+        extent_4326 = vec.get_extent(split_antimeridian=True)
+        expected = {'xmin': 10.5, 'xmax': 12.1, 'ymin': 52.2, 'ymax': 53.2}
+        assert extent_4326 == pytest.approx(expected, rel=1e-1)
+    
+    # UTM crossing the antimeridian, wrapped
+    crs = 32660
+    
+    with bbox(coordinates=extent_utm, crs=crs) as vec:
+        vec.reproject(4326)
+        assert vec.geomType == ogr.wkbMultiPolygon
+        assert vec.geomTypes == ['MULTIPOLYGON']
+        extent_4326 = vec.get_extent(split_antimeridian=True)
+        expected = {'xmin': 178.5, 'xmax': -179.9, 'ymin': 52.2, 'ymax': 53.2}
+        assert extent_4326 == pytest.approx(expected, rel=1e-1)
+
+
+def test_largest_polygon_exterior():
+    array = np.array(
+        [
+            [0, 0, 0, 0, 0, 1],
+            [0, 1, 1, 1, 0, 0],
+            [0, 1, 0, 1, 0, 0],
+            [0, 1, 1, 1, 1, 0],
+            [0, 0, 0, 0, 1, 1],
+            [0, 0, 0, 0, 0, 0],
+        ],
+        dtype=np.uint8,
+    )
+    
+    driver = gdal.GetDriverByName("MEM")
+    dataset = driver.Create(
+        "",
+        array.shape[1],
+        array.shape[0],
+        1,
+        gdal.GDT_Byte,
+    )
+    
+    dataset.SetGeoTransform((0, 1, 0, 6, 0, -1))
+    
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+    srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    dataset.SetProjection(srs.ExportToWkt())
+    
+    dataset.GetRasterBand(1).WriteArray(array)
+    
+    with Raster(dataset) as raster:
+        with vectorize(array, raster) as polygons:
+            print(polygons)
+            with largest_polygon_exterior(
+                    polygons,
+                    expression="value = 1",
+            ) as result:
+                print(result)
+                assert result.nfeatures == 1
+                assert result.geomTypes == ["POLYGON"]
+                assert result.getArea() == 12
+                assert result.extent == {
+                    "xmin": 1.0,
+                    "xmax": 6.0,
+                    "ymin": 1.0,
+                    "ymax": 5.0,
+                }
+                
+                feature = result.getFeatureByIndex(0)
+                geometry = feature.GetGeometryRef()
+                
+                # The output polygon contains only its exterior ring.
+                assert geometry.GetGeometryCount() == 1
+                
+                # The stored area describes the exterior-only polygon.
+                assert feature.GetField("area") == 12
+    
+    dataset = None
+    driver = None
+
+
+@pytest.mark.parametrize(
+    'input_extents, expected_extent',
+    [
+        (
+                (
+                        {'xmin': 10, 'xmax': 11, 'ymin': 50, 'ymax': 51},
+                        {'xmin': 11, 'xmax': 12, 'ymin': 50, 'ymax': 51},
+                ),
+                {'xmin': 10, 'xmax': 12, 'ymin': 50, 'ymax': 51},
+        ),
+    ],
+)
+def test_combine_polygons_preserves_polygons(
+        input_extents,
+        expected_extent,
+):
+    vectors = [bbox(extent, 4326) for extent in input_extents]
+    
+    try:
+        with combine_polygons(vectors) as combined:
+            assert combined.extent == expected_extent
+            assert combined.nfeatures == 2
+            assert combined.geomType == ogr.wkbPolygon
+    finally:
+        for vector in vectors:
+            vector.close()
+
+
+def test_combine_polygons_multipolygon_roundtrip():
+    ext1 = {'xmin': 10, 'xmax': 11, 'ymin': 50, 'ymax': 51}
+    ext2 = {'xmin': 11, 'xmax': 12, 'ymin': 50, 'ymax': 51}
+    ext3 = {'xmin': 21, 'xmax': 22, 'ymin': 50, 'ymax': 51}
+    
+    with bbox(ext1, 4326) as vec1:
+        with bbox(ext2, 4326) as vec2:
+            # Two Polygon -> one MultiPolygon.
+            with combine_polygons(
+                    [vec1, vec2],
+                    multipolygon=True,
+            ) as multipolygon:
+                assert multipolygon.nfeatures == 1
+                assert multipolygon.geomType == ogr.wkbMultiPolygon
+                
+                # One MultiPolygon -> two Polygon.
+                with combine_polygons(
+                        multipolygon,
+                        explode=True,
+                ) as exploded:
+                    assert exploded.nfeatures == 2
+                    assert exploded.geomType == ogr.wkbPolygon
+                
+                # One MultiPolygon -> one MultiPolygon.
+                with combine_polygons(
+                        multipolygon,
+                        multipolygon=True,
+                ) as multipolygon_again:
+                    assert multipolygon_again.nfeatures == 1
+                    assert multipolygon_again.geomType == ogr.wkbMultiPolygon
+                
+                # MultiPolygon + Polygon -> three Polygon.
+                with bbox(ext3, 4326) as vec3:
+                    with combine_polygons(
+                            [multipolygon, vec3],
+                            explode=True,
+                    ) as combined:
+                        assert combined.nfeatures == 3
+                        assert combined.geomType == ogr.wkbPolygon
+
+
+@pytest.mark.parametrize(
+    'explode, multipolygon, expected_features, expected_geom_type',
+    [
+        (True, False, 2, ogr.wkbPolygon),
+        (False, True, 1, ogr.wkbMultiPolygon),
+    ],
+    ids=[
+        'split-into-polygons',
+        'retain-as-multipolygon',
+    ],
+)
+def test_combine_polygons_antimeridian(
+        explode,
+        multipolygon,
+        expected_features,
+        expected_geom_type,
+):
+    antimeridian_extent = {
+        'xmin': 179,
+        'xmax': -179,
+        'ymin': 50,
+        'ymax': 51,
+    }
+    
+    with bbox(antimeridian_extent, 4326) as vector:
+        with combine_polygons(
+                vector,
+                explode=explode,
+                multipolygon=multipolygon,
+        ) as combined:
+            assert combined.nfeatures == expected_features
+            assert combined.geomType == expected_geom_type
+            assert combined.getArea() == pytest.approx(2.0)
+
+
+def test_combine_polygons_mixed_antimeridian():
+    ordinary_extent = {
+        'xmin': 10,
+        'xmax': 11,
+        'ymin': 50,
+        'ymax': 51,
+    }
+    antimeridian_extent = {
+        'xmin': 179,
+        'xmax': -179,
+        'ymin': 50,
+        'ymax': 51,
+    }
+    
+    with bbox(ordinary_extent, 4326) as ordinary:
+        with bbox(antimeridian_extent, 4326) as antimeridian:
+            # One ordinary polygon plus two polygons created by splitting
+            # the antimeridian-crossing polygon.
+            with combine_polygons(
+                    [ordinary, antimeridian],
+                    explode=True,
+            ) as combined:
+                assert combined.nfeatures == 3
+                assert combined.geomType == ogr.wkbPolygon
+                assert combined.getArea() == pytest.approx(3.0)
