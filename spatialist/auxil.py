@@ -489,7 +489,8 @@ def latlon_normalize(
         lon: int | float | None = None
 ) -> float:
     """
-    Normalize latitude and longitude values to the range [-180, 180] and [-90, 90] respectively.
+    Normalize latitude and longitude values to the range
+    [-180, 180] and [-90, 90] respectively.
 
     Parameters
     ----------
@@ -501,7 +502,7 @@ def latlon_normalize(
     Examples
     --------
     >>> latlon_normalize(lon=200)
-    -20.0
+    -160.0
     """
     if lat is not None and lon is not None:
         raise ValueError('only one of lat and lon can be specified')
