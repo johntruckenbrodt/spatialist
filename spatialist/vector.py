@@ -1162,9 +1162,10 @@ def outer_hull(
     may result in a Point or LineString.
     
     Point and line input is processed with
-    :meth:`osgeo.ogr.Geometry.ConcaveHull`. ``ratio`` controls the
-    concavity, with 0 producing the tightest connected hull and 1 producing
-    the convex hull. ``connect`` has no effect for point and line input.
+    :meth:`osgeo.ogr.Geometry.ConcaveHull` or :meth:`osgeo.ogr.Geometry.ConvexHull`.
+    ``ratio`` controls the concavity, with 0 producing the tightest connected
+    hull and 1 producing the convex hull. ``connect`` has no effect for point
+    and line input.
     
     For polygon input all interior rings are removed first. The resulting
     polygon parts are dissolved with :meth:`osgeo.ogr.Geometry.UnaryUnion`,
@@ -1286,11 +1287,14 @@ def outer_hull(
         if not 0 <= ratio <= 1:
             raise ValueError("'ratio' must be in the range [0, 1]")
         
-        if not hasattr(ogr.Geometry, 'ConcaveHull'):
-            raise RuntimeError(
-                'point and line hulls require OGRGeometry::ConcaveHull '
-                '(GDAL >= 3.6 with GEOS >= 3.11)'
-            )
+        concave = False
+        if ratio < 1:
+            if not hasattr(ogr.Geometry, 'ConcaveHull'):
+                raise RuntimeError(
+                    'point and line hulls require OGRGeometry::ConcaveHull '
+                    '(GDAL >= 3.6 with GEOS >= 3.11)'
+                )
+            concave = True
         
         if geometry_type in point_types:
             collection = ogr.Geometry(ogr.wkbMultiPoint)
@@ -1301,7 +1305,10 @@ def outer_hull(
             for part in iter_geometries(geom):
                 collection.AddGeometry(part)
         
-        hull = collection.ConcaveHull(float(ratio), False)
+        if concave:
+            hull = collection.ConcaveHull(float(ratio), False)
+        else:
+            hull = collection.ConvexHull()
         collection = None
     
     else:
