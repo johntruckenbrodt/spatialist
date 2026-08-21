@@ -7,7 +7,7 @@ from osgeo import ogr, osr, gdal
 from spatialist.raster import Raster
 from spatialist.vector import (feature2vector, dissolve, Vector, intersect,
                                bbox, wkt2vector, set_field, vectorize,
-                               largest_polygon_exterior, combine_polygons)
+                               outer_hull, combine_polygons)
 from spatialist.envi import hdr, HDRobject
 from spatialist.sqlite_util import sqlite_setup, __Handler
 from spatialist.auxil import utm_autodetect
@@ -265,7 +265,7 @@ def test_bbox_antimeridian():
         assert extent_4326 == pytest.approx(expected, rel=1e-1)
 
 
-def test_largest_polygon_exterior():
+def test_outer_hull():
     array = np.array(
         [
             [0, 0, 0, 0, 0, 1],
@@ -297,31 +297,23 @@ def test_largest_polygon_exterior():
     dataset.GetRasterBand(1).WriteArray(array)
     
     with Raster(dataset) as raster:
-        with vectorize(array, raster) as polygons:
-            print(polygons)
-            with largest_polygon_exterior(
-                    polygons,
-                    expression="value = 1",
-            ) as result:
-                print(result)
-                assert result.nfeatures == 1
-                assert result.geomTypes == ["POLYGON"]
-                assert result.getArea() == 12
-                assert result.extent == {
-                    "xmin": 1.0,
-                    "xmax": 6.0,
-                    "ymin": 1.0,
-                    "ymax": 5.0,
-                }
-                
-                feature = result.getFeatureByIndex(0)
-                geometry = feature.GetGeometryRef()
-                
-                # The output polygon contains only its exterior ring.
-                assert geometry.GetGeometryCount() == 1
-                
-                # The stored area describes the exterior-only polygon.
-                assert feature.GetField("area") == 12
+        with vectorize(array, raster) as vec:
+            with vec.filter(expression="value = 1") as filt:
+                with outer_hull(filt) as result:
+                    assert result.nfeatures == 1
+                    assert result.geomTypes == ["MULTIPOLYGON"]
+                    assert result.getArea() == 13
+                    assert result.extent == {
+                        "xmin": 1.0,
+                        "xmax": 6.0,
+                        "ymin": 1.0,
+                        "ymax": 6.0,
+                    }
+                    
+                    feature = result.getFeatureByIndex(0)
+                    geometry = feature.GetGeometryRef()
+                    
+                    assert geometry.GetGeometryCount() == 2
     
     dataset = None
     driver = None
