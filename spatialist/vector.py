@@ -518,6 +518,30 @@ class Vector:
         """
         return sorted([field.GetName() for field in self.fieldDefs])
     
+    def filter(self, expression) -> Vector:
+        """
+        Filter the object by an expression.
+        
+        Parameters
+        ----------
+        expression
+            the filter expression
+
+        Returns
+        -------
+            a new object containing only the features that match the expression
+        """
+        ds = gdal.VectorTranslate(
+            destNameOrDestDS="",
+            srcDS=self.vector,
+            format="MEM",
+            where=expression,
+        )
+        out = Vector()
+        out.vector = ds
+        out.init_layer()
+        return out
+    
     @property
     def geomType(self) -> int:
         """
