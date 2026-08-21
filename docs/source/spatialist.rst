@@ -6,7 +6,7 @@ API Documentation
 
     api/raster.rst
     api/vector.rst
-    api/spatial.rst
+    api/auxil.rst
     api/ancillary.rst
     api/database.rst
     api/envi.rst

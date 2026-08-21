@@ -11,6 +11,7 @@ from typing import Any, TYPE_CHECKING, Literal
 if TYPE_CHECKING:
     from .raster import Raster
     from .vector import Vector
+    from collections.abc import Iterator
 
 from osgeo import osr, gdal, ogr
 import progressbar as pb
@@ -543,3 +544,132 @@ def latlon_extent_center(extent: EXT) -> tuple[float, float]:
     
     lat = (extent['ymax'] + extent['ymin']) / 2.
     return lon, lat
+
+
+def longitude_shortest_interval(
+        longitudes: list[int | float]
+) -> tuple[int | float, int | float]:
+    """
+    Get the shortest circular interval containing all longitudes.
+
+    Longitudes are normalized to the range [-180, 180]. If the shortest
+    interval crosses the antimeridian, the returned minimum is greater
+    than the returned maximum.
+
+    Parameters
+    ----------
+    longitudes
+        The longitude coordinates.
+
+    Returns
+    -------
+    lon_min, lon_max
+        The bounds of the shortest circular longitude interval.
+
+    Raises
+    ------
+    ValueError
+        If `longitudes` is empty.
+
+    Examples
+    --------
+    >>> longitude_shortest_interval([170, -170])
+    (170.0, -170.0)
+
+    >>> longitude_shortest_interval([-10, 10])
+    (-10.0, 10.0)
+    """
+    if len(longitudes) == 0:
+        raise ValueError('longitudes must be non-empty')
+    
+    longitudes = [
+        latlon_normalize(lon=lon)
+        for lon in longitudes
+    ]
+    
+    if len(longitudes) == 1:
+        return longitudes[0], longitudes[0]
+    
+    ordered = sorted(longitudes)
+    gaps = [
+        (ordered[(i + 1) % len(ordered)] - ordered[i]) % 360
+        for i in range(len(ordered))
+    ]
+    
+    largest_gap = gaps.index(max(gaps))
+    lon_min = ordered[(largest_gap + 1) % len(ordered)]
+    lon_max = ordered[largest_gap]
+    
+    return lon_min, lon_max
+
+
+def iter_geometries(
+        geom: ogr.Geometry | None
+) -> Iterator[ogr.Geometry]:
+    """
+    Iterate over the simple geometry parts of an OGR geometry.
+
+    Multi-geometries and geometry collections are recursively unpacked.
+    Polygons are treated as atomic geometries, i.e. their exterior and
+    interior rings are not yielded separately.
+
+    Parameters
+    ----------
+    geom
+        The input geometry.
+
+    Yields
+    ------
+    ogr.Geometry
+        Individual simple geometry parts. The yielded geometries are
+        references to parts of the input geometry and are not cloned.
+    """
+    if geom is None or geom.IsEmpty():
+        return
+    
+    gtype = ogr.GT_Flatten(geom.GetGeometryType())
+    
+    collection_types = {
+        ogr.wkbMultiPoint,
+        ogr.wkbMultiLineString,
+        ogr.wkbMultiPolygon,
+        ogr.wkbGeometryCollection,
+    }
+    
+    if gtype in collection_types:
+        for i in range(geom.GetGeometryCount()):
+            yield from iter_geometries(geom.GetGeometryRef(i))
+    else:
+        yield geom
+
+
+def iter_points(
+        geom: ogr.Geometry | None
+) -> Iterator[tuple[float, ...]]:
+    """
+    Iterate over all vertices of an OGR geometry.
+
+    Nested geometries such as polygons, multi-geometries, and geometry
+    collections are traversed recursively.
+
+    Parameters
+    ----------
+    geom
+        The input geometry.
+
+    Yields
+    ------
+    tuple[float, ...]
+        Coordinate tuples of the geometry vertices.
+        Depending on the dimensionality of the input geometry,
+        tuples may contain two or more coordinate components,
+        e.g., (x, y) or (x, y, z).
+    """
+    if geom is None or geom.IsEmpty():
+        return
+    
+    if geom.GetPointCount() > 0:
+        yield from geom.GetPoints()
+    else:
+        for i in range(geom.GetGeometryCount()):
+            yield from iter_points(geom.GetGeometryRef(i))
