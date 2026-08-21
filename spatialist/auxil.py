@@ -335,7 +335,7 @@ def utm_autodetect(spatial: Raster | Vector, crsOut: str) -> CRS:
         box.reproject(4326)
         ext = box.extent
     
-    lat, lon = latlon_extent_center(ext)
+    lon, lat = latlon_extent_center(ext)
     
     zone = int(1 + (lon + 180.0) / 6.0)
     zone = min(max(zone, 1), 60)
@@ -521,6 +521,18 @@ def latlon_normalize(
 
 
 def latlon_extent_center(extent: EXT) -> tuple[float, float]:
+    """
+    Compute the center of a (potentially antimeridian-crossing) extent.
+    
+    Parameters
+    ----------
+    extent
+        the extent object
+
+    Returns
+    -------
+        (x, y)
+    """
     if extent['xmax'] < extent['xmin']:
         lon = (extent['xmin'] + (extent['xmax'] + 360)) / 2.
         if lon > 180:
@@ -529,4 +541,4 @@ def latlon_extent_center(extent: EXT) -> tuple[float, float]:
         lon = (extent['xmin'] + extent['xmax']) / 2.
     
     lat = (extent['ymax'] + extent['ymin']) / 2.
-    return lat, lon
+    return lon, lat
