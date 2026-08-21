@@ -19,7 +19,9 @@ from packaging.version import Version
 if TYPE_CHECKING:
     from .raster import Raster
 
-from .auxil import crsConvert, ogr2ogr, latlon_clamp
+from .auxil import (crsConvert, ogr2ogr, latlon_clamp,
+                    longitude_shortest_interval,
+                    iter_geometries, iter_points)
 from .ancillary import parse_literal
 from .sqlite_util import sqlite_setup
 
@@ -407,7 +409,16 @@ class Vector:
         ----------
         split_antimeridian
             split the extent along the antimeridian?
-
+            For points (which do not have topology), the shortest longitude
+            interval is computed
+            (see :func:`spatialist.auxil.longitude_shortest_interval`).
+            For all other geometries, the smallest (multi)polygon covering
+            all geometries is computed.
+            
+            .. note::
+                No geometry is split in the process. Use :meth:`reproject`
+                or :meth:`wrap_antimeridian` for this.
+        
         Returns
         -------
             a dictionary with keys `xmin`, `xmax`, `ymin`, `ymax`
@@ -427,59 +438,64 @@ class Vector:
             ['xmin', 'xmax', 'ymin', 'ymax'],
             self.layer.GetExtent()
         ))
-        if not split_antimeridian:
+        if not split_antimeridian or not self.srs.IsGeographic():
             return extent_plain
-        else:
-            if self.layer.GetSpatialRef().IsGeographic():
-                extent_parts = self.get_extent_parts()
-                xmin = [part['xmin'] for part in extent_parts]
-                xmax = [part['xmax'] for part in extent_parts]
-                ymin = [part['ymin'] for part in extent_parts]
-                ymax = [part['ymax'] for part in extent_parts]
-                if 180 in xmax and -180 in xmin:
-                    return {'xmin': max(xmin), 'xmax': min(xmax),
-                            'ymin': min(ymin), 'ymax': max(ymax)}
-                else:
-                    return extent_plain
-            else:
-                return extent_plain
+        
+        geom_type = ogr.GT_Flatten(self.geomType)
+        
+        # Point geometries have no topology from which antimeridian
+        # crossing can be inferred. Use their shortest circular
+        # longitude interval.
+        if geom_type in {ogr.wkbPoint, ogr.wkbMultiPoint}:
+            longitudes = []
+            
+            self.layer.ResetReading()
+            try:
+                for feature in self.layer:
+                    geom = feature.GetGeometryRef()
+                    if geom is not None and not geom.IsEmpty():
+                        longitudes.extend(point[0] for point in iter_points(geom))
+            finally:
+                self.layer.ResetReading()
+            xmin, xmax = longitude_shortest_interval(longitudes)
+            extent_plain.update({'xmin': xmin, 'xmax': xmax})
+            return extent_plain
+        
+        # For geometries with topology, only consider them
+        # antimeridian-crossing if their geometry parts indicate
+        # that they have actually been split there.
+        extent_parts = self.get_extent_parts()
+        xmin = [part['xmin'] for part in extent_parts]
+        xmax = [part['xmax'] for part in extent_parts]
+        ymin = [part['ymin'] for part in extent_parts]
+        ymax = [part['ymax'] for part in extent_parts]
+        
+        if 180 in xmax and -180 in xmin:
+            return {'xmin': max(xmin), 'xmax': min(xmax),
+                    'ymin': min(ymin), 'ymax': max(ymax)}
+        
+        return extent_plain
     
     def get_extent_parts(self) -> list[EXT]:
         """
         Get extents for individual geometry parts of all features.
         Multipolygons are split into polygon parts.
         """
-        
-        def iter_geometry_parts(geom):
-            """Yield polygon parts; for MultiPolygon yields each Polygon."""
-            if geom is None or geom.IsEmpty():
-                return
-            
-            gtype = ogr.GT_Flatten(geom.GetGeometryType())
-            
-            if gtype == ogr.wkbMultiPolygon:
-                for i in range(geom.GetGeometryCount()):
-                    yield geom.GetGeometryRef(i)
-            
-            elif gtype == ogr.wkbPolygon:
-                yield geom
-            
-            else:
-                yield geom
-        
         self.layer.ResetReading()
         
         extent_parts = []
         
-        for feat in self.layer:
-            geom = feat.GetGeometryRef()
-            if geom is None:
-                continue
-            
+        try:
             keys = ['xmin', 'xmax', 'ymin', 'ymax']
-            for i, part in enumerate(iter_geometry_parts(geom)):
-                extent_parts.append(dict(zip(keys, part.GetEnvelope())))
-        self.layer.ResetReading()
+            for feature in self.layer:
+                geom = feature.GetGeometryRef()
+                for part in iter_geometries(geom):
+                    extent_parts.append(
+                        dict(zip(keys, part.GetEnvelope()))
+                    )
+        finally:
+            self.layer.ResetReading()
+        
         return extent_parts
     
     @property
