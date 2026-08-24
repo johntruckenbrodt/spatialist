@@ -368,27 +368,16 @@ def test_gdal_translate_returns_none_when_void_true(
     assert destination.exists()
 
 
-def test_ogr2ogr_returns_none_when_void_true(
-        vector_file,
-        tmp_path,
-):
-    destination = tmp_path / "translated.geojson"
-    
-    result = ogr2ogr(
+def test_ogr2ogr_returns_dataset_when_void_false(vector_file):
+    dataset = ogr2ogr(
         src=str(vector_file),
-        dst=str(destination),
-        void=True,
-        format="GeoJSON",
+        dst="",
+        void=False,
+        format="MEM",
     )
-    
-    assert result is None
-    assert destination.exists()
-    
-    dataset = gdal.OpenEx(
-        str(destination),
-        gdal.OF_VECTOR,
-    )
+
     try:
+        assert isinstance(dataset, gdal.Dataset)
         assert dataset.GetLayerCount() == 1
         assert dataset.GetLayer(0).GetFeatureCount() == 1
     finally:
@@ -400,16 +389,26 @@ def test_ogr2ogr_returns_none_when_void_true(
         tmp_path,
 ):
     destination = tmp_path / "translated.geojson"
-    
+
     result = ogr2ogr(
         src=str(vector_file),
         dst=str(destination),
         void=True,
         format="GeoJSON",
     )
-    
+
     assert result is None
     assert destination.exists()
+
+    dataset = gdal.OpenEx(
+        str(destination),
+        gdal.OF_VECTOR,
+    )
+    try:
+        assert dataset.GetLayerCount() == 1
+        assert dataset.GetLayer(0).GetFeatureCount() == 1
+    finally:
+        dataset = None
 
 
 def test_gdal_rasterize_creates_raster(vector_file, tmp_path):
