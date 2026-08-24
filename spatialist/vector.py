@@ -19,7 +19,9 @@ from packaging.version import Version
 if TYPE_CHECKING:
     from .raster import Raster
 
-from .auxil import crsConvert, ogr2ogr, latlon_clamp
+from .auxil import (crsConvert, ogr2ogr, latlon_clamp,
+                    longitude_shortest_interval,
+                    iter_geometries, iter_points)
 from .ancillary import parse_literal
 from .sqlite_util import sqlite_setup
 
@@ -58,6 +60,8 @@ class Vector:
     filename: str | None
     
     def __init__(self, filename: str | None = None, driver: str | None = None) -> None:
+        
+        self.__features = []
         
         memory_driver_name = 'MEM' if Version(gdal.__version__) >= Version('3.11') else 'Memory'
         
@@ -333,10 +337,8 @@ class Vector:
         """
         closes the OGR vector file connection
         """
+        self.__features = None
         self.vector = None
-        for feature in self.__features:
-            if feature is not None:
-                feature = None
     
     def convert2wkt(
             self,
@@ -407,7 +409,16 @@ class Vector:
         ----------
         split_antimeridian
             split the extent along the antimeridian?
-
+            For points (which do not have topology), the shortest longitude
+            interval is computed
+            (see :func:`spatialist.auxil.longitude_shortest_interval`).
+            For all other geometries, the smallest (multi)polygon covering
+            all geometries is computed.
+            
+            .. note::
+                No geometry is split in the process. Use :meth:`reproject`
+                or :meth:`wrap_antimeridian` for this.
+        
         Returns
         -------
             a dictionary with keys `xmin`, `xmax`, `ymin`, `ymax`
@@ -427,59 +438,64 @@ class Vector:
             ['xmin', 'xmax', 'ymin', 'ymax'],
             self.layer.GetExtent()
         ))
-        if not split_antimeridian:
+        if not split_antimeridian or not self.srs.IsGeographic():
             return extent_plain
-        else:
-            if self.layer.GetSpatialRef().IsGeographic():
-                extent_parts = self.get_extent_parts()
-                xmin = [part['xmin'] for part in extent_parts]
-                xmax = [part['xmax'] for part in extent_parts]
-                ymin = [part['ymin'] for part in extent_parts]
-                ymax = [part['ymax'] for part in extent_parts]
-                if 180 in xmax and -180 in xmin:
-                    return {'xmin': max(xmin), 'xmax': min(xmax),
-                            'ymin': min(ymin), 'ymax': max(ymax)}
-                else:
-                    return extent_plain
-            else:
-                return extent_plain
+        
+        geom_type = ogr.GT_Flatten(self.geomType)
+        
+        # Point geometries have no topology from which antimeridian
+        # crossing can be inferred. Use their shortest circular
+        # longitude interval.
+        if geom_type in {ogr.wkbPoint, ogr.wkbMultiPoint}:
+            longitudes = []
+            
+            self.layer.ResetReading()
+            try:
+                for feature in self.layer:
+                    geom = feature.GetGeometryRef()
+                    if geom is not None and not geom.IsEmpty():
+                        longitudes.extend(point[0] for point in iter_points(geom))
+            finally:
+                self.layer.ResetReading()
+            xmin, xmax = longitude_shortest_interval(longitudes)
+            extent_plain.update({'xmin': xmin, 'xmax': xmax})
+            return extent_plain
+        
+        # For geometries with topology, only consider them
+        # antimeridian-crossing if their geometry parts indicate
+        # that they have actually been split there.
+        extent_parts = self.get_extent_parts()
+        xmin = [part['xmin'] for part in extent_parts]
+        xmax = [part['xmax'] for part in extent_parts]
+        ymin = [part['ymin'] for part in extent_parts]
+        ymax = [part['ymax'] for part in extent_parts]
+        
+        if 180 in xmax and -180 in xmin:
+            return {'xmin': max(xmin), 'xmax': min(xmax),
+                    'ymin': min(ymin), 'ymax': max(ymax)}
+        
+        return extent_plain
     
     def get_extent_parts(self) -> list[EXT]:
         """
         Get extents for individual geometry parts of all features.
         Multipolygons are split into polygon parts.
         """
-        
-        def iter_geometry_parts(geom):
-            """Yield polygon parts; for MultiPolygon yields each Polygon."""
-            if geom is None or geom.IsEmpty():
-                return
-            
-            gtype = ogr.GT_Flatten(geom.GetGeometryType())
-            
-            if gtype == ogr.wkbMultiPolygon:
-                for i in range(geom.GetGeometryCount()):
-                    yield geom.GetGeometryRef(i)
-            
-            elif gtype == ogr.wkbPolygon:
-                yield geom
-            
-            else:
-                yield geom
-        
         self.layer.ResetReading()
         
         extent_parts = []
         
-        for feat in self.layer:
-            geom = feat.GetGeometryRef()
-            if geom is None:
-                continue
-            
+        try:
             keys = ['xmin', 'xmax', 'ymin', 'ymax']
-            for i, part in enumerate(iter_geometry_parts(geom)):
-                extent_parts.append(dict(zip(keys, part.GetEnvelope())))
-        self.layer.ResetReading()
+            for feature in self.layer:
+                geom = feature.GetGeometryRef()
+                for part in iter_geometries(geom):
+                    extent_parts.append(
+                        dict(zip(keys, part.GetEnvelope()))
+                    )
+        finally:
+            self.layer.ResetReading()
+        
         return extent_parts
     
     @property
@@ -501,6 +517,30 @@ class Vector:
             the names of the fields
         """
         return sorted([field.GetName() for field in self.fieldDefs])
+    
+    def filter(self, expression) -> Vector:
+        """
+        Filter the object by an expression.
+        
+        Parameters
+        ----------
+        expression
+            the filter expression
+
+        Returns
+        -------
+            a new object containing only the features that match the expression
+        """
+        ds = gdal.VectorTranslate(
+            destNameOrDestDS="",
+            srcDS=self.vector,
+            format="MEM",
+            where=expression,
+        )
+        out = Vector()
+        out.vector = ds
+        out.init_layer()
+        return out
     
     @property
     def geomType(self) -> int:
@@ -1107,106 +1147,260 @@ def bbox(
         out.write(outfile=outname, driver=driver, overwrite=overwrite)
 
 
-def largest_polygon_exterior(
+def hull(
         vectorobject: Vector,
-        expression: str | None = None,
-        outname: str | None = None
-) -> Vector | None:
+        ratio: float = 1.0,
+        connect: bool = False,
+) -> Vector:
     """
-    Get the exterior of the largest polygon as new polygon vector object.
-    This was developed to get the valid data extent of a raster image
-    vectorized using :func:`vectorize` while omitting data gaps from masking.
-    E.g. for a SAR image while ignoring areas masked due to layover/shadow.
+    Create a hull covering all input geometries.
     
-    The following steps are performed:
+    The input must contain exactly one geometry type and may consist of
+    Point, MultiPoint, LineString, MultiLineString, Polygon or MultiPolygon
+    geometries. The result contains a single geometry. For non-degenerate
+    input this is a Polygon or MultiPolygon. Degenerate point or line input
+    may result in a Point or LineString.
     
-     - find the largest polygon matching the expression
-     - get the exterior ring of this polygon as new polygon
-     - create a new :class:`Vector` object and add the newly created polygon
-     
-    .. NOTE::
-        This omits small disconnected polygons
-
+    Point and line input is processed with :meth:`osgeo.ogr.Geometry.ConcaveHull`
+    or :meth:`osgeo.ogr.Geometry.ConvexHull`.
+    ``ratio`` controls the concavity, with 0 producing the tightest connected
+    hull and 1 producing the convex hull. ``connect`` has no effect for point
+    and line input.
+    
+    .. note::
+        Computing the concave hull of Point/Line inputs (``ratio<1``) makes use
+        of :meth:`osgeo.ogr.Geometry.ConcaveHull` and thus requires
+        GDAL >= 3.6 built against GEOS >= 3.11,
+        which are not direct dependencies of spatialist.
+    
+    For polygon input if ``ratio==1`` a regular convex hull is created using
+    :meth:`osgeo.ogr.Geometry.ConvexHull`. If not, the value of ``ratio`` is
+    ignored and the behavior is:
+    
+    - Remove all interior rings.
+    - Dissolve remaining polygon parts with :meth:`osgeo.ogr.Geometry.UnaryUnion`
+      to remove overlapping and fully contained polygons while preserving
+      disconnected polygon parts.
+    - This results in concave hulls for each connected polygon group.
+    - If ``connect=True`` and more than one disconnected polygon part remains,
+      connect these parts with :meth:`osgeo.ogr.Geometry.ConcaveHullOfPolygons`.
+    
+    .. note::
+        Computing the concave hull of Polygon inputs (``ratio<1 and connect==True``)
+        makes use of :meth:`osgeo.ogr.Geometry.ConcaveHullOfPolygons`
+        and thus requires GDAL >= 3.13 built against GEOS >= 3.11,
+        which are not direct dependencies of spatialist.
+    
+    For geographic input crossing the antimeridian, longitudes are shifted
+    to a continuous coordinate space before performing geometric operations.
+    The result is subsequently split and shifted back at the antimeridian.
+    
     Parameters
     ----------
     vectorobject
-        the vector object containing multiple polygon geometries.
-    expression
-        the SQL expression to select the candidates for the largest polygon,
-        e.g. all polygons with a certain value in one field.
-    outname
-        the name of the output vector file;
-        if None, an in-memory object of type :class:`Vector` is returned.
-
+        The input Vector object. All non-empty features must have exactly the
+        same geometry type.
+    ratio
+        Concavity ratio in the range [0, 1]. For point and line input
+        a value of 0 creates the tightest (concave) connected hull and 1
+        creates the convex hull. For polygon input a value of 1 creates the
+        convex hull of all input geometries. All other values are ignored
+        and result in the behavior described above.
+    connect
+        Connect disconnected polygon parts while preserving their outer
+        boundaries. Only applies to Polygon and MultiPolygon input if
+        ``ratio<1``.
+    
     Returns
     -------
-        if `outname` is `None`, a vector object pointing to an
-        in-memory dataset else `None`
+        A Vector object containing one output geometry.
+    
+    Raises
+    ------
+    TypeError
+        If ``vectorobject`` is not a Vector object.
+    RuntimeError
+        If the input contains multiple or unsupported geometry types, no valid
+        geometry, or a required GDAL/GEOS operation is unavailable.
+    ValueError
+        If ``ratio`` is outside the range [0, 1] for point or line input.
     """
     if not isinstance(vectorobject, Vector):
         raise TypeError("'vectorobject' must be of type Vector")
     
-    geom_types = set(vectorobject.geomTypes)
+    if not isinstance(ratio, (int, float)) or isinstance(ratio, bool):
+        raise TypeError("'ratio' must be numeric")
     
-    if geom_types != {"POLYGON"}:
+    if not 0 <= ratio <= 1:
+        raise ValueError("'ratio' must be in the range [0, 1]")
+    
+    features = vectorobject.getfeatures()
+    geometries = []
+    geometry_types = set()
+    
+    for feature in features:
+        geom = feature.GetGeometryRef()
+        
+        if geom is None or geom.IsEmpty():
+            continue
+        
+        geom = geom.Clone()
+        geom.FlattenTo2D()
+        
+        geometries.append(geom)
+        geometry_types.add(ogr.GT_Flatten(geom.GetGeometryType()))
+    
+    features = None
+    
+    if len(geometries) == 0:
+        raise RuntimeError('no valid geometry found')
+    
+    if len(geometry_types) != 1:
+        names = sorted(
+            ogr.GeometryTypeToName(x)
+            for x in geometry_types
+        )
         raise RuntimeError(
-            "largest_polygon_exterior() only supports Polygon geometries; "
-            f"found: {sorted(geom_types)}"
+            'hull() requires exactly one geometry type; '
+            f'found: {names}'
         )
     
-    vectorobject.layer.ResetReading()
+    geometry_type = geometry_types.pop()
     
-    if expression is not None:
-        vectorobject.layer.SetAttributeFilter(expression)
+    point_types = {ogr.wkbPoint, ogr.wkbMultiPoint}
+    line_types = {ogr.wkbLineString, ogr.wkbMultiLineString}
+    polygon_types = {ogr.wkbPolygon, ogr.wkbMultiPolygon}
     
-    largest_geom = None
-    largest_area = -1
+    supported_types = point_types | line_types | polygon_types
     
-    try:
-        for feat in vectorobject.layer:
-            geom = feat.GetGeometryRef()
-            if geom is None or geom.IsEmpty():
-                continue
+    if geometry_type not in supported_types:
+        raise RuntimeError(
+            'hull() only supports Point, MultiPoint, LineString, '
+            'MultiLineString, Polygon and MultiPolygon geometries; '
+            f'found: {ogr.GeometryTypeToName(geometry_type)}'
+        )
+    
+    # Shift antimeridian-crossing geographic geometries into a continuous
+    # longitude space before running planar GEOS operations.
+    shifted = False
+    
+    if vectorobject.srs.IsGeographic():
+        extent = vectorobject.get_extent(split_antimeridian=True)
+        shifted = extent['xmin'] > extent['xmax']
+        
+        if shifted:
+            def shift_longitudes(geom: ogr.Geometry) -> None:
+                if geom.GetPointCount() > 0:
+                    for i, point in enumerate(geom.GetPoints()):
+                        x, y = point[:2]
+                        if x < 0:
+                            x += 360
+                        
+                        geom.SetPoint_2D(i, x, y)
+                else:
+                    for i in range(geom.GetGeometryCount()):
+                        shift_longitudes(geom.GetGeometryRef(i))
             
-            area = geom.GetArea()
-            if area > largest_area:
-                largest_geom = geom.Clone()
-                largest_area = area
-    finally:
-        feat = geom = None
-        if expression is not None:
-            vectorobject.layer.SetAttributeFilter('')
-        vectorobject.layer.ResetReading()
+            for geom in geometries:
+                shift_longitudes(geom)
     
-    if largest_geom is None:
-        raise RuntimeError(
-            "no polygon matched the supplied expression"
-            if expression is not None
-            else "no valid polygon geometry found"
-        )
+    collection = ogr.Geometry(ogr.wkbGeometryCollection)
     
-    exterior = largest_geom.GetGeometryRef(0)
-    if exterior is None:
-        raise RuntimeError("largest polygon has no exterior ring")
+    if ratio == 1:
+        for geom in geometries:
+            collection.AddGeometry(geom)
+        
+        hull_geom = collection.ConvexHull()
     
-    polygon = ogr.Geometry(ogr.wkbPolygon)
-    polygon.AddGeometry(exterior.Clone())
+    elif geometry_type in point_types | line_types:
+        
+        if (
+                ratio != 1
+                and not hasattr(ogr.Geometry, 'ConcaveHull')
+        ):
+            raise RuntimeError(
+                'point and line hulls require OGRGeometry::ConcaveHull '
+                '(GDAL >= 3.6 with GEOS >= 3.11)'
+            )
+        
+        for geom in geometries:
+            collection.AddGeometry(geom)
+        
+        hull_geom = collection.ConcaveHull(float(ratio), False)
+    
+    else:
+        
+        for geom in geometries:
+            for part in iter_geometries(geom):
+                exterior = part.GetGeometryRef(0)
+                
+                if exterior is None:
+                    continue
+                
+                polygon = ogr.Geometry(ogr.wkbPolygon)
+                polygon.AddGeometry(exterior.Clone())
+                collection.AddGeometry(polygon)
+                
+                polygon = exterior = None
+        
+        if collection.GetGeometryCount() == 0:
+            raise RuntimeError('no valid polygon geometry found')
+        
+        if ratio == 1:
+            hull_geom = collection.ConvexHull()
+        else:
+            hull_geom = collection.UnaryUnion()
+            
+            if hull_geom is None or hull_geom.IsEmpty():
+                raise RuntimeError('UnaryUnion() returned an empty geometry')
+            
+            hull_geom_geom = ogr.GT_Flatten(hull_geom.GetGeometryType())
+            
+            if hull_geom_geom not in polygon_types:
+                raise RuntimeError(
+                    'UnaryUnion() did not return a polygonal geometry; '
+                    f'got {hull_geom.GetGeometryName()}'
+                )
+            
+            if (
+                    connect
+                    and hull_geom_geom == ogr.wkbMultiPolygon
+                    and hull_geom.GetGeometryCount() > 1
+            ):
+                if not hasattr(ogr.Geometry, 'ConcaveHullOfPolygons'):
+                    raise RuntimeError(
+                        "'connect=True' requires "
+                        'OGRGeometry::ConcaveHullOfPolygons '
+                        '(GDAL >= 3.13 with GEOS >= 3.11)'
+                    )
+                
+                hull_geom = hull_geom.ConcaveHullOfPolygons(
+                    1.0,
+                    True,
+                    False,
+                )
+    
+    geometries = collection = None
+    
+    if hull_geom is None or hull_geom.IsEmpty():
+        raise RuntimeError('hull operation returned an empty geometry')
     
     out = Vector()
     out.addlayer(
-        name="largest_polygon_exterior",
+        name='hull',
         srs=vectorobject.srs,
-        geomType=ogr.wkbPolygon,
+        geomType=hull_geom.GetGeometryType(),
     )
-    out.addfield("area", ogr.OFTReal)
-    out.addfeature(polygon, fields={"area": polygon.GetArea()})
+    out.addfeature(hull_geom)
+    hull_geom = None
     
-    largest_geom = polygon = exterior = None
-    
-    if outname is not None:
-        out.write(outname)
-        out.close()
-        return None
+    # Shift coordinates back into the conventional longitude range and
+    # split geometry at the antimeridian.
+    if shifted:
+        out.wrap_antimeridian(
+            offset=180,
+            inplace=True,
+        )
     
     return out
 

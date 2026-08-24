@@ -2,7 +2,7 @@ Vector
 ------
 
 .. automodule:: spatialist.vector
-    :members: bbox, dissolve, feature2vector, intersect, largest_polygon_exterior, set_field, vectorize, wkt2vector, Vector
+    :members:
     :undoc-members:
     :show-inheritance:
 
@@ -10,10 +10,12 @@ Vector
         :nosignatures:
 
         bbox
+        combine_polygons
         dissolve
         feature2vector
+        from_geopandas
         intersect
-        largest_polygon_exterior
+        hull
         set_field
         Vector
         vectorize

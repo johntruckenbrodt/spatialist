@@ -17,7 +17,11 @@ General Spatial Tools
         gdalbuildvrt
         gdalwarp
         haversine
+        iter_geometries
+        iter_points
         latlon_clamp
+        latlon_extent_center
         latlon_normalize
+        longitude_shortest_interval
         ogr2ogr
         utm_autodetect
