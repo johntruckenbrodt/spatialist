@@ -61,6 +61,8 @@ class Vector:
     
     def __init__(self, filename: str | None = None, driver: str | None = None) -> None:
         
+        self.__features = []
+        
         memory_driver_name = 'MEM' if Version(gdal.__version__) >= Version('3.11') else 'Memory'
         
         if filename is None:
@@ -335,10 +337,8 @@ class Vector:
         """
         closes the OGR vector file connection
         """
+        self.__features = None
         self.vector = None
-        for feature in self.__features:
-            if feature is not None:
-                feature = None
     
     def convert2wkt(
             self,
