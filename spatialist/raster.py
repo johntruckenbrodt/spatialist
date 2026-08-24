@@ -6,7 +6,6 @@
 from __future__ import division, annotations
 import os
 import re
-import platform
 import warnings
 import tempfile
 from datetime import datetime
@@ -18,10 +17,9 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
-from . import envi
 from .auxil import gdalwarp, gdalbuildvrt, gdal_translate
 from .vector import Vector, bbox, crsConvert, intersect
-from .ancillary import dissolve, multicore, parallel_apply_along_axis
+from .ancillary import parallel_apply_along_axis
 from .envi import HDRobject
 
 from osgeo import gdal, gdal_array, osr
