@@ -1506,14 +1506,23 @@ def reproject(
         rasterobject = Raster(rasterobject)
     if not isinstance(rasterobject, Raster):
         raise RuntimeError('rasterobject must be of type Raster or str')
-    if isinstance(reference, (Raster, Vector)):
+    if isinstance(reference, Raster):
         projection = reference.projection
+        
         if targetres is not None:
             xres, yres = targetres
-        elif hasattr(reference, 'res'):
-            xres, yres = reference.res
         else:
-            raise RuntimeError('parameter targetres is missing and cannot be read from the reference')
+            xres, yres = reference.res
+    
+    elif isinstance(reference, Vector):
+        projection = reference.getProjection('wkt')
+        
+        if targetres is None:
+            raise RuntimeError(
+                'parameter targetres is missing and cannot be read from the reference'
+            )
+        xres, yres = targetres
+    
     elif isinstance(reference, (int, str, osr.SpatialReference)):
         try:
             projection = crsConvert(reference, 'proj4')
