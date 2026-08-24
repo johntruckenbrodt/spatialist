@@ -1222,7 +1222,7 @@ class Raster:
                 if nodata is not None:
                     outband.SetNoDataValue(nodata)
             if array is None:
-                mat = self.matrix(band=i)
+                mat = self.matrix(band=i, mask_nan=False)
             else:
                 if len(array.shape) == 3:
                     mat = array[:, :, i - 1]
