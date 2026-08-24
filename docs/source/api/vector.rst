@@ -15,7 +15,7 @@ Vector
         feature2vector
         from_geopandas
         intersect
-        outer_hull
+        hull
         set_field
         Vector
         vectorize

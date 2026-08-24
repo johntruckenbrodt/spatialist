@@ -7,7 +7,7 @@ from osgeo import ogr, osr, gdal
 from spatialist.raster import Raster
 from spatialist.vector import (feature2vector, dissolve, Vector, intersect,
                                bbox, wkt2vector, set_field, vectorize,
-                               outer_hull, combine_polygons)
+                               hull, combine_polygons)
 from spatialist.envi import hdr, HDRobject
 from spatialist.sqlite_util import sqlite_setup, __Handler
 from spatialist.auxil import utm_autodetect
@@ -299,7 +299,7 @@ def test_outer_hull():
     with Raster(dataset) as raster:
         with vectorize(array, raster) as vec:
             with vec.filter(expression="value = 1") as filt:
-                with outer_hull(filt) as result:
+                with hull(filt) as result:
                     assert result.nfeatures == 1
                     assert result.geomTypes == ["MULTIPOLYGON"]
                     assert result.getArea() == 13

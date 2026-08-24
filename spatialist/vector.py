@@ -1147,9 +1147,9 @@ def bbox(
         out.write(outfile=outname, driver=driver, overwrite=overwrite)
 
 
-def outer_hull(
+def hull(
         vectorobject: Vector,
-        ratio: float = 0.0,
+        ratio: float = 1.0,
         connect: bool = False,
 ) -> Vector:
     """
@@ -1161,11 +1161,17 @@ def outer_hull(
     input this is a Polygon or MultiPolygon. Degenerate point or line input
     may result in a Point or LineString.
     
-    Point and line input is processed with
-    :meth:`osgeo.ogr.Geometry.ConcaveHull` or :meth:`osgeo.ogr.Geometry.ConvexHull`.
+    Point and line input is processed with :meth:`osgeo.ogr.Geometry.ConcaveHull`
+    or :meth:`osgeo.ogr.Geometry.ConvexHull`.
     ``ratio`` controls the concavity, with 0 producing the tightest connected
     hull and 1 producing the convex hull. ``connect`` has no effect for point
     and line input.
+    
+    .. note::
+        Computing the concave hull of Point/Line inputs (``ratio<1``) makes use
+        of :meth:`osgeo.ogr.Geometry.ConcaveHull` and thus requires
+        GDAL >= 3.6 built against GEOS >= 3.11,
+        which are not direct dependencies of spatialist.
     
     For polygon input all interior rings are removed first. The resulting
     polygon parts are dissolved with :meth:`osgeo.ogr.Geometry.UnaryUnion`,
@@ -1173,8 +1179,13 @@ def outer_hull(
     disconnected polygon parts. ``ratio`` has no effect for polygon input.
     If ``connect=True`` and more than one disconnected polygon part remains,
     these parts are subsequently connected with
-    :meth:`osgeo.ogr.Geometry.ConcaveHullOfPolygons` using a tight hull.
-    This requires GDAL >= 3.13 built against GEOS >= 3.11.
+    :meth:`osgeo.ogr.Geometry.ConcaveHullOfPolygons`.
+    
+    .. note::
+        Computing the concave hull of Polygon inputs (``connect=True``) makes use
+        of :meth:`osgeo.ogr.Geometry.ConcaveHullOfPolygons` and thus requires
+        GDAL >= 3.13 built against GEOS >= 3.11,
+        which are not direct dependencies of spatialist.
     
     For geographic input crossing the antimeridian, longitudes are shifted
     to a continuous coordinate space before performing geometric operations.
@@ -1187,8 +1198,8 @@ def outer_hull(
         same geometry type.
     ratio
         Concavity ratio in the range [0, 1] for point and line input.
-        A value of 0 creates the tightest connected hull and 1 creates the
-        convex hull. Ignored for polygon input.
+        A value of 0 creates the tightest (concave) connected hull and 1
+        creates the convex hull. Ignored for polygon input.
     connect
         Connect disconnected polygon parts while preserving their outer
         boundaries. Only applies to Polygon and MultiPolygon input.
@@ -1237,7 +1248,7 @@ def outer_hull(
             for x in geometry_types
         )
         raise RuntimeError(
-            'outer_hull() requires exactly one geometry type; '
+            'hull() requires exactly one geometry type; '
             f'found: {names}'
         )
     
@@ -1251,7 +1262,7 @@ def outer_hull(
     
     if geometry_type not in supported_types:
         raise RuntimeError(
-            'outer_hull() only supports Point, MultiPoint, LineString, '
+            'hull() only supports Point, MultiPoint, LineString, '
             'MultiLineString, Polygon and MultiPolygon geometries; '
             f'found: {ogr.GeometryTypeToName(geometry_type)}'
         )
@@ -1306,9 +1317,9 @@ def outer_hull(
                 collection.AddGeometry(part)
         
         if concave:
-            hull = collection.ConcaveHull(float(ratio), False)
+            hull_geom = collection.ConcaveHull(float(ratio), False)
         else:
-            hull = collection.ConvexHull()
+            hull_geom = collection.ConvexHull()
         collection = None
     
     else:
@@ -1330,24 +1341,24 @@ def outer_hull(
         if collection.GetGeometryCount() == 0:
             raise RuntimeError('no valid polygon geometry found')
         
-        hull = collection.UnaryUnion()
+        hull_geom = collection.UnaryUnion()
         collection = None
         
-        if hull is None or hull.IsEmpty():
+        if hull_geom is None or hull_geom.IsEmpty():
             raise RuntimeError('UnaryUnion() returned an empty geometry')
         
-        hull_type = ogr.GT_Flatten(hull.GetGeometryType())
+        hull_type = ogr.GT_Flatten(hull_geom.GetGeometryType())
         
         if hull_type not in polygon_types:
             raise RuntimeError(
                 'UnaryUnion() did not return a polygonal geometry; '
-                f'got {hull.GetGeometryName()}'
+                f'got {hull_geom.GetGeometryName()}'
             )
         
         if (
                 connect
                 and hull_type == ogr.wkbMultiPolygon
-                and hull.GetGeometryCount() > 1
+                and hull_geom.GetGeometryCount() > 1
         ):
             if not hasattr(ogr.Geometry, 'ConcaveHullOfPolygons'):
                 raise RuntimeError(
@@ -1356,7 +1367,7 @@ def outer_hull(
                     '(GDAL >= 3.13 with GEOS >= 3.11)'
                 )
             
-            hull = hull.ConcaveHullOfPolygons(
+            hull_geom = hull_geom.ConcaveHullOfPolygons(
                 1.0,
                 True,
                 False,
@@ -1364,17 +1375,17 @@ def outer_hull(
     
     geometries = None
     
-    if hull is None or hull.IsEmpty():
+    if hull_geom is None or hull_geom.IsEmpty():
         raise RuntimeError('hull operation returned an empty geometry')
     
     out = Vector()
     out.addlayer(
-        name='outer_hull',
+        name='hull',
         srs=vectorobject.srs,
-        geomType=hull.GetGeometryType(),
+        geomType=hull_geom.GetGeometryType(),
     )
-    out.addfeature(hull)
-    hull = None
+    out.addfeature(hull_geom)
+    hull_geom = None
     
     # Shift coordinates back into the conventional longitude range and
     # split geometry at the antimeridian.
