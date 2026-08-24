@@ -6,7 +6,6 @@
 from __future__ import division, annotations
 import os
 import re
-import platform
 import warnings
 import tempfile
 from datetime import datetime
@@ -18,10 +17,9 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
-from . import envi
 from .auxil import gdalwarp, gdalbuildvrt, gdal_translate
 from .vector import Vector, bbox, crsConvert, intersect
-from .ancillary import dissolve, multicore, parallel_apply_along_axis
+from .ancillary import parallel_apply_along_axis
 from .envi import HDRobject
 
 from osgeo import gdal, gdal_array, osr
@@ -315,8 +313,7 @@ class Raster:
                     start = self.bandnames.index(bi.start)
                 elif isinstance(bi.start, datetime):
                     larger = [x for x in self.timestamps if x > bi.start]
-                    tdiff = [x - bi.start for x in larger]
-                    closest = larger[tdiff.index(min(tdiff))]
+                    closest = min(larger)
                     start = self.timestamps.index(closest)
                 elif bi.start is None:
                     start = None
@@ -328,9 +325,8 @@ class Raster:
                     stop = self.bandnames.index(bi.stop)
                 elif isinstance(bi.stop, datetime):
                     smaller = [x for x in self.timestamps if x < bi.stop]
-                    tdiff = [bi.start - x for x in smaller]
-                    closest = smaller[tdiff.index(min(tdiff))]
-                    stop = self.timestamps.index(closest)
+                    closest = max(smaller)
+                    stop = self.timestamps.index(closest) + 1
                 elif bi.stop is None:
                     stop = None
                 else:
@@ -1118,7 +1114,7 @@ class Raster:
             format: str = 'GTiff',
             nodata: str | int | float | None = 'default',
             overwrite: bool = False,
-            cmap: gdal.ColorTable = None,
+            cmap: gdal.ColorTable | None = None,
             update: bool = False,
             xoff: int = 0,
             yoff: int = 0,
@@ -1224,7 +1220,7 @@ class Raster:
                 if nodata is not None:
                     outband.SetNoDataValue(nodata)
             if array is None:
-                mat = self.matrix(band=i)
+                mat = self.matrix(band=i, mask_nan=False)
             else:
                 if len(array.shape) == 3:
                     mat = array[:, :, i - 1]
@@ -1508,14 +1504,23 @@ def reproject(
         rasterobject = Raster(rasterobject)
     if not isinstance(rasterobject, Raster):
         raise RuntimeError('rasterobject must be of type Raster or str')
-    if isinstance(reference, (Raster, Vector)):
+    if isinstance(reference, Raster):
         projection = reference.projection
+        
         if targetres is not None:
             xres, yres = targetres
-        elif hasattr(reference, 'res'):
-            xres, yres = reference.res
         else:
-            raise RuntimeError('parameter targetres is missing and cannot be read from the reference')
+            xres, yres = reference.res
+    
+    elif isinstance(reference, Vector):
+        projection = reference.getProjection('wkt')
+        
+        if targetres is None:
+            raise RuntimeError(
+                'parameter targetres is missing and cannot be read from the reference'
+            )
+        xres, yres = targetres
+    
     elif isinstance(reference, (int, str, osr.SpatialReference)):
         try:
             projection = crsConvert(reference, 'proj4')
