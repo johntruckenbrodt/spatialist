@@ -1153,7 +1153,7 @@ def hull(
         connect: bool = False,
 ) -> Vector:
     """
-    Create a tight outer hull covering all input geometries.
+    Create a (multi)polygon hull covering all input geometries.
     
     The input must contain exactly one geometry type and may consist of
     Point, MultiPoint, LineString, MultiLineString, Polygon or MultiPolygon
@@ -1173,18 +1173,22 @@ def hull(
         GDAL >= 3.6 built against GEOS >= 3.11,
         which are not direct dependencies of spatialist.
     
-    For polygon input all interior rings are removed first. The resulting
-    polygon parts are dissolved with :meth:`osgeo.ogr.Geometry.UnaryUnion`,
-    which removes overlapping and fully contained polygons while preserving
-    disconnected polygon parts. ``ratio`` has no effect for polygon input.
-    If ``connect=True`` and more than one disconnected polygon part remains,
-    these parts are subsequently connected with
-    :meth:`osgeo.ogr.Geometry.ConcaveHullOfPolygons`.
+    For polygon input if ``ratio==1`` a regular convex hull is created using
+    :meth:`osgeo.ogr.Geometry.ConvexHull`. If not, the value of ``ratio`` is
+    ignored and the behavior is:
+    
+    - Remove all interior rings.
+    - Dissolve remaining polygon parts with :meth:`osgeo.ogr.Geometry.UnaryUnion`
+      to remove overlapping and fully contained polygons while preserving
+      disconnected polygon parts.
+    - This results in concave hulls for each connected polygon group.
+    - If ``connect=True`` and more than one disconnected polygon part remains,
+      connect these parts with :meth:`osgeo.ogr.Geometry.ConcaveHullOfPolygons`.
     
     .. note::
-        Computing the concave hull of Polygon inputs (``connect=True``) makes use
-        of :meth:`osgeo.ogr.Geometry.ConcaveHullOfPolygons` and thus requires
-        GDAL >= 3.13 built against GEOS >= 3.11,
+        Computing the concave hull of Polygon inputs (``ratio<1 and connect==True``)
+        makes use of :meth:`osgeo.ogr.Geometry.ConcaveHullOfPolygons`
+        and thus requires GDAL >= 3.13 built against GEOS >= 3.11,
         which are not direct dependencies of spatialist.
     
     For geographic input crossing the antimeridian, longitudes are shifted
@@ -1197,12 +1201,15 @@ def hull(
         The input Vector object. All non-empty features must have exactly the
         same geometry type.
     ratio
-        Concavity ratio in the range [0, 1] for point and line input.
-        A value of 0 creates the tightest (concave) connected hull and 1
-        creates the convex hull. Ignored for polygon input.
+        Concavity ratio in the range [0, 1]. For point and line input
+        a value of 0 creates the tightest (concave) connected hull and 1
+        creates the convex hull. For polygon input a value of 1 creates the
+        convex hull of all input geometries. All other values are ignored
+        and result in the behavior described above.
     connect
         Connect disconnected polygon parts while preserving their outer
-        boundaries. Only applies to Polygon and MultiPolygon input.
+        boundaries. Only applies to Polygon and MultiPolygon input if
+        ``ratio<1``.
     
     Returns
     -------
@@ -1220,6 +1227,12 @@ def hull(
     """
     if not isinstance(vectorobject, Vector):
         raise TypeError("'vectorobject' must be of type Vector")
+    
+    if not isinstance(ratio, (int, float)) or isinstance(ratio, bool):
+        raise TypeError("'ratio' must be numeric")
+    
+    if not 0 <= ratio <= 1:
+        raise ValueError("'ratio' must be in the range [0, 1]")
     
     features = vectorobject.getfeatures()
     geometries = []
@@ -1291,39 +1304,31 @@ def hull(
             for geom in geometries:
                 shift_longitudes(geom)
     
-    if geometry_type in point_types | line_types:
-        if not isinstance(ratio, (int, float)) or isinstance(ratio, bool):
-            raise TypeError("'ratio' must be numeric")
+    collection = ogr.Geometry(ogr.wkbGeometryCollection)
+    
+    if ratio == 1:
+        for geom in geometries:
+            collection.AddGeometry(geom)
         
-        if not 0 <= ratio <= 1:
-            raise ValueError("'ratio' must be in the range [0, 1]")
+        hull_geom = collection.ConvexHull()
+    
+    elif geometry_type in point_types | line_types:
         
-        concave = False
-        if ratio < 1:
-            if not hasattr(ogr.Geometry, 'ConcaveHull'):
-                raise RuntimeError(
-                    'point and line hulls require OGRGeometry::ConcaveHull '
-                    '(GDAL >= 3.6 with GEOS >= 3.11)'
-                )
-            concave = True
-        
-        if geometry_type in point_types:
-            collection = ogr.Geometry(ogr.wkbMultiPoint)
-        else:
-            collection = ogr.Geometry(ogr.wkbMultiLineString)
+        if (
+                ratio != 1
+                and not hasattr(ogr.Geometry, 'ConcaveHull')
+        ):
+            raise RuntimeError(
+                'point and line hulls require OGRGeometry::ConcaveHull '
+                '(GDAL >= 3.6 with GEOS >= 3.11)'
+            )
         
         for geom in geometries:
-            for part in iter_geometries(geom):
-                collection.AddGeometry(part)
+            collection.AddGeometry(geom)
         
-        if concave:
-            hull_geom = collection.ConcaveHull(float(ratio), False)
-        else:
-            hull_geom = collection.ConvexHull()
-        collection = None
+        hull_geom = collection.ConcaveHull(float(ratio), False)
     
     else:
-        collection = ogr.Geometry(ogr.wkbGeometryCollection)
         
         for geom in geometries:
             for part in iter_geometries(geom):
@@ -1341,39 +1346,41 @@ def hull(
         if collection.GetGeometryCount() == 0:
             raise RuntimeError('no valid polygon geometry found')
         
-        hull_geom = collection.UnaryUnion()
-        collection = None
-        
-        if hull_geom is None or hull_geom.IsEmpty():
-            raise RuntimeError('UnaryUnion() returned an empty geometry')
-        
-        hull_type = ogr.GT_Flatten(hull_geom.GetGeometryType())
-        
-        if hull_type not in polygon_types:
-            raise RuntimeError(
-                'UnaryUnion() did not return a polygonal geometry; '
-                f'got {hull_geom.GetGeometryName()}'
-            )
-        
-        if (
-                connect
-                and hull_type == ogr.wkbMultiPolygon
-                and hull_geom.GetGeometryCount() > 1
-        ):
-            if not hasattr(ogr.Geometry, 'ConcaveHullOfPolygons'):
+        if ratio == 1:
+            hull_geom = collection.ConvexHull()
+        else:
+            hull_geom = collection.UnaryUnion()
+            
+            if hull_geom is None or hull_geom.IsEmpty():
+                raise RuntimeError('UnaryUnion() returned an empty geometry')
+            
+            hull_geom_geom = ogr.GT_Flatten(hull_geom.GetGeometryType())
+            
+            if hull_geom_geom not in polygon_types:
                 raise RuntimeError(
-                    "'connect=True' requires "
-                    'OGRGeometry::ConcaveHullOfPolygons '
-                    '(GDAL >= 3.13 with GEOS >= 3.11)'
+                    'UnaryUnion() did not return a polygonal geometry; '
+                    f'got {hull_geom.GetGeometryName()}'
                 )
             
-            hull_geom = hull_geom.ConcaveHullOfPolygons(
-                1.0,
-                True,
-                False,
-            )
+            if (
+                    connect
+                    and hull_geom_geom == ogr.wkbMultiPolygon
+                    and hull_geom.GetGeometryCount() > 1
+            ):
+                if not hasattr(ogr.Geometry, 'ConcaveHullOfPolygons'):
+                    raise RuntimeError(
+                        "'connect=True' requires "
+                        'OGRGeometry::ConcaveHullOfPolygons '
+                        '(GDAL >= 3.13 with GEOS >= 3.11)'
+                    )
+                
+                hull_geom = hull_geom.ConcaveHullOfPolygons(
+                    1.0,
+                    True,
+                    False,
+                )
     
-    geometries = None
+    geometries = collection = None
     
     if hull_geom is None or hull_geom.IsEmpty():
         raise RuntimeError('hull operation returned an empty geometry')
