@@ -1153,7 +1153,7 @@ def hull(
         connect: bool = False,
 ) -> Vector:
     """
-    Create a (multi)polygon hull covering all input geometries.
+    Create a hull covering all input geometries.
     
     The input must contain exactly one geometry type and may consist of
     Point, MultiPoint, LineString, MultiLineString, Polygon or MultiPolygon
