@@ -315,8 +315,7 @@ class Raster:
                     start = self.bandnames.index(bi.start)
                 elif isinstance(bi.start, datetime):
                     larger = [x for x in self.timestamps if x > bi.start]
-                    tdiff = [x - bi.start for x in larger]
-                    closest = larger[tdiff.index(min(tdiff))]
+                    closest = min(larger)
                     start = self.timestamps.index(closest)
                 elif bi.start is None:
                     start = None
@@ -328,9 +327,8 @@ class Raster:
                     stop = self.bandnames.index(bi.stop)
                 elif isinstance(bi.stop, datetime):
                     smaller = [x for x in self.timestamps if x < bi.stop]
-                    tdiff = [bi.start - x for x in smaller]
-                    closest = smaller[tdiff.index(min(tdiff))]
-                    stop = self.timestamps.index(closest)
+                    closest = max(smaller)
+                    stop = self.timestamps.index(closest) + 1
                 elif bi.stop is None:
                     stop = None
                 else:
