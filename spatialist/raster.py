@@ -1116,7 +1116,7 @@ class Raster:
             format: str = 'GTiff',
             nodata: str | int | float | None = 'default',
             overwrite: bool = False,
-            cmap: gdal.ColorTable = None,
+            cmap: gdal.ColorTable | None = None,
             update: bool = False,
             xoff: int = 0,
             yoff: int = 0,
