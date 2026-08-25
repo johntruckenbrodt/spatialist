@@ -614,6 +614,18 @@ def parallel_apply_along_axis(
     -------
     out
     """
+    if cores <= 0:
+        raise ValueError('cores must be larger than 0')
+    
+    if cores == 1:
+        return np.apply_along_axis(
+            func1d,
+            axis,
+            arr,
+            *args,
+            **kwargs
+        )
+    
     # Effective axis where apply_along_axis() will be applied by each
     # worker (any non-zero axis number would work, so as to allow the use
     # of `np.array_split()`, which is only done on axis 0):
@@ -630,8 +642,10 @@ def parallel_apply_along_axis(
     elif cores == 1:
         return np.apply_along_axis(func1d, axis, arr, *args, **kwargs)
     else:
-        chunks = [(func1d, effective_axis, sub_arr, args, kwargs)
-                  for sub_arr in np.array_split(arr, mp.cpu_count())]
+        chunks = [
+            (func1d, effective_axis, sub_arr, args, kwargs)
+            for sub_arr in np.array_split(arr, mp.cpu_count())
+        ]
         
         pool = mp.Pool(cores)
         individual_results = pool.map(unpack, chunks)
@@ -648,7 +662,7 @@ def sampler(
         dim: Literal[1, 2] = 1,
         replace: bool = False,
         seed: int = 42
-) -> NDArray[np.integer[Any]]: # any kind of integer array
+) -> NDArray[np.integer[Any]]:  # any kind of integer array
     """
     General function to select random sample indexes from arrays.
     Adapted from package `S1_ARD <https://github.com/johntruckenbrodt/S1_ARD>`_.
