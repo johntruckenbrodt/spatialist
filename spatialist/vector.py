@@ -1633,7 +1633,12 @@ def intersect(obj1: Vector, obj2: Vector) -> Vector | None:
     if err != ogr.OGRERR_NONE:
         raise RuntimeError("OGR layer intersection failed")
     
-    return out if out.nfeatures > 0 else None
+    if out.nfeatures == 0:
+        return None
+    
+    out.orient_polygon_rings()
+    
+    return out
 
 
 def set_field(
@@ -1797,7 +1802,8 @@ def vectorize(
     Parameters
     ----------
     target
-        the input array. Each identified object of pixels with the same value will be converted into a vector feature.
+        the input array. Each identified object of pixels with the same value
+        will be converted into a vector feature.
     reference
         a reference Raster object to retrieve geo information and extent from.
     outname
@@ -1805,10 +1811,11 @@ def vectorize(
     layername
         the name of the vector object layer.
     fieldname
-        the name of the field to contain the raster value for the respective vector feature.
+        the name of the field to contain the raster value for the respective
+        vector feature.
     driver
-        the vector file type of `outname`. Several extensions are read automatically (see :meth:`Vector.write`).
-        Is ignored if ``outname=None``.
+        the vector file type of `outname`. Several extensions are read automatically
+        (see :meth:`Vector.write`). Is ignored if ``outname=None``.
     """
     cols = reference.cols
     rows = reference.rows
@@ -1832,6 +1839,9 @@ def vectorize(
             
             gdal.Polygonize(srcBand=outband, maskBand=None,
                             outLayer=vec.layer, iPixValField=0)
+            
+            vec.orient_polygon_rings()
+            
             if outname is not None:
                 vec.write(outfile=outname, driver=driver)
             else:
