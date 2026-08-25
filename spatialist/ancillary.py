@@ -670,32 +670,38 @@ def sampler(
         seed: int = 42
 ) -> NDArray[np.integer[Any]]:  # any kind of integer array
     """
-    General function to select random sample indexes from arrays.
+    General function to select random sample indices from arrays.
     Adapted from package `S1_ARD <https://github.com/johntruckenbrodt/S1_ARD>`_.
 
     Parameters
     ----------
     mask
-        A 2D boolean mask to limit the sample selection.
+        A 2D boolean mask defining the positions available for sampling.
     samples
-        The number of samples to select. If None, the positions of all matching values are returned.
-        If there are fewer values than required samples, the positions of all values are returned.
+        The number of samples to select. If `None`, all matching positions
+        are returned in random order. If `replace=False` and `samples`
+        exceeds the number of matching positions, all matching positions
+        are returned. If `replace=True`, the requested number of samples
+        is always drawn.
     dim
-        The dimensions of the output array and its indexes. If 1, the returned array has one
-        dimension and the indexes refer to the one-dimensional (i.e., flattened) representation
-        of the input mask. If 2, the output array is of shape `(2, samples)` with two separate
-        2D arrays for y (index 0) and x respectively, which reference positions in the original
-        2D shape of the input array.
+        Dimensionality of the returned indices. If 1, a one-dimensional
+        array of indices referring to the flattened input mask is returned.
+        If 2, an array of shape `(2, n)` is returned, where the first row
+        contains row (y) indices and the second row contains column (x)
+        indices into the original 2D mask. Here, `n` is the actual number
+        of samples returned.
     replace
-        Draw samples with or without replacement?
+        Draw samples with replacement? If `True`, the same matching
+        position may be selected more than once.
     seed
         Seed used to initialize the pseudo-random number generator.
-    
+
     Returns
     -------
     idx
-        The index positions of the generated random samples as 1D or 2D array.
-    
+        The sampled index positions. A 1D array is returned for `dim=1`
+        and an array of shape `(2, n)` for `dim=2`.
+
     Examples
     --------
     >>> import numpy as np
@@ -719,11 +725,14 @@ def sampler(
     numpy.unravel_index
     """
     indices = np.where(mask.flatten())[0]
-    samplesize = (
-        min(indices.size, samples)
-        if samples is not None
-        else indices.size
-    )
+    
+    if samples is None:
+        samplesize = indices.size
+    elif replace:
+        samplesize = samples
+    else:
+        samplesize = min(indices.size, samples)
+    
     np.random.seed(seed)
     sample_ids = np.random.choice(
         a=indices,
