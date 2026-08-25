@@ -574,9 +574,9 @@ def run(
     return None
 
 
-def union(a: list[Any], b: list[Any]) -> list[Any]:
+def list_intersection(a: list[Any], b: list[Any]) -> list[Any]:
     """
-    union of two lists
+    intersection of two lists
     """
     return list(set(a) & set(b))
 
