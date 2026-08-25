@@ -716,18 +716,26 @@ def sampler(
     --------
     numpy.random.seed
     numpy.random.choice
+    numpy.unravel_index
     """
-    cols, rows = mask.shape
     indices = np.where(mask.flatten())[0]
-    samplesize = min(indices.size, samples) if samples is not None else indices.size
+    samplesize = (
+        min(indices.size, samples)
+        if samples is not None
+        else indices.size
+    )
     np.random.seed(seed)
-    sample_ids = np.random.choice(a=indices, size=samplesize, replace=replace)
+    sample_ids = np.random.choice(
+        a=indices,
+        size=samplesize,
+        replace=replace
+    )
     if dim == 1:
         return sample_ids
     elif dim == 2:
-        out = np.ndarray(shape=(2, samples), dtype=np.uint)
-        out[0] = sample_ids // rows
-        out[1] = sample_ids % rows
-        return out
+        return np.asarray(
+            np.unravel_index(indices=sample_ids, shape=mask.shape),
+            dtype=np.uint,
+        )
     else:
         raise ValueError("'dim' must either be 1 or 2")
