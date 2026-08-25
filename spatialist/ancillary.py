@@ -213,9 +213,13 @@ def finder(
                 if foldermode == 0:
                     out = [x for x in out if not x.endswith('/')]
                 elif foldermode == 1:
-                    out = [x.strip('/') for x in out]
+                    out = [x.removesuffix('/') for x in out]
                 elif foldermode == 2:
-                    out = [x.strip('/') for x in out if x.endswith('/')]
+                    out = [
+                        x.removesuffix('/')
+                        for x in out
+                        if x.endswith('/')
+                    ]
                 
                 return sorted(out)
             
