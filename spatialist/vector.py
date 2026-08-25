@@ -1506,12 +1506,18 @@ def from_geopandas(gdf: gpd.GeoDataFrame, layer_name: str = "layer") -> Vector:
     geom_types = list(set(gdf.geometry.dropna().geom_type.unique()))
     
     if len(geom_types) > 1:
-        raise RuntimeError(f'Multiple geometry types are not supported. '
-                           f'Found: {geom_types}.')
+        raise RuntimeError(
+            'Multiple geometry types are not supported. '
+            f'Found: {geom_types}.'
+        )
     
     geom_type = getattr(ogr, f'wkb{geom_types[0]}')
     
-    out.addlayer(name=layer_name, srs=srs, geomType=geom_type)
+    out.addlayer(
+        name=layer_name,
+        srs=srs,
+        geomType=geom_type,
+    )
     
     for name, dtype in gdf.drop(columns=gdf.geometry.name).dtypes.items():
         if dtype.kind in {"i", "u"}:
@@ -1522,24 +1528,21 @@ def from_geopandas(gdf: gpd.GeoDataFrame, layer_name: str = "layer") -> Vector:
             field_type = ogr.OFTString
         out.addfield(name, field_type)
     
-    layer_defn = out.layer.GetLayerDefn()
-    
     for _, row in gdf.iterrows():
-        feat = ogr.Feature(layer_defn)
-        
-        for name in gdf.columns:
-            if name == gdf.geometry.name:
-                continue
-            value = row[name]
-            if value is not None:
-                feat.SetField(name, value)
+        if row.geometry is None:
+            continue
         
         geom = ogr.CreateGeometryFromWkb(row.geometry.wkb)
-        feat.SetGeometry(geom)
-        out.layer.CreateFeature(feat)
-    
-    layer_defn = None
-    feat = None
+        
+        fields = {
+            name: row[name]
+            for name in gdf.columns
+            if name != gdf.geometry.name
+               and not pd.isna(row[name])
+        }
+        
+        out.addfeature(geometry=geom, fields=fields)
+        geom = None
     
     return out
 
