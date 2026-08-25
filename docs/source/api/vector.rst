@@ -4,6 +4,7 @@ Vector
 .. automodule:: spatialist.vector
     :members:
     :undoc-members:
+    :special-members: __geo_interface__
     :show-inheritance:
 
     .. autosummary::
