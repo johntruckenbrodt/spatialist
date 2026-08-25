@@ -21,7 +21,8 @@ if TYPE_CHECKING:
 
 from .auxil import (crsConvert, ogr2ogr, latlon_clamp,
                     longitude_shortest_interval,
-                    iter_geometries, iter_points)
+                    iter_geometries, iter_points,
+                    _orient_polygon_rings)
 from .ancillary import parse_literal
 from .sqlite_util import sqlite_setup
 
@@ -201,7 +202,11 @@ class Vector:
         else:
             return drivers[extension]
     
-    def addfeature(self, geometry: ogr.Geometry, fields: dict[str, Any] | None = None) -> None:
+    def addfeature(
+            self,
+            geometry: ogr.Geometry,
+            fields: dict[str, Any] | None = None
+    ) -> None:
         """
         add a feature to the vector object from a geometry
 
@@ -212,6 +217,8 @@ class Vector:
         fields
             the field names and values to assign to the new feature
         """
+        geometry = geometry.Clone()
+        _orient_polygon_rings(geometry)
         
         feature = ogr.Feature(self.layerdef)
         feature.SetGeometry(geometry)
@@ -743,6 +750,28 @@ class Vector:
         """
         return self.vector.GetLayerCount()
     
+    def orient_polygon_rings(self) -> None:
+        """
+        Orient polygon rings in-place.
+    
+        Exterior rings are oriented counter-clockwise and interior rings
+        clockwise. Non-polygon geometries are left unchanged.
+        """
+        
+        self.layer.ResetReading()
+        
+        try:
+            for feature in self.layer:
+                geometry = feature.GetGeometryRef()
+                
+                if geometry is not None:
+                    _orient_polygon_rings(geometry)
+                    self.layer.SetFeature(feature)
+        finally:
+            feature = geometry = None
+            self.layer.ResetReading()
+            self.init_features()
+    
     @property
     def proj4(self) -> str:
         """
@@ -861,10 +890,13 @@ class Vector:
                 self.__init__()
                 self.vector = ds
                 self.init_layer()
+                self.orient_polygon_rings()
+                return None
             else:
                 out = Vector()
                 out.vector = ds
                 out.init_layer()
+                out.orient_polygon_rings()
                 return out
         else:
             return None if inplace else self.clone()
@@ -1506,12 +1538,18 @@ def from_geopandas(gdf: gpd.GeoDataFrame, layer_name: str = "layer") -> Vector:
     geom_types = list(set(gdf.geometry.dropna().geom_type.unique()))
     
     if len(geom_types) > 1:
-        raise RuntimeError(f'Multiple geometry types are not supported. '
-                           f'Found: {geom_types}.')
+        raise RuntimeError(
+            'Multiple geometry types are not supported. '
+            f'Found: {geom_types}.'
+        )
     
     geom_type = getattr(ogr, f'wkb{geom_types[0]}')
     
-    out.addlayer(name=layer_name, srs=srs, geomType=geom_type)
+    out.addlayer(
+        name=layer_name,
+        srs=srs,
+        geomType=geom_type,
+    )
     
     for name, dtype in gdf.drop(columns=gdf.geometry.name).dtypes.items():
         if dtype.kind in {"i", "u"}:
@@ -1522,24 +1560,21 @@ def from_geopandas(gdf: gpd.GeoDataFrame, layer_name: str = "layer") -> Vector:
             field_type = ogr.OFTString
         out.addfield(name, field_type)
     
-    layer_defn = out.layer.GetLayerDefn()
-    
     for _, row in gdf.iterrows():
-        feat = ogr.Feature(layer_defn)
-        
-        for name in gdf.columns:
-            if name == gdf.geometry.name:
-                continue
-            value = row[name]
-            if value is not None:
-                feat.SetField(name, value)
+        if row.geometry is None:
+            continue
         
         geom = ogr.CreateGeometryFromWkb(row.geometry.wkb)
-        feat.SetGeometry(geom)
-        out.layer.CreateFeature(feat)
-    
-    layer_defn = None
-    feat = None
+        
+        fields = {
+            name: row[name]
+            for name in gdf.columns
+            if name != gdf.geometry.name
+               and not pd.isna(row[name])
+        }
+        
+        out.addfeature(geometry=geom, fields=fields)
+        geom = None
     
     return out
 
@@ -1598,7 +1633,12 @@ def intersect(obj1: Vector, obj2: Vector) -> Vector | None:
     if err != ogr.OGRERR_NONE:
         raise RuntimeError("OGR layer intersection failed")
     
-    return out if out.nfeatures > 0 else None
+    if out.nfeatures == 0:
+        return None
+    
+    out.orient_polygon_rings()
+    
+    return out
 
 
 def set_field(
@@ -1762,7 +1802,8 @@ def vectorize(
     Parameters
     ----------
     target
-        the input array. Each identified object of pixels with the same value will be converted into a vector feature.
+        the input array. Each identified object of pixels with the same value
+        will be converted into a vector feature.
     reference
         a reference Raster object to retrieve geo information and extent from.
     outname
@@ -1770,10 +1811,11 @@ def vectorize(
     layername
         the name of the vector object layer.
     fieldname
-        the name of the field to contain the raster value for the respective vector feature.
+        the name of the field to contain the raster value for the respective
+        vector feature.
     driver
-        the vector file type of `outname`. Several extensions are read automatically (see :meth:`Vector.write`).
-        Is ignored if ``outname=None``.
+        the vector file type of `outname`. Several extensions are read automatically
+        (see :meth:`Vector.write`). Is ignored if ``outname=None``.
     """
     cols = reference.cols
     rows = reference.rows
@@ -1797,6 +1839,9 @@ def vectorize(
             
             gdal.Polygonize(srcBand=outband, maskBand=None,
                             outLayer=vec.layer, iPixValField=0)
+            
+            vec.orient_polygon_rings()
+            
             if outname is not None:
                 vec.write(outfile=outname, driver=driver)
             else:
