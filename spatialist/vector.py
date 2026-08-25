@@ -202,7 +202,11 @@ class Vector:
         else:
             return drivers[extension]
     
-    def addfeature(self, geometry: ogr.Geometry, fields: dict[str, Any] | None = None) -> None:
+    def addfeature(
+            self,
+            geometry: ogr.Geometry,
+            fields: dict[str, Any] | None = None
+    ) -> None:
         """
         add a feature to the vector object from a geometry
 
@@ -213,6 +217,8 @@ class Vector:
         fields
             the field names and values to assign to the new feature
         """
+        geometry = geometry.Clone()
+        _orient_polygon_rings(geometry)
         
         feature = ogr.Feature(self.layerdef)
         feature.SetGeometry(geometry)
@@ -884,10 +890,13 @@ class Vector:
                 self.__init__()
                 self.vector = ds
                 self.init_layer()
+                self.orient_polygon_rings()
+                return None
             else:
                 out = Vector()
                 out.vector = ds
                 out.init_layer()
+                out.orient_polygon_rings()
                 return out
         else:
             return None if inplace else self.clone()
