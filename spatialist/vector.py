@@ -21,7 +21,8 @@ if TYPE_CHECKING:
 
 from .auxil import (crsConvert, ogr2ogr, latlon_clamp,
                     longitude_shortest_interval,
-                    iter_geometries, iter_points)
+                    iter_geometries, iter_points,
+                    _orient_polygon_rings)
 from .ancillary import parse_literal
 from .sqlite_util import sqlite_setup
 
@@ -742,6 +743,28 @@ class Vector:
             the number of layers
         """
         return self.vector.GetLayerCount()
+    
+    def orient_polygon_rings(self) -> None:
+        """
+        Orient polygon rings in-place.
+    
+        Exterior rings are oriented counter-clockwise and interior rings
+        clockwise. Non-polygon geometries are left unchanged.
+        """
+        
+        self.layer.ResetReading()
+        
+        try:
+            for feature in self.layer:
+                geometry = feature.GetGeometryRef()
+                
+                if geometry is not None:
+                    _orient_polygon_rings(geometry)
+                    self.layer.SetFeature(feature)
+        finally:
+            feature = geometry = None
+            self.layer.ResetReading()
+            self.init_features()
     
     @property
     def proj4(self) -> str:
