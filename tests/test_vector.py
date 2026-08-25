@@ -43,6 +43,30 @@ UTM_EXTENT = {
 }
 
 
+def _assert_polygon_orientation(geometry):
+    geom_type = ogr.GT_Flatten(geometry.GetGeometryType())
+    
+    if geom_type == ogr.wkbPolygon:
+        exterior = geometry.GetGeometryRef(0)
+        assert exterior is not None
+        assert not exterior.IsClockwise()
+        
+        for i in range(1, geometry.GetGeometryCount()):
+            interior = geometry.GetGeometryRef(i)
+            assert interior.IsClockwise()
+    
+    elif geom_type == ogr.wkbMultiPolygon:
+        for i in range(geometry.GetGeometryCount()):
+            _assert_polygon_orientation(
+                geometry.GetGeometryRef(i)
+            )
+    
+    else:
+        raise AssertionError(
+            f'expected polygonal geometry, got {geometry.GetGeometryName()}'
+        )
+
+
 def _vector_from_wkts(
         wkts,
         srs=4326,
@@ -64,7 +88,11 @@ def _vector_from_wkts(
     return vector
 
 
-def _memory_raster(array, epsg=4326):
+def _memory_raster(
+        array,
+        epsg=4326,
+        geotransform=None,
+):
     """Create a georeferenced in-memory Raster for vectorize tests."""
     driver = gdal.GetDriverByName('MEM')
     dataset = driver.Create(
@@ -74,13 +102,25 @@ def _memory_raster(array, epsg=4326):
         1,
         gdal.GDT_Byte,
     )
-    dataset.SetGeoTransform((0, 1, 0, array.shape[0], 0, -1))
+    
+    if geotransform is None:
+        geotransform = (
+            0,
+            1,
+            0,
+            array.shape[0],
+            0,
+            -1,
+        )
+    
+    dataset.SetGeoTransform(geotransform)
     
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(epsg)
     srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
     dataset.SetProjection(srs.ExportToWkt())
     dataset.GetRasterBand(1).WriteArray(array)
+    
     return Raster(dataset)
 
 
@@ -351,6 +391,33 @@ def test_vector_addfeature_wraps_field_conversion_error():
                 ogr.CreateGeometryFromWkt('POINT (1 2)'),
                 fields={'when': 1},
             )
+
+
+def test_vector_addfeature_orients_polygon():
+    geometry = ogr.CreateGeometryFromWkt(
+        'POLYGON ('
+        '(0 0, 0 4, 4 4, 4 0, 0 0),'
+        '(1 1, 3 1, 3 3, 1 3, 1 1)'
+        ')'
+    )
+    
+    # Deliberately wrong:
+    # exterior is clockwise, interior is counter-clockwise.
+    assert geometry.GetGeometryRef(0).IsClockwise()
+    assert not geometry.GetGeometryRef(1).IsClockwise()
+    
+    with Vector() as vector:
+        vector.addlayer('test', 4326, ogr.wkbPolygon)
+        vector.addfeature(geometry)
+        
+        feature = vector.getFeatureByIndex(0)
+        stored = feature.GetGeometryRef()
+        
+        _assert_polygon_orientation(stored)
+    
+    # addfeature() must not modify the geometry supplied by the caller.
+    assert geometry.GetGeometryRef(0).IsClockwise()
+    assert not geometry.GetGeometryRef(1).IsClockwise()
 
 
 def test_vector_addvector_appends_features():
@@ -833,6 +900,54 @@ def test_vector_reproject_promotes_split_polygon_to_multipolygon():
         )
 
 
+def test_vector_reproject_orients_polygon():
+    geometry = ogr.CreateGeometryFromWkt(
+        'POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))'
+    )
+    assert geometry.GetGeometryRef(0).IsClockwise()
+    
+    with Vector() as vector:
+        vector.addlayer('test', 4326, ogr.wkbPolygon)
+        
+        feature = ogr.Feature(vector.layerdef)
+        feature.SetGeometry(geometry)
+        vector.layer.CreateFeature(feature)
+        vector.init_features()
+        
+        # Confirm that the test really starts with wrong winding.
+        input_feature = vector.getFeatureByIndex(0)
+        input_geometry = input_feature.GetGeometryRef()
+        
+        assert input_geometry.GetGeometryRef(0).IsClockwise()
+        
+        vector.reproject(3857)
+        
+        output_feature = vector.getFeatureByIndex(0)
+        output_geometry = output_feature.GetGeometryRef()
+        
+        _assert_polygon_orientation(output_geometry)
+
+
+def test_vector_reproject_returned_vector_orients_polygon():
+    geometry = ogr.CreateGeometryFromWkt(
+        'POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))'
+    )
+    
+    with Vector() as vector:
+        vector.addlayer('test', 4326, ogr.wkbPolygon)
+        
+        feature = ogr.Feature(vector.layerdef)
+        feature.SetGeometry(geometry)
+        vector.layer.CreateFeature(feature)
+        vector.init_features()
+        
+        with vector.reproject(3857, inplace=False) as result:
+            output_feature = result.getFeatureByIndex(0)
+            output_geometry = output_feature.GetGeometryRef()
+            
+            _assert_polygon_orientation(output_geometry)
+
+
 def test_vector_wrap_antimeridian_inplace():
     with bbox(
             ANTIMERIDIAN_EXTENT,
@@ -844,6 +959,11 @@ def test_vector_wrap_antimeridian_inplace():
         assert result is None
         assert vector.geomType == ogr.wkbMultiPolygon
         assert vector.extent == ANTIMERIDIAN_EXTENT
+        
+        feature = vector.getFeatureByIndex(0)
+        geometry = feature.GetGeometryRef()
+        
+        _assert_polygon_orientation(geometry)
 
 
 def test_vector_wrap_antimeridian_can_return_new_vector():
@@ -855,6 +975,11 @@ def test_vector_wrap_antimeridian_can_return_new_vector():
         with vector.wrap_antimeridian(inplace=False) as wrapped:
             assert wrapped.geomType == ogr.wkbMultiPolygon
             assert vector.geomType == ogr.wkbPolygon
+            
+            feature = wrapped.getFeatureByIndex(0)
+            geometry = feature.GetGeometryRef()
+            
+            _assert_polygon_orientation(geometry)
 
 
 def test_vector_wrap_antimeridian_does_not_change_world_spanning_polygon():
@@ -1001,6 +1126,36 @@ def test_from_geopandas_rejects_multiple_geometry_types():
         from_geopandas(gdf)
 
 
+def test_from_geopandas_orients_polygon():
+    polygon = Polygon(
+        shell=[
+            (0, 0),
+            (0, 4),
+            (4, 4),
+            (4, 0),
+            (0, 0),
+        ],
+        holes=[[
+            (1, 1),
+            (3, 1),
+            (3, 3),
+            (1, 3),
+            (1, 1),
+        ]],
+    )
+    
+    gdf = gpd.GeoDataFrame(
+        {'geometry': [polygon]},
+        crs=4326,
+    )
+    
+    with from_geopandas(gdf) as vector:
+        feature = vector.getFeatureByIndex(0)
+        geometry = feature.GetGeometryRef()
+        
+        _assert_polygon_orientation(geometry)
+
+
 # -----------------------------------------------------------------------------
 # File writing
 # -----------------------------------------------------------------------------
@@ -1115,6 +1270,21 @@ def test_wkt2vector_flattens_to_2d():
         assert not geometry.Is3D()
 
 
+def test_wkt2vector_orients_polygon():
+    wkt = (
+        'POLYGON ('
+        '(0 0, 0 4, 4 4, 4 0, 0 0),'
+        '(1 1, 3 1, 3 3, 1 3, 1 1)'
+        ')'
+    )
+    
+    with wkt2vector(wkt, srs=4326) as vector:
+        feature = vector.getFeatureByIndex(0)
+        geometry = feature.GetGeometryRef()
+        
+        _assert_polygon_orientation(geometry)
+
+
 # -----------------------------------------------------------------------------
 # intersect()
 # -----------------------------------------------------------------------------
@@ -1134,6 +1304,11 @@ def test_intersect_overlapping_polygons():
                 assert result.geomType == ogr.wkbMultiPolygon
                 assert result.geomTypes == ['MULTIPOLYGON']
                 assert result.getArea() == pytest.approx(1.0)
+                
+                feature = result.getFeatureByIndex(0)
+                geometry = feature.GetGeometryRef()
+                
+                _assert_polygon_orientation(geometry)
 
 
 def test_intersect_disjoint_polygons_returns_none():
@@ -1229,6 +1404,23 @@ def test_vectorize_can_write_file(tmp_path):
     with Vector(str(filename)) as vector:
         assert vector.nfeatures == 1
         assert vector.getFeatureByIndex(0).GetField('value') == 1
+
+
+def test_vectorize_orients_polygon():
+    array = np.ones((2, 2), dtype=np.uint8)
+    
+    with _memory_raster(
+            array,
+            # positive Y pixel size flips the winding in Polygonize()
+            geotransform=(0, 1, 0, 0, 0, 1),
+    ) as raster:
+        with vectorize(array, raster) as vector:
+            assert vector.nfeatures == 1
+            
+            feature = vector.getFeatureByIndex(0)
+            geometry = feature.GetGeometryRef()
+            
+            _assert_polygon_orientation(geometry)
 
 
 # -----------------------------------------------------------------------------
@@ -1403,6 +1595,97 @@ def test_hull_antimeridian():
         with hull(vector, ratio=0.5) as result:
             assert result.extent == ANTIMERIDIAN_EXTENT
             assert result.getArea() == pytest.approx(2.0)
+            feature = result.getFeatureByIndex(0)
+            geometry = feature.GetGeometryRef()
+            _assert_polygon_orientation(geometry)
+
+
+@pytest.mark.parametrize(
+    'wkt',
+    [
+        (
+                'POLYGON (('
+                '0 0, 1 0, 1 1, 0 1, 0 0'
+                '))'
+        ),
+        (
+                'POLYGON (('
+                '0 0, 0 1, 1 1, 1 0, 0 0'
+                '))'
+        ),
+    ],
+    ids=['counter-clockwise', 'clockwise'],
+)
+def test_hull_polygon_orientation(wkt):
+    with _vector_from_wkts(
+            wkt,
+            geom_type=ogr.wkbPolygon,
+    ) as vector:
+        with hull(vector) as result:
+            feature = result.getFeatureByIndex(0)
+            geometry = feature.GetGeometryRef()
+            
+            _assert_polygon_orientation(geometry)
+
+
+def test_hull_convex_hull_is_counterclockwise():
+    wkt = (
+        'POLYGON (('
+        '8.505644 50.295261, '
+        '12.0268 50.688881, '
+        '11.653832 52.183979, '
+        '8.017178 51.788181, '
+        '8.505644 50.295261'
+        '))'
+    )
+    
+    with _vector_from_wkts(
+            wkt,
+            geom_type=ogr.wkbPolygon,
+    ) as vector:
+        with hull(vector) as result:
+            feature = result.getFeatureByIndex(0)
+            geometry = feature.GetGeometryRef()
+            
+            _assert_polygon_orientation(geometry)
+
+
+def test_hull_unary_union_orientation():
+    wkts = [
+        'POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))',
+        'POLYGON ((1 0, 2 0, 2 1, 1 1, 1 0))',
+    ]
+    
+    with _vector_from_wkts(
+            wkts,
+            geom_type=ogr.wkbPolygon,
+    ) as vector:
+        with hull(vector, ratio=0.5) as result:
+            feature = result.getFeatureByIndex(0)
+            geometry = feature.GetGeometryRef()
+            
+            _assert_polygon_orientation(geometry)
+
+
+def test_hull_multipolygon_orientation():
+    wkts = [
+        'POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))',
+        'POLYGON ((2 0, 3 0, 3 1, 2 1, 2 0))',
+    ]
+    
+    with _vector_from_wkts(
+            wkts,
+            geom_type=ogr.wkbPolygon,
+    ) as vector:
+        with hull(vector, ratio=0.5) as result:
+            feature = result.getFeatureByIndex(0)
+            geometry = feature.GetGeometryRef()
+            
+            assert ogr.GT_Flatten(
+                geometry.GetGeometryType()
+            ) == ogr.wkbMultiPolygon
+            
+            _assert_polygon_orientation(geometry)
 
 
 # -----------------------------------------------------------------------------
@@ -1440,6 +1723,11 @@ def test_dissolve(tmp_path, travis):
         assert result.nfeatures == 1
         assert result.getArea() == pytest.approx(3.0)
         assert result.getFeatureByIndex(0).GetField('area') == 2.0
+        
+        feature = result.getFeatureByIndex(0)
+        geometry = feature.GetGeometryRef()
+        
+        _assert_polygon_orientation(geometry)
 
 
 # -----------------------------------------------------------------------------
