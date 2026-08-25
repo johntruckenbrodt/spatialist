@@ -273,3 +273,90 @@ Changelog
 - method :meth:`spatialist.raster.Raster.array`: new argument `mask_nan`
 - :mod:`spatialist.ancillary`: removed classes :class:`~spatialist.ancillary.Stack` and :class:`~spatialist.ancillary.Queue`, which are no longer needed
 - added typing
+
+0.20.0 | 2026-08-25
+-------------------
+
+- added antimeridian handling throughout the package
+
+  * geographic extents crossing the antimeridian are represented with `xmin > xmax`
+  * :func:`spatialist.vector.bbox` and :meth:`spatialist.vector.Vector.bbox` can split
+    antimeridian-crossing polygons into multipolygons; buffering is antimeridian-safe
+  * :attr:`spatialist.vector.Vector.extent` is antimeridian-aware; new methods
+    :meth:`~spatialist.vector.Vector.get_extent` and :meth:`~spatialist.vector.Vector.get_extent_parts`
+    provide more control over extent calculation
+  * :meth:`spatialist.vector.Vector.reproject`:
+
+    + reimplemented using :func:`spatialist.auxil.ogr2ogr`
+    + new arguments `split_antimeridian`, `antimeridian_offset` and `inplace`
+    + `projection` can be `None` to only perform antimeridian splitting
+    + automatically promotes geometries and the layer to the corresponding multi-type if required by splitting
+
+  * new method :meth:`spatialist.vector.Vector.wrap_antimeridian`
+  * :attr:`spatialist.vector.Vector.__geo_interface__` returns an EPSG:4326 GeoJSON
+    `FeatureCollection` with antimeridian wrapping applied
+  * :func:`spatialist.vector.intersect` reimplemented with antimeridian handling and
+    promotion of polygon results to multipolygons
+  * :func:`spatialist.auxil.utm_autodetect` made antimeridian-safe
+  * :meth:`spatialist.raster.Raster.__getitem__` detects unsupported vector subsetting
+    across the antimeridian
+
+- :class:`spatialist.vector.Vector`:
+
+  * new method :meth:`~spatialist.vector.Vector.filter` for attribute filtering
+  * new method :meth:`~spatialist.vector.Vector.orient_polygon_rings`
+  * polygon geometries created or modified by spatialist are consistently oriented
+    counter-clockwise for exterior rings and clockwise for interior rings
+  * :meth:`~spatialist.vector.Vector.convert2wkt`: new argument `multi` to promote
+    geometries to their corresponding multi-type
+  * in-memory driver selection is compatible with both the legacy OGR `Memory` driver
+    and the unified GDAL `MEM` driver introduced with GDAL 3.11
+
+- new vector functions:
+
+  * :func:`spatialist.vector.hull`: replaces the former `spatialist.vector.boundary`;
+    supports point, line and polygon geometries, preserves disconnected polygon parts
+    and can optionally connect them with a concave hull
+  * :func:`spatialist.vector.combine_polygons`: combine multiple polygon vectors with
+    options to explode multipolygons or create a single multipolygon
+  * :func:`spatialist.vector.from_geopandas`: create a :class:`spatialist.vector.Vector`
+    from a :class:`geopandas.GeoDataFrame`
+
+- :mod:`spatialist.auxil`:
+
+  * new functions :func:`~spatialist.auxil.latlon_clamp`,
+    :func:`~spatialist.auxil.latlon_extent_center`,
+    :func:`~spatialist.auxil.latlon_normalize` and
+    :func:`~spatialist.auxil.longitude_shortest_interval`
+  * new geometry iterator functions :func:`~spatialist.auxil.iter_geometries`
+    and :func:`~spatialist.auxil.iter_points`
+  * :func:`~spatialist.auxil.gdal_translate` and :func:`~spatialist.auxil.ogr2ogr`:
+    new argument `void` to optionally return the generated GDAL dataset
+  * :func:`~spatialist.auxil.crsConvert`: consistently applies traditional GIS axis order
+
+- :mod:`spatialist.raster`:
+
+  * :class:`~spatialist.raster.Dtype`: new property `bytes`
+  * fixed datetime band slicing in :meth:`spatialist.raster.Raster.__getitem__`
+  * fixed :meth:`spatialist.raster.Raster.write` to preserve source nodata values
+    instead of masking them to NaN before writing
+  * fixed handling of :class:`~spatialist.raster.Raster` and
+    :class:`~spatialist.vector.Vector` references in :func:`spatialist.raster.reproject`
+
+- :mod:`spatialist.ancillary`:
+
+  * renamed function `union` to `list_intersection` to match its actual behavior
+  * :func:`~spatialist.ancillary.parallel_apply_along_axis`: fixed single-core axis
+    handling and creation of more chunks than available axis elements
+  * :func:`~spatialist.ancillary.sampler`: fixed 2D index calculation and allow drawing
+    more samples than matching positions if `replace=True`
+  * :func:`~spatialist.ancillary.finder`: fixed ZIP path handling on POSIX systems
+  * :func:`~spatialist.ancillary.multicore`: fixed handling of empty `multiargs`
+
+- removed outdated or immature functions:
+
+  * `spatialist.raster.stack`
+  * `spatialist.vector.centerdist`
+  * `spatialist.vector.boundary` (replaced by :func:`spatialist.vector.hull`)
+
+- substantially extended and restructured the test suite using synthetic test data

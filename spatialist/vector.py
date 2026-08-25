@@ -159,6 +159,7 @@ class Vector:
     @property
     def __geo_interface__(self) -> dict[str, Any]:
         """
+        Expose the object as a GeoJSON dictionary.
         See https://gist.github.com/sgillies/2217756.
         The GeoJSON return type is always a `FeatureCollection`
         containing 1..n features.
