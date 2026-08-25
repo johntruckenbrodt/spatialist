@@ -649,13 +649,15 @@ def parallel_apply_along_axis(
     elif cores == 1:
         return np.apply_along_axis(func1d, axis, arr, *args, **kwargs)
     else:
-        chunks = [
+        chunks = min(cores, arr.shape[0])
+        
+        arguments = [
             (func1d, effective_axis, sub_arr, args, kwargs)
-            for sub_arr in np.array_split(arr, mp.cpu_count())
+            for sub_arr in np.array_split(arr, chunks)
         ]
         
         pool = mp.Pool(cores)
-        individual_results = pool.map(unpack, chunks)
+        individual_results = pool.map(unpack, arguments)
         # Freeing the workers:
         pool.close()
         pool.join()
