@@ -213,9 +213,13 @@ def finder(
                 if foldermode == 0:
                     out = [x for x in out if not x.endswith('/')]
                 elif foldermode == 1:
-                    out = [x.strip('/') for x in out]
+                    out = [x.removesuffix('/') for x in out]
                 elif foldermode == 2:
-                    out = [x.strip('/') for x in out if x.endswith('/')]
+                    out = [
+                        x.removesuffix('/')
+                        for x in out
+                        if x.endswith('/')
+                    ]
                 
                 return sorted(out)
             
@@ -319,14 +323,17 @@ def multicore(
             raise AttributeError('incompatible single arguments: {0}'.format(', '.join(singleargs_check)))
     
     # compare the list lengths of the multi arguments and raise errors if they are of different length
+    if len(multiargs) == 0:
+        raise RuntimeError('did not get any multiargs')
     arglengths = list(set([len(multiargs[x]) for x in multiargs]))
     if len(arglengths) > 1:
         raise AttributeError('multi argument lists of different length')
-    if arglengths[0] == 0:
+    arglength = arglengths.pop()
+    if arglength == 0:
         raise RuntimeError('did not get any multiargs')
     
     # prevent starting more threads than necessary
-    cores = cores if arglengths[0] >= cores else arglengths[0]
+    cores = min(cores, arglength)
     
     # create a list of dictionaries each containing the arguments for individual
     # function calls to be passed to the multicore processes
@@ -567,9 +574,9 @@ def run(
     return None
 
 
-def union(a: list[Any], b: list[Any]) -> list[Any]:
+def list_intersection(a: list[Any], b: list[Any]) -> list[Any]:
     """
-    union of two lists
+    intersection of two lists
     """
     return list(set(a) & set(b))
 
@@ -614,6 +621,18 @@ def parallel_apply_along_axis(
     -------
     out
     """
+    if cores <= 0:
+        raise ValueError('cores must be larger than 0')
+    
+    if cores == 1:
+        return np.apply_along_axis(
+            func1d,
+            axis,
+            arr,
+            *args,
+            **kwargs
+        )
+    
     # Effective axis where apply_along_axis() will be applied by each
     # worker (any non-zero axis number would work, so as to allow the use
     # of `np.array_split()`, which is only done on axis 0):
@@ -630,14 +649,15 @@ def parallel_apply_along_axis(
     elif cores == 1:
         return np.apply_along_axis(func1d, axis, arr, *args, **kwargs)
     else:
-        chunks = [(func1d, effective_axis, sub_arr, args, kwargs)
-                  for sub_arr in np.array_split(arr, mp.cpu_count())]
+        chunks = min(cores, arr.shape[0])
         
-        pool = mp.Pool(cores)
-        individual_results = pool.map(unpack, chunks)
-        # Freeing the workers:
-        pool.close()
-        pool.join()
+        arguments = [
+            (func1d, effective_axis, sub_arr, args, kwargs)
+            for sub_arr in np.array_split(arr, chunks)
+        ]
+        
+        with mp.Pool(chunks) as pool:
+            individual_results = pool.map(unpack, arguments)
         
         return np.concatenate(individual_results)
 
@@ -648,34 +668,40 @@ def sampler(
         dim: Literal[1, 2] = 1,
         replace: bool = False,
         seed: int = 42
-) -> NDArray[np.integer[Any]]: # any kind of integer array
+) -> NDArray[np.integer[Any]]:  # any kind of integer array
     """
-    General function to select random sample indexes from arrays.
+    General function to select random sample indices from arrays.
     Adapted from package `S1_ARD <https://github.com/johntruckenbrodt/S1_ARD>`_.
 
     Parameters
     ----------
     mask
-        A 2D boolean mask to limit the sample selection.
+        A 2D boolean mask defining the positions available for sampling.
     samples
-        The number of samples to select. If None, the positions of all matching values are returned.
-        If there are fewer values than required samples, the positions of all values are returned.
+        The number of samples to select. If `None`, all matching positions
+        are returned in random order. If `replace=False` and `samples`
+        exceeds the number of matching positions, all matching positions
+        are returned. If `replace=True`, the requested number of samples
+        is always drawn.
     dim
-        The dimensions of the output array and its indexes. If 1, the returned array has one
-        dimension and the indexes refer to the one-dimensional (i.e., flattened) representation
-        of the input mask. If 2, the output array is of shape `(2, samples)` with two separate
-        2D arrays for y (index 0) and x respectively, which reference positions in the original
-        2D shape of the input array.
+        Dimensionality of the returned indices. If 1, a one-dimensional
+        array of indices referring to the flattened input mask is returned.
+        If 2, an array of shape `(2, n)` is returned, where the first row
+        contains row (y) indices and the second row contains column (x)
+        indices into the original 2D mask. Here, `n` is the actual number
+        of samples returned.
     replace
-        Draw samples with or without replacement?
+        Draw samples with replacement? If `True`, the same matching
+        position may be selected more than once.
     seed
         Seed used to initialize the pseudo-random number generator.
-    
+
     Returns
     -------
     idx
-        The index positions of the generated random samples as 1D or 2D array.
-    
+        The sampled index positions. A 1D array is returned for `dim=1`
+        and an array of shape `(2, n)` for `dim=2`.
+
     Examples
     --------
     >>> import numpy as np
@@ -696,18 +722,29 @@ def sampler(
     --------
     numpy.random.seed
     numpy.random.choice
+    numpy.unravel_index
     """
-    cols, rows = mask.shape
     indices = np.where(mask.flatten())[0]
-    samplesize = min(indices.size, samples) if samples is not None else indices.size
+    
+    if samples is None:
+        samplesize = indices.size
+    elif replace:
+        samplesize = samples
+    else:
+        samplesize = min(indices.size, samples)
+    
     np.random.seed(seed)
-    sample_ids = np.random.choice(a=indices, size=samplesize, replace=replace)
+    sample_ids = np.random.choice(
+        a=indices,
+        size=samplesize,
+        replace=replace
+    )
     if dim == 1:
         return sample_ids
     elif dim == 2:
-        out = np.ndarray(shape=(2, samples), dtype=np.uint)
-        out[0] = sample_ids // rows
-        out[1] = sample_ids % rows
-        return out
+        return np.asarray(
+            np.unravel_index(indices=sample_ids, shape=mask.shape),
+            dtype=np.uint,
+        )
     else:
         raise ValueError("'dim' must either be 1 or 2")
