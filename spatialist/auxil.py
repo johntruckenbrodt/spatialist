@@ -673,3 +673,44 @@ def iter_points(
     else:
         for i in range(geom.GetGeometryCount()):
             yield from iter_points(geom.GetGeometryRef(i))
+
+
+def _orient_polygon_rings(geometry: ogr.Geometry) -> None:
+    """
+    Orient polygon rings in-place.
+
+    Exterior rings are counter-clockwise and interior rings are clockwise.
+    """
+    
+    def _reverse_ring(ring: ogr.Geometry) -> None:
+        points = ring.GetPoints()
+        
+        for i, point in enumerate(reversed(points)):
+            if len(point) == 2:
+                ring.SetPoint_2D(i, *point)
+            else:
+                ring.SetPoint(i, *point)
+    
+    geom_type = ogr.GT_Flatten(geometry.GetGeometryType())
+    
+    if geom_type == ogr.wkbPolygon:
+        for i in range(geometry.GetGeometryCount()):
+            ring = geometry.GetGeometryRef(i)
+            if ring is None:
+                continue
+            
+            clockwise = bool(ring.IsClockwise())
+            
+            # exterior: counter-clockwise
+            # interiors: clockwise
+            if (i == 0 and clockwise) or (i > 0 and not clockwise):
+                # As of GDAL 3.13, the Python API does not expose
+                # ReversePoints nor ReverseWindingOrder of the C++ class.
+                # Revise in the future.
+                _reverse_ring(ring)
+    
+    elif geom_type == ogr.wkbMultiPolygon:
+        for i in range(geometry.GetGeometryCount()):
+            _orient_polygon_rings(
+                geometry.GetGeometryRef(i)
+            )
