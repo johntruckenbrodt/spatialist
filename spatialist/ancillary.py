@@ -323,14 +323,17 @@ def multicore(
             raise AttributeError('incompatible single arguments: {0}'.format(', '.join(singleargs_check)))
     
     # compare the list lengths of the multi arguments and raise errors if they are of different length
+    if len(multiargs) == 0:
+        raise RuntimeError('did not get any multiargs')
     arglengths = list(set([len(multiargs[x]) for x in multiargs]))
     if len(arglengths) > 1:
         raise AttributeError('multi argument lists of different length')
-    if arglengths[0] == 0:
+    arglength = arglengths.pop()
+    if arglength == 0:
         raise RuntimeError('did not get any multiargs')
     
     # prevent starting more threads than necessary
-    cores = cores if arglengths[0] >= cores else arglengths[0]
+    cores = min(cores, arglength)
     
     # create a list of dictionaries each containing the arguments for individual
     # function calls to be passed to the multicore processes
