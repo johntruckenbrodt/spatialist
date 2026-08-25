@@ -1356,6 +1356,60 @@ def test_intersect_rejects_non_polygon_geometry():
                 intersect(point, polygon)
 
 
+def test_intersect_contained_polygon():
+    with bbox(
+            {'xmin': 0, 'xmax': 4, 'ymin': 0, 'ymax': 4},
+            4326,
+    ) as first:
+        with bbox(
+                {'xmin': 1, 'xmax': 2, 'ymin': 1, 'ymax': 2},
+                4326,
+        ) as second:
+            with intersect(first, second) as result:
+                assert result.nfeatures == 1
+                assert result.extent == {
+                    'xmin': 1,
+                    'xmax': 2,
+                    'ymin': 1,
+                    'ymax': 2,
+                }
+                assert result.getArea() == pytest.approx(1.0)
+
+
+def test_intersect_touching_edge_returns_none():
+    with bbox(
+            {'xmin': 0, 'xmax': 1, 'ymin': 0, 'ymax': 1},
+            4326,
+    ) as first:
+        with bbox(
+                {'xmin': 1, 'xmax': 2, 'ymin': 0, 'ymax': 1},
+                4326,
+        ) as second:
+            assert intersect(first, second) is None
+
+
+def test_intersect_preserves_fields():
+    with bbox(
+            {'xmin': 0, 'xmax': 2, 'ymin': 0, 'ymax': 2},
+            4326,
+    ) as first:
+        with bbox(
+                {'xmin': 1, 'xmax': 3, 'ymin': 1, 'ymax': 3},
+                4326,
+        ) as second:
+            first.addfield('name', ogr.OFTString, values=['a'])
+            second.addfield('name', ogr.OFTString, values=['b'])
+            
+            with intersect(first, second) as result:
+                assert result.nfeatures == 1
+                assert 'input_name' in result.fieldnames
+                assert 'method_name' in result.fieldnames
+                
+                feature = result.getFeatureByIndex(0)
+                assert feature.GetField('input_name') == 'a'
+                assert feature.GetField('method_name') == 'b'
+
+
 # -----------------------------------------------------------------------------
 # vectorize()
 # -----------------------------------------------------------------------------
