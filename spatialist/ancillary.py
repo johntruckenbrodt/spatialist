@@ -656,11 +656,8 @@ def parallel_apply_along_axis(
             for sub_arr in np.array_split(arr, chunks)
         ]
         
-        pool = mp.Pool(cores)
-        individual_results = pool.map(unpack, arguments)
-        # Freeing the workers:
-        pool.close()
-        pool.join()
+        with mp.Pool(chunks) as pool:
+            individual_results = pool.map(unpack, arguments)
         
         return np.concatenate(individual_results)
 
