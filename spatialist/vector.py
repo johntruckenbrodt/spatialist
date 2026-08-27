@@ -40,7 +40,7 @@ BUF = int | float | tuple[int | float, int | float] | None
 CRS = int | str | osr.SpatialReference
 EXT = dict[str, int | float]
 
-memory_driver_name = 'MEM' if Version(gdal.__version__) >= Version('3.11') else 'Memory'
+vector_memory_driver_name = 'MEM' if Version(gdal.__version__) >= Version('3.11') else 'Memory'
 
 
 class Vector:
@@ -67,7 +67,7 @@ class Vector:
         self.__features = []
         
         if filename is None:
-            driver = memory_driver_name
+            driver = vector_memory_driver_name
         elif isinstance(filename, str):
             if not os.path.isfile(filename):
                 raise OSError('file does not exist')
@@ -80,7 +80,7 @@ class Vector:
         
         self.driver = ogr.GetDriverByName(driver)
         
-        if driver == memory_driver_name:
+        if driver == vector_memory_driver_name:
             self.vector = self.driver.CreateDataSource('out')
         else:
             self.vector = self.driver.Open(filename)
@@ -546,7 +546,7 @@ class Vector:
         ds = gdal.VectorTranslate(
             destNameOrDestDS="",
             srcDS=self.vector,
-            format=memory_driver_name,
+            format=vector_memory_driver_name,
             where=expression,
         )
         out = Vector()
@@ -871,7 +871,7 @@ class Vector:
             ds = ogr2ogr(
                 src=self.vector,
                 dst='',
-                format=memory_driver_name,
+                format=vector_memory_driver_name,
                 dstSRS=srs_out,
                 reproject=do_reproject,
                 geometryType=None,
@@ -884,7 +884,7 @@ class Vector:
                 ds = ogr2ogr(
                     src=self.vector,
                     dst='',
-                    format=memory_driver_name,
+                    format=vector_memory_driver_name,
                     dstSRS=srs_out,
                     reproject=do_reproject,
                     geometryType='PROMOTE_TO_MULTI',
@@ -1828,8 +1828,8 @@ def vectorize(
     geo = reference.raster.GetGeoTransform()
     proj = reference.raster.GetProjection()
     
-    tmp_driver = gdal.GetDriverByName(memory_driver_name)
-    tmp = tmp_driver.Create(layername, cols, rows, 1, GDT_Byte)
+    tmp_driver = gdal.GetDriverByName('MEM')
+    tmp = tmp_driver.Create('', cols, rows, 1, GDT_Byte)
     tmp.SetMetadata(meta)
     tmp.SetGeoTransform(geo)
     tmp.SetProjection(proj)
