@@ -33,6 +33,8 @@ REGULAR_EXTENT = {
     "ymax": 51.0,
 }
 
+memory_driver_name = 'MEM' if Version(gdal.__version__) >= Version('3.11') else 'Memory'
+
 
 def _make_srs(epsg):
     srs = osr.SpatialReference()
@@ -373,9 +375,9 @@ def test_ogr2ogr_returns_dataset_when_void_false(vector_file):
         src=str(vector_file),
         dst="",
         void=False,
-        format="MEM",
+        format=memory_driver_name,
     )
-
+    
     try:
         assert isinstance(dataset, gdal.Dataset)
         assert dataset.GetLayerCount() == 1
@@ -389,17 +391,17 @@ def test_ogr2ogr_returns_none_when_void_true(
         tmp_path,
 ):
     destination = tmp_path / "translated.geojson"
-
+    
     result = ogr2ogr(
         src=str(vector_file),
         dst=str(destination),
         void=True,
         format="GeoJSON",
     )
-
+    
     assert result is None
     assert destination.exists()
-
+    
     dataset = gdal.OpenEx(
         str(destination),
         gdal.OF_VECTOR,

@@ -1,4 +1,3 @@
-import platform
 from datetime import datetime, timedelta, timezone
 
 import geopandas as gpd

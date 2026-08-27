@@ -149,7 +149,7 @@ class Vector:
         vals['filename'] = (
             self.filename
             if self.filename is not None
-            else memory_driver_name
+            else 'memory'
         )
         vals['geomtype'] = ', '.join(list(set(self.geomTypes)))
         
