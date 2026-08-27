@@ -40,6 +40,8 @@ BUF = int | float | tuple[int | float, int | float] | None
 CRS = int | str | osr.SpatialReference
 EXT = dict[str, int | float]
 
+memory_driver_name = 'MEM' if Version(gdal.__version__) >= Version('3.11') else 'Memory'
+
 
 class Vector:
     """
@@ -63,8 +65,6 @@ class Vector:
     def __init__(self, filename: str | None = None, driver: str | None = None) -> None:
         
         self.__features = []
-        
-        memory_driver_name = 'MEM' if Version(gdal.__version__) >= Version('3.11') else 'Memory'
         
         if filename is None:
             driver = memory_driver_name
@@ -146,7 +146,11 @@ class Vector:
         vals = dict()
         vals['proj4'] = self.proj4
         vals.update(self.extent)
-        vals['filename'] = self.filename if self.filename is not None else 'memory'
+        vals['filename'] = (
+            self.filename
+            if self.filename is not None
+            else memory_driver_name
+        )
         vals['geomtype'] = ', '.join(list(set(self.geomTypes)))
         
         info = 'class         : spatialist Vector object\n' \
@@ -542,7 +546,7 @@ class Vector:
         ds = gdal.VectorTranslate(
             destNameOrDestDS="",
             srcDS=self.vector,
-            format="MEM",
+            format=memory_driver_name,
             where=expression,
         )
         out = Vector()
@@ -867,7 +871,7 @@ class Vector:
             ds = ogr2ogr(
                 src=self.vector,
                 dst='',
-                format='MEM',
+                format=memory_driver_name,
                 dstSRS=srs_out,
                 reproject=do_reproject,
                 geometryType=None,
@@ -880,7 +884,7 @@ class Vector:
                 ds = ogr2ogr(
                     src=self.vector,
                     dst='',
-                    format='MEM',
+                    format=memory_driver_name,
                     dstSRS=srs_out,
                     reproject=do_reproject,
                     geometryType='PROMOTE_TO_MULTI',
@@ -1824,7 +1828,7 @@ def vectorize(
     geo = reference.raster.GetGeoTransform()
     proj = reference.raster.GetProjection()
     
-    tmp_driver = gdal.GetDriverByName('MEM')
+    tmp_driver = gdal.GetDriverByName(memory_driver_name)
     tmp = tmp_driver.Create(layername, cols, rows, 1, GDT_Byte)
     tmp.SetMetadata(meta)
     tmp.SetGeoTransform(geo)
