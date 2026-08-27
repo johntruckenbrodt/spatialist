@@ -360,3 +360,10 @@ Changelog
   * `spatialist.vector.boundary` (replaced by :func:`spatialist.vector.hull`)
 
 - substantially extended and restructured the test suite using synthetic test data
+
+0.20.1 | 2026-08-27
+-------------------
+
+- :mod:`spatialist.vector`: consistently use 'Memory' as vector driver name for GDAL<3.11 and 'MEM' otherwise.
+  Since 3.11 'Memory' is deprecated and the vector capabilities have been added to 'MEM'
+  (which has been the raster driver name all along).
