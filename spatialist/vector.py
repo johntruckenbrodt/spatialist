@@ -350,7 +350,9 @@ class Vector:
         closes the OGR vector file connection
         """
         self.__features = None
+        self.layer = None
         self.vector = None
+        self.driver = None
     
     def convert2wkt(
             self,
