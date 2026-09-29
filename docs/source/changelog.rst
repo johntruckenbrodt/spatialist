@@ -367,3 +367,9 @@ Changelog
 - :mod:`spatialist.vector`: consistently use 'Memory' as vector driver name for GDAL<3.11 and 'MEM' otherwise.
   Since 3.11 'Memory' is deprecated and the vector capabilities have been added to 'MEM'
   (which has been the raster driver name all along).
+
+0.20.2 | 2026-09-29
+-------------------
+
+- :meth:`spatialist.vector.Vector.close`: also release ``self.layer`` and ``self.driver``
+- :meth:`spatialist.envi.HDRobject.__str__`: add ``complex_function`` to items
